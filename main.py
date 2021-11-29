@@ -1,14 +1,12 @@
 from time import sleep
-from uldaq import (get_daq_device_inventory, DaqDevice, InterfaceType,
-                   AiInputMode, Range, AInFlag)
-                   
+import uldaq as ul
+               
 try:
     # Get a list of available DAQ devices
-    devices = get_daq_device_inventory(InterfaceType.USB)
-    #print("Connected DAQ board: {}".format(devices[0]))
-    
+    devices = ul.get_daq_device_inventory(ul.InterfaceType.USB)
+
     # Create a DaqDevice Object and connect to the device
-    daq_device = DaqDevice(devices[0])
+    daq_device = ul.DaqDevice(devices[0])
     daq_device.connect()
     if daq_device.is_connected(): print('connected')
     else: print('disconnected') 
@@ -27,25 +25,26 @@ try:
     ai_info = ai_device.get_info()
     print('\nNumber of analog input channels: {}'.format(ai_info.get_num_chans()))    
     channel = int(input('\nSelect analog input channel: '))
-    data = ai_device.a_in(channel, AiInputMode.SINGLE_ENDED,
-                          Range.BIP10VOLTS, AInFlag.DEFAULT)
+    data = ai_device.a_in(channel, ul.AiInputMode.SINGLE_ENDED,
+                          ul.Range.BIP10VOLTS, ul.AInFlag.DEFAULT)
     print('\nChannel', channel, 'Data:', data)
 
-
+    # Get AoDevice and AoInfo objects for the analog output subsystem
     ao_device = daq_device.get_ao_device()
     ao_info = ao_device.get_info()
     print('\nNumber of analog output channels: {}'.format(ao_info.get_num_chans()))    
     channel = int(input('\nSelect analog output channel: '))
     value = float(input('\nOutput value: '))
-    data = ao_device.a_out(channel, analog_range=Range.BIP10VOLTS, flags=[AOutFlag.DEFAULT], data=value)
+    data = ao_device.a_out(channel, analog_range=ul.Range.BIP10VOLTS, flags=[ul.AOutFlag.DEFAULT], data=value)
     print('\nChannel', channel, 'was set to:', data)
 
+    # Get AiDevice and AiInfo objects for the analog input subsystem
     dio_device = daq_device.get_dio_device()
     dio_info = dio_device.get_info()
     print('\nNumber of digital input/output channels: {}'.format(ai_info.get_num_chans()))    
     channel = int(input('\nSelect digital input channel: '))
-    data = dio_device.d_in(channel, AiInputMode.SINGLE_ENDED,
-                          Range.BIP10VOLTS, AInFlag.DEFAULT)
+    data = dio_device.d_in(channel, ul.AiInputMode.SINGLE_ENDED,
+                          ul.Range.BIP10VOLTS, ul.AInFlag.DEFAULT)
     print('\nChannel', channel, 'Data:', data)
 
     # Read and display voltage values for all analog input channels
@@ -58,5 +57,5 @@ try:
     # print('disconnected' if !daq_device.is_connected())
     daq_device.release()
 
-except ULException as e:
+except ul.ULException as e:
     print('\n', e)  # Display any error messages
