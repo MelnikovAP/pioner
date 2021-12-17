@@ -49,6 +49,6 @@ Install the uldaq Python API with:
 **Note:** Installation may need to be run with sudo.  
 Refer to https://pypi.org/project/uldaq/ for more detailes.
 
-## 3. For developer
+## 3. For developers
 Refer to the UL documentation:
 https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html
