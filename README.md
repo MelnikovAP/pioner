@@ -55,10 +55,10 @@ The **uldaq** package contains programming libraries and components for developi
   - All Linux distributions and macOS:
 
   ```
-  $ tar -xvjf libuldaq-1.2.0.tar.bz2
-  $ cd libuldaq-1.2.0
-  $ ./configure && make
-  $ sudo make install
+     $ tar -xvjf libuldaq-1.2.0.tar.bz2
+     $ cd libuldaq-1.2.0
+     $ ./configure && make
+     $ sudo make install
   ```
 
 
