@@ -66,10 +66,13 @@ The **uldaq** package contains programming libraries and components for developi
 
 Install the uldaq Python API with:  
  ```
-   $ pip install uldaq
+   $ sudo pip install uldaq
  ```
-**Note:** Installation may need to be run with sudo.  
 Refer to https://pypi.org/project/uldaq/ for more detailes.
+**Note:** sometimes one needs to change date on raspberry pi:
+ ```
+   $ sudo date -s "YYYY-MM-DD HH:MM:SS"
+ ```
 
 ## 3. For developers
 Refer to the UL documentation:
