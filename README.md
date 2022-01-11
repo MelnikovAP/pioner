@@ -68,7 +68,7 @@ Install the uldaq Python API with:
  ```
    $ sudo pip install uldaq
  ```
-Refer to https://pypi.org/project/uldaq/ for more detailes.
+Refer to https://pypi.org/project/uldaq/ for more detailes.  
 **Note:** sometimes one needs to change date on raspberry pi:
  ```
    $ sudo date -s "YYYY-MM-DD HH:MM:SS"
