@@ -1,4 +1,0 @@
-1. download https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2021-11-08/
-2. write image to SD card https://www.raspberrypi.com/software/
-3. in the case of using 7" multitouch display add to config.txt: dtparam=i2c_vc_baudrate=50000
-4. 
