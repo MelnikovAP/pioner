@@ -1,5 +1,5 @@
-1. download rapberry pi [image](https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2021-11-08/) for arm64 and write image to SD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
-2. in the case of using 7" multitouch display add to /config.txt: 
+1. Download rapberry pi [image](https://downloads.raspberrypi.org/raspios_arm64/images/raspios_arm64-2021-11-08/) for arm64 and write image to SD card with [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+2. In the case of using 7" multitouch display add to /config.txt: 
 ```
 dtparam=i2c_vc_baudrate=50000
 ```
