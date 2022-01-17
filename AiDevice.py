@@ -1,61 +1,53 @@
 from uldaq import AiInputMode, ScanOption, create_float_buffer, AInFlag
+from sys import stdout
 from os import system
-from time import sleep
+import numpy as np
 from matplotlib import pyplot as plt
 
-
 def Ai_connect(daq_device):
-    ai_device = daq_device.get_ai_device()
+    return(daq_device.get_ai_device())
+
+def Ai_get_info(ai_device):
     ai_info = ai_device.get_info()
-    return(ai_device, ai_info)
+    return({'Channels number':ai_info.get_num_chans(),
+        })
 
-def Ai_cont_scan(ai_device, ai_info):
-    print('''
-        ====================================
-        ======= continious scan mode =======
-        ====================================
-          ''')
-    print('\n\tNumber of analog input channels: {}'.format(ai_info.get_num_chans()))    
-    channel = int(input('\n\tSelect analog input channel: '))
-    
+def Ai_cont_scan(ai_device, channel:int, sample_rate:int):
+
     input_mode = AiInputMode.SINGLE_ENDED 
-    ranges = ai_info.get_ranges(input_mode)
-    samples_per_channel = 10000
-    rate = 1000
     scan_options = ScanOption.CONTINUOUS
+    ranges = ai_device.get_info().get_ranges(input_mode)
 
-    print('\n\tSelected channel: ', channel)
-    print('\tInput mode: ', input_mode.name)
-    # print('\tRange: ', ranges[0].name)
-    print('\tSamples per channel: ', samples_per_channel)
-    print('\tRate: ', rate, 'Hz')
+    sample_data = create_float_buffer(1, sample_rate)
 
-    data = create_float_buffer(1, samples_per_channel)
-
-    try:
-        input('\n\tHit ENTER to continue\n')
-    except (NameError, SyntaxError):
-        pass
-
-    act_rate = ai_device.a_in_scan(channel, channel, input_mode,
-                                   ranges[0], samples_per_channel,
-                                   rate, scan_options, AInFlag.DEFAULT, data)
-
+    # starting aquisition
+    rate = ai_device.a_in_scan(channel, channel, input_mode,
+                                ranges[0],sample_rate,
+                                sample_rate, scan_options, AInFlag.DEFAULT, 
+                                sample_data)
+    data = np.array([])
+    read_lower = True
+    half_buff_size = int(sample_rate/2)
     try:
         while True:
             try:
-                system('clear')
                 status, transfer_status = ai_device.get_scan_status()
-                print('Please enter CTRL + C to terminate the process\n')
                 index = transfer_status.current_index
-                print('current scan count = ', transfer_status.current_scan_count)
-                print('current index = ', index, '\n')
-                print('actual scan rate = ', '{:.6f}'.format(act_rate), 'Hz\n')
-                print('channel {} = '.format(channel), data[index])
-                sleep(0.1)
+                stdout.write('\033[1;1H')
+                stdout.write('\x1b[2K')
+                print(index)
+                if index>=half_buff_size and read_lower:
+                    data = np.append(data, np.array(sample_data[:half_buff_size]))
+                    read_lower = False
+                elif index<half_buff_size and not read_lower:
+                    data = np.append(data, np.array(sample_data[half_buff_size:]))
+                    read_lower = True
             except (ValueError, NameError, SyntaxError):
                 break
     except KeyboardInterrupt:
+        ai_device.scan_stop()
+        system('clear')
+        print(len(data))
         plt.plot(data)
         plt.show()
-        # pass
+            

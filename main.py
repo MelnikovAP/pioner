@@ -1,41 +1,31 @@
-from DaqBoard import DD_connect, DD_flash_led, DD_print_info
-from AiDevice import Ai_connect, Ai_cont_scan
-from AoDevice import Ao_connect, Ao_set_value
-from uldaq import InterfaceType, get_daq_device_inventory, ULException
+from DaqBoard import *
+from AiDevice import *
+from AoDevice import *
+from uldaq import ULException
 from os import system
-
-operation_modes = {
-                   1: 'Continious analog input scan',
-                   2: 'Continious analog output scan',
-                   3: 'Single analog input scan',
-                  }
-
+from sys import stdout
+import numpy as np
 
 
 try:
-    # Get a list of available DAQ devices
-    device_list = get_daq_device_inventory(InterfaceType.USB)
-    number_of_devices = len(device_list)
-    if number_of_devices == 0:
+    # Get a list of available DAQ devices and connecting to it
+    device_list = DD_list()
+    if device_list == 0:
         raise RuntimeError('!!! Error: No DAQ devices found !!!')
     system('clear')
-   
+
     daq_device = DD_connect(device_list)
-    DD_flash_led(daq_device)
-    DD_print_info(daq_device)
+    device_info = DD_get_info(daq_device)
+    print('DAQ board model :', device_info['name'])
+    DD_flash_led(daq_device, 1,1,1)
 
-    try:
-        print('\n\t====================================')
-        print('\tAvailable operation modes:')
-        for key, value in operation_modes.items():
-            print('\t', key, ' : ', value) 
-        ans = int(input('\n\tSelect the mode\n'))
-    except (NameError, SyntaxError):
-        pass
+    # Launching continuous scan and reading the data on AI device
+    channel = 1
+    sample_rate = 10000
 
-    if ans == 1:
-        ai_device, ai_info = Ai_connect(daq_device)
-        Ai_cont_scan(ai_device, ai_info)
+    ai_device = Ai_connect(daq_device)
+    Ai_cont_scan(ai_device, channel=channel, 
+                            sample_rate=sample_rate)
 
 except ULException as e:
     print('\n', e)  # Display any error messages
