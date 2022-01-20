@@ -1,4 +1,4 @@
-from uldaq import AiInputMode, ScanOption, create_float_buffer, AInFlag
+from uldaq import AiInputMode, ScanOption, create_float_buffer, AInScanFlag, ScanStatus
 from sys import stdout
 from os import system
 import numpy as np
@@ -7,9 +7,10 @@ from matplotlib import pyplot as plt
 def Ai_connect(daq_device):
     return(daq_device.get_ai_device())
 
-def Ai_get_info(ai_device):
+def Ai_get_info(ai_device, ai_input_mode):
     ai_info = ai_device.get_info()
     return({'Channels number':ai_info.get_num_chans(),
+            'Ranges':ai_info.get_ranges(AiInputMode.SINGLE_ENDED)
         })
 
 def Ai_cont_scan(ai_device, channel:int, sample_rate:int):
@@ -23,7 +24,7 @@ def Ai_cont_scan(ai_device, channel:int, sample_rate:int):
     # starting aquisition
     rate = ai_device.a_in_scan(channel, channel, input_mode,
                                 ranges[0],sample_rate,
-                                sample_rate, scan_options, AInFlag.DEFAULT, 
+                                sample_rate, scan_options, AInScanFlag.DEFAULT, 
                                 sample_data)
     data = np.array([])
     read_lower = True
