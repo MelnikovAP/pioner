@@ -33,9 +33,9 @@ def Ai_cont_scan(ai_device, channel:int, sample_rate:int):
             try:
                 status, transfer_status = ai_device.get_scan_status()
                 index = transfer_status.current_index
-                stdout.write('\033[1;1H')
-                stdout.write('\x1b[2K')
-                print(index)
+                #stdout.write('\033[1;1H')
+                #stdout.write('\x1b[2K')
+                #print(index)
                 if index>=half_buff_size and read_lower:
                     data = np.append(data, np.array(sample_data[:half_buff_size]))
                     read_lower = False
@@ -46,8 +46,11 @@ def Ai_cont_scan(ai_device, channel:int, sample_rate:int):
                 break
     except KeyboardInterrupt:
         ai_device.scan_stop()
-        system('clear')
+        #system('clear')
         print(len(data))
-        plt.plot(data)
-        plt.show()
-            
+        #plt.plot(data)
+        #plt.show()
+
+def Ai_fast_scan(ai_device, channel:int, sample_rate:int):
+    pass
+    
