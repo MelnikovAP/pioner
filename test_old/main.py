@@ -20,15 +20,15 @@ def main():
     scan_options = ScanOption.CONTINUOUS
     
     ai_device = None
-    ai_range_index = 0									# Use the first supported range
     ai_low_channel = 0
-    ai_high_channel = 0
+    ai_high_channel = 5
+    ai_range_index = 0									# Use the first supported range
     ai_flags = AInScanFlag.DEFAULT
     ai_status = ScanStatus.IDLE
     
     ao_device = None
     ao_low_channel = 0
-    ao_high_channel = 0
+    ao_high_channel = 1
     ao_range_index = 0									# Use the first supported range
     ao_scan_flags = AOutScanFlag.DEFAULT
     ao_status = ScanStatus.IDLE
