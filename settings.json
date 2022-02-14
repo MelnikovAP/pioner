@@ -1,0 +1,26 @@
+{
+	"Settings": {
+		"DAQ": {
+			"InterfaceType": [1],
+			"ConnectionCode": 0
+		},
+		"Scan": {
+			"SampleRate": 1000000,
+			"ChannelCount": 2,
+			"Options": [8]
+		},
+		"AI": {
+			"RangeId": 0,
+			"LowChannel": 0,
+			"HighChannel": 0,
+			"InputMode": 2,
+			"ScanFlags": [0]
+		},
+		"AO": {
+			"RangeId": 0,
+			"LowChannel": 0,
+			"HighChannel": 0,
+			"ScanFlags": [0]
+		}
+	}
+}
