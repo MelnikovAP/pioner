@@ -1,4 +1,4 @@
-import uldaq as ul
+# import uldaq as ul
 
 
 class AiParams:
@@ -6,6 +6,6 @@ class AiParams:
         self.range_id = -1
         self.low_channel = -1
         self.high_channel = -1
-        self.input_mode = ul.AiInputMode.SINGLE_ENDED
-        self.scan_flags = ul.AInScanFlag.DEFAULT
-        self.status = ul.ScanStatus.IDLE
+        self.input_mode = 2  # ul.AiInputMode.SINGLE_ENDED
+        self.scan_flags = 0  # ul.AInScanFlag.DEFAULT
+        self.status = 0  # ul.ScanStatus.IDLE

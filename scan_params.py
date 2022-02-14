@@ -1,9 +1,9 @@
-import uldaq as ul
+# import uldaq as ul
 
 
 class ScanParams:
     def __init__(self):
-        self.sample_rate = 0  # Hz
-        self.channel_count = 2
-        self.samples_per_channel = self.channel_count * self.sample_rate
-        self.options = ul.ScanOption.CONTINUOUS
+        self.sample_rate = -1  # Hz
+        self.channel_count = -1
+        self.samples_per_channel = -1
+        self.options = 8  # ul.ScanOption.CONTINUOUS

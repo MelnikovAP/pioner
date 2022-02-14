@@ -1,9 +1,8 @@
-from argparse import ArgumentParser, BooleanOptionalAction
+from argparse import ArgumentParser  #, BooleanOptionalAction
 from settings_parser import SettingsParser
 
 
-# check obtained params + raise and handle exception
-# add functions to process params of a predefined type
+# provide bitwise OR for some params
 # make abstract classes "Params", "AnalogParams" and "Device"?
 # think about name "self.samples_per_channel"
 # think about possible changing of "self._params.input_mode"
@@ -11,7 +10,6 @@ from settings_parser import SettingsParser
 # update AcquisitionManager
 # make singletones?
 # provide output_folder
-# provide requirements.txt : "uldaq:1.2.3" etc.
 
 
 def parse_args():

@@ -1,0 +1,26 @@
+{
+	"Settings": {
+		"DAQ": {
+			"InterfaceType": ["22"],
+			"ConnectionCode": "220"
+		},
+		"Scan": {
+			"SampleRate": "66",
+			"ChannelCount": "660",
+			"Options": ["6600"]
+		},
+		"AI": {
+			"RangeId": "44",
+			"LowChannel": "440",
+			"HighChannel": "4400",
+			"InputMode": "44000",
+			"ScanFlags": ["4"]
+		},
+		"AO": {
+			"RangeId": "7",
+			"LowChannel": "70",
+			"HighChannel": "700",
+			"ScanFlags": ["77"]
+		}
+	}
+}

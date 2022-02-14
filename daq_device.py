@@ -1,3 +1,5 @@
+from daq_params import DaqParams
+
 import uldaq as ul
 
 

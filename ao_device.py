@@ -2,6 +2,7 @@ from scan_params import ScanParams
 from ao_params import AoParams
 
 import uldaq as ul
+import math
 
 
 class AoDeviceHandler:
@@ -47,7 +48,6 @@ class AoDeviceHandler:
         i = 0
         for _cycle in range(cycles_per_buffer):
             for sample in range(samples_per_cycle):
-                for _chan in range(number_of_channels):
-                    self._buffer[i] = amplitude * sin(2 * pi * sample / samples_per_cycle) + offset
+                for _chan in range(self._scan_params.channel_count):
+                    self._buffer[i] = amplitude * math.sin(2 * math.pi * sample / samples_per_cycle) + offset
                     i += 1
-
