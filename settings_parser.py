@@ -19,11 +19,13 @@ class SettingsParser:
                 if field not in self._settings_dict:
                     raise ValueError("No '{}' field found in the settings file.".format(field))
 
+        self._invalid_fields = []
         # only in that order
         self._parse_scan_params()
         self._parse_daq_params()
         self._parse_ai_params()
         self._parse_ao_params()
+        self._check_invalid_fields()
 
     def get_scan_params(self) -> ScanParams:
         return self._scan_params
@@ -45,11 +47,15 @@ class SettingsParser:
             sample_rate = scan_dict[SAMPLE_RATE_FIELD]
             if is_int_or_raise(sample_rate):
                 self._scan_params.sample_rate = min(int(sample_rate), MAX_SCAN_SAMPLE_RATE)
+        else:
+            self._invalid_fields.append(SAMPLE_RATE_FIELD)
 
         if CHANNEL_COUNT_FIELD in scan_dict:
             channel_count = scan_dict[CHANNEL_COUNT_FIELD]
             if is_int_or_raise(channel_count):
                 self._scan_params.channel_count = int(channel_count)
+        else:
+            self._invalid_fields.append(CHANNEL_COUNT_FIELD)
 
         if OPTIONS_FIELD in scan_dict:
             options = scan_dict[OPTIONS_FIELD]
@@ -59,6 +65,8 @@ class SettingsParser:
                         self._scan_params.options = int(option)
             elif is_int_or_raise(options):
                 self._scan_params.options = int(options)
+        else:
+            self._invalid_fields.append(OPTIONS_FIELD)
         self._scan_params.samples_per_channel = self._scan_params.channel_count * self._scan_params.sample_rate
 
     def _parse_daq_params(self):
@@ -74,12 +82,14 @@ class SettingsParser:
             elif is_int_or_raise(interface_types):
                 self._daq_params.interface_type = int(interface_types)
         else:
-            raise ValueError("No '{}' field found in the settings file.".format(INTERFACE_TYPE_FIELD))
+            self._invalid_fields.append(INTERFACE_TYPE_FIELD)
 
         if CONNECTION_CODE_FIELD in daq_dict:
             connection_code = daq_dict[CONNECTION_CODE_FIELD]
             if is_int_or_raise(connection_code):
                 self._daq_params.connection_code = int(connection_code)
+        else:
+            self._invalid_fields.append(CONNECTION_CODE_FIELD)
 
     def _parse_ai_params(self):
         self._ai_params = AiParams()
@@ -89,21 +99,29 @@ class SettingsParser:
             range_id = ai_dict[RANGE_ID_FIELD]
             if is_int_or_raise(range_id):
                 self._ai_params.range_id = int(range_id)
+        else:
+            self._invalid_fields.append(RANGE_ID_FIELD)
 
         if LOW_CHANNEL_FIELD in ai_dict:
             low_channel = ai_dict[LOW_CHANNEL_FIELD]
             if is_int_or_raise(low_channel):
                 self._ai_params.low_channel = int(low_channel)
+        else:
+            self._invalid_fields.append(LOW_CHANNEL_FIELD)
 
         if HIGH_CHANNEL_FIELD in ai_dict:
             high_channel = ai_dict[HIGH_CHANNEL_FIELD]
             if is_int_or_raise(high_channel):
                 self._ai_params.high_channel = int(high_channel)
+        else:
+            self._invalid_fields.append(HIGH_CHANNEL_FIELD)
 
         if INPUT_MODE_FIELD in ai_dict:
             input_mode = ai_dict[INPUT_MODE_FIELD]
             if is_int_or_raise(input_mode):
                 self._ai_params.input_mode = int(input_mode)
+        else:
+            self._invalid_fields.append(INPUT_MODE_FIELD)
 
         if SCAN_FLAGS_FIELD in ai_dict:
             scan_flags = ai_dict[SCAN_FLAGS_FIELD]
@@ -113,6 +131,8 @@ class SettingsParser:
                         self._ai_params.scan_flags = int(scan_flag)
             elif is_int_or_raise(scan_flags):
                 self._ai_params.scan_flags = int(scan_flags)
+        else:
+            self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
     def _parse_ao_params(self):
         self._ao_params = AoParams()
@@ -122,16 +142,22 @@ class SettingsParser:
             range_id = ao_dict[RANGE_ID_FIELD]
             if is_int_or_raise(range_id):
                 self._ao_params.range_id = int(range_id)
+        else:
+            self._invalid_fields.append(RANGE_ID_FIELD)
 
         if LOW_CHANNEL_FIELD in ao_dict:
             low_channel = ao_dict[LOW_CHANNEL_FIELD]
             if is_int_or_raise(low_channel):
                 self._ao_params.low_channel = int(low_channel)
+        else:
+            self._invalid_fields.append(LOW_CHANNEL_FIELD)
 
         if HIGH_CHANNEL_FIELD in ao_dict:
             high_channel = ao_dict[HIGH_CHANNEL_FIELD]
             if is_int_or_raise(high_channel):
                 self._ao_params.high_channel = int(high_channel)
+        else:
+            self._invalid_fields.append(HIGH_CHANNEL_FIELD)
 
         if SCAN_FLAGS_FIELD in ao_dict:
             scan_flags = ao_dict[SCAN_FLAGS_FIELD]
@@ -141,6 +167,13 @@ class SettingsParser:
                         self._ao_params.scan_flags = int(scan_flag)
             elif is_int_or_raise(scan_flags):
                 self._ao_params.scan_flags = int(scan_flags)
+        else:
+            self._invalid_fields.append(SCAN_FLAGS_FIELD)
+
+    def _check_invalid_fields(self):
+        if self._invalid_fields:
+            invalid_fields_str = ", ".join(self._invalid_fields)
+            raise ValueError("No fields found in the settings file: {}.".format(invalid_fields_str))
 
 
 if __name__ == '__main__':
