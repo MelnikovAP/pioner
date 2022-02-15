@@ -1,16 +1,15 @@
-from argparse import ArgumentParser  #, BooleanOptionalAction
+from acquisition_manager import AcquisitionManager
 from settings_parser import SettingsParser
+from argparse import ArgumentParser
 
 
 # provide bitwise OR for some params
-# provide "while True"
 # make abstract classes "Params", "AnalogParams" and "Device"?
 # think about name "self.samples_per_channel"
 # think about possible changing of "self._params.input_mode"
-# move "amplitude" to params (ao_params or scan_params ?)
-# update AcquisitionManager
-# make singletones?
+# make singletons?
 # provide output_folder
+# provide commentaries for each class
 
 
 def parse_args():
@@ -24,10 +23,12 @@ def parse_args():
 
 def main():
     args = parse_args()
+    parser = SettingsParser(args.path_to_settings)
 
-    settings = SettingsParser(args.path_to_settings)
-
-    with AcquisitionManager as am:
+    with AcquisitionManager(parser.get_scan_params(),
+                            parser.get_daq_params(),
+                            parser.get_ai_params(),
+                            parser.get_ao_params()) as am:
         am.run()
 
 

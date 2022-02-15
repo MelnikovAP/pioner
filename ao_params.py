@@ -6,5 +6,7 @@ class AoParams:
         self.range_id = -1
         self.low_channel = -1
         self.high_channel = -1
+        self.amplitude = 0
+        self.offset = 0
+        self.period = 0
         self.scan_flags = 0  # ul.AOutScanFlag.DEFAULT
-        self.status = 0  # ul.ScanStatus.IDLE

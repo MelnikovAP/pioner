@@ -1,13 +1,13 @@
 {
 	"Settings": {
-		"DAQ": {
-			"InterfaceType": ["22"],
-			"ConnectionCode": "220"
-		},
 		"Scan": {
 			"SampleRate": "66",
 			"ChannelCount": "660",
 			"Options": ["6600"]
+		},
+		"DAQ": {
+			"InterfaceType": ["22"],
+			"ConnectionCode": "220"
 		},
 		"AI": {
 			"RangeId": "44",
@@ -20,6 +20,9 @@
 			"RangeId": "7",
 			"LowChannel": "70",
 			"HighChannel": "700",
+			"Amplitude": "77777",
+			"Offset": "1",
+			"Period": 10000000,
 			"ScanFlags": ["77"]
 		}
 	}

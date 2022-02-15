@@ -12,24 +12,38 @@ class DaqDeviceHandler:
         if not devices_count:
             raise RuntimeError("Error. No DAQ devices found.")
 
-        print("There are {} DAQ device(s) found:".format(devices_count))
+        print("There are {} DAQ device(s) found:\n".format(devices_count))
         for i in range(devices_count):
             print("#{} : {} ({})".format(i, devices[i].product_name, devices[i].unique_id))
 
         descriptor_id = 0
         if devices_count > 1:
             input_str = "\nPlease select a DAQ device, enter a number between 0 and {} : ".format(devices_count - 1)
-            descriptor_id = int(input(input_str))  # TODO: process bad input
+            if not input_str.isdigit():
+                raise RuntimeError("Invalid input.")
+            descriptor_id = int(input(input_str))
             if descriptor_id not in range(devices_count):
                 raise RuntimeError("Error. Invalid descriptor index entered.")
         self._daq_device = ul.DaqDevice(devices[descriptor_id])
 
+    def descriptor(self) -> ul.DaqDeviceDescriptor:
+        return self._daq_device.get_descriptor()
+
+    def is_connected(self):
+        return self._daq_device.is_connected()
+
     def connect(self):
-        descriptor = self._daq_device.get_descriptor()
+        descriptor = self.descriptor()
         print("Connecting to {} - please wait...".format(descriptor.dev_string))
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         self._daq_device.connect(connection_code=self._params.connection_code)
+
+    def disconnect(self):
+        return self._daq_device.disconnect()
+
+    def release(self):
+        return self._daq_device.release()
 
     def get(self):
         return self._daq_device
@@ -39,4 +53,3 @@ class DaqDeviceHandler:
 
     def get_ao_device(self):
         return self._daq_device.get_ao_device()
-

@@ -40,3 +40,12 @@ class AiDeviceHandler:
                                          self._scan_params.samples_per_channel,
                                          self._scan_params.sample_rate, self._scan_params.options, 
                                          self._params.scan_flags, self._buffer)
+
+    def data(self):
+        return self._buffer
+
+    def stop(self):
+        self._ai_device.scan_stop()
+
+    def status(self):
+        return self._ai_device.get_scan_status()

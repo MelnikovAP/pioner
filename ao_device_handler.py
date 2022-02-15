@@ -39,15 +39,19 @@ class AoDeviceHandler:
                                           self._scan_params.sample_rate, self._scan_params.options, 
                                           self._params.scan_flags, self._buffer)
 
+    def stop(self):
+        self._ao_device.scan_stop()
+
+    def status(self):
+        return self._ao_device.get_scan_status()
+
     def _fill_buffer(self):
-        amplitude = 1.0  # Volts
-        # Set an offset if the range is unipolar
-        offset = amplitude if self._params.range_id > 1000 else 0.0
-        samples_per_cycle = int(self._scan_params.sample_rate / 10.0)  # 10 Hz sine wave        
+        samples_per_cycle = int(self._scan_params.sample_rate / self._params.period)
         cycles_per_buffer = int(self._scan_params.samples_per_channel / samples_per_cycle)
         i = 0
         for _cycle in range(cycles_per_buffer):
             for sample in range(samples_per_cycle):
                 for _chan in range(self._scan_params.channel_count):
-                    self._buffer[i] = amplitude * math.sin(2 * math.pi * sample / samples_per_cycle) + offset
+                    self._buffer[i] = self._params.amplitude * \
+                                      math.sin(2 * math.pi * sample / samples_per_cycle) + self._params.offset
                     i += 1
