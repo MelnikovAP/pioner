@@ -12,6 +12,13 @@ def is_int_or_raise(key) -> bool:
     raise ValueError("'{}' is not an integer value.".format(key))
 
 
+def list_bitwise_or(ints: list) -> int:
+    res = 0
+    for i in ints:
+        res |= i
+    return res
+
+
 def reset_cursor():
     """Reset the cursor in the terminal window."""
     sys.stdout.write('\033[1;1H')

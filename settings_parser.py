@@ -5,7 +5,7 @@ from ai_params import AiParams
 from ao_params import AoParams
 from constants import MAX_SCAN_SAMPLE_RATE
 from settings import Settings
-from utils import is_int_or_raise
+from utils import is_int_or_raise, list_bitwise_or
 
 
 class SettingsParser:
@@ -60,9 +60,7 @@ class SettingsParser:
         if OPTIONS_FIELD in scan_dict:
             options = scan_dict[OPTIONS_FIELD]
             if isinstance(options, list):
-                for option in options:
-                    if is_int_or_raise(option):
-                        self._scan_params.options = int(option)
+                self._scan_params.options = list_bitwise_or(options)
             elif is_int_or_raise(options):
                 self._scan_params.options = int(options)
         else:
@@ -76,9 +74,7 @@ class SettingsParser:
         if INTERFACE_TYPE_FIELD in daq_dict:
             interface_types = daq_dict[INTERFACE_TYPE_FIELD]
             if isinstance(interface_types, list):
-                for interface_type in interface_types:
-                    if is_int_or_raise(interface_type):
-                        self._daq_params.interface_type = int(interface_type)
+                self._daq_params.interface_type = list_bitwise_or(interface_types)
             elif is_int_or_raise(interface_types):
                 self._daq_params.interface_type = int(interface_types)
         else:
@@ -126,9 +122,7 @@ class SettingsParser:
         if SCAN_FLAGS_FIELD in ai_dict:
             scan_flags = ai_dict[SCAN_FLAGS_FIELD]
             if isinstance(scan_flags, list):
-                for scan_flag in scan_flags:
-                    if is_int_or_raise(scan_flag):
-                        self._ai_params.scan_flags = int(scan_flag)
+                self._ai_params.scan_flags = list_bitwise_or(scan_flags)
             elif is_int_or_raise(scan_flags):
                 self._ai_params.scan_flags = int(scan_flags)
         else:
@@ -183,9 +177,7 @@ class SettingsParser:
         if SCAN_FLAGS_FIELD in ao_dict:
             scan_flags = ao_dict[SCAN_FLAGS_FIELD]
             if isinstance(scan_flags, list):
-                for scan_flag in scan_flags:
-                    if is_int_or_raise(scan_flag):
-                        self._ao_params.scan_flags = int(scan_flag)
+                self._ao_params.scan_flags = list_bitwise_or(scan_flags)
             elif is_int_or_raise(scan_flags):
                 self._ao_params.scan_flags = int(scan_flags)
         else:
