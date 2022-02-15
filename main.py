@@ -3,6 +3,7 @@ from settings_parser import SettingsParser
 from argparse import ArgumentParser
 
 
+# provide with-as for Settings classes
 # make abstract classes "Params", "AnalogParams" and "Device"?
 # think about name "self.samples_per_channel"
 # think about possible changing of "self._params.input_mode"
