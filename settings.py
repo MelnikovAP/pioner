@@ -5,7 +5,17 @@ import os
 
 
 class Settings:
+    """Reads a JSON configuration file."""
+
     def __init__(self, path: str):
+        """Initializes dictionary.
+
+        Args:
+            path: A string path to JSON file.
+
+        Raises:
+            ValueError if file doesn't exist or has invalid extension or is empty.
+        """
         self._json = dict()
         if not os.path.exists(path):
             raise ValueError("Settings file doesn't exist.")
@@ -16,5 +26,6 @@ class Settings:
         if not self._json:
             raise ValueError("Empty settings file defined.")
 
-    def get_json(self):
+    def json(self):
+        """Provides access to the read dictionary."""
         return self._json

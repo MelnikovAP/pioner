@@ -6,8 +6,20 @@ import math
 
 
 class AoDeviceHandler:
+    """Wraps the analog-output uldaq.AoDevice."""
+
     def __init__(self, ao_device_from_daq: ul.AoDevice,
                  params: AoParams, scan_params: ScanParams):
+        """Initializes AO device and all parameters.
+
+        Args:
+            ao_device_from_daq: uldaq.AoDevice obtained from uldaq.DaqDevice.
+            params: An AoParams instance, containing all needed analog-output parameters parsed from JSON.
+            scan_params: A ScanParams instance, containing all needed scanning parameters parsed from JSON.
+
+        Raises:
+            RuntimeError if the DAQ device doesn't support analog output or hardware paced analog output.
+        """
         self._ao_device = ao_device_from_daq
         self._params = params
         self._scan_params = scan_params
@@ -24,6 +36,7 @@ class AoDeviceHandler:
         self._fill_buffer()
 
     def get(self) -> ul.AoDevice:
+        """Provides explicit access to the uldaq.AoDevice."""
         return self._ao_device
 
     # returns actual output scan rate

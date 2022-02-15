@@ -5,8 +5,20 @@ import uldaq as ul
 
 
 class AiDeviceHandler:
+    """Wraps the analog-input uldaq.AiDevice."""
+
     def __init__(self, ai_device_from_daq: ul.AiDevice,
                  params: AiParams, scan_params: ScanParams):
+        """Initializes AI device and all parameters.
+
+        Args:
+            ai_device_from_daq: uldaq.AiDevice obtained from uldaq.DaqDevice.
+            params: An AiParams instance, containing all needed analog-input parameters parsed from JSON.
+            scan_params: A ScanParams instance, containing all needed scanning parameters parsed from JSON.
+
+        Raises:
+            RuntimeError if the DAQ device doesn't support analog input or hardware paced analog input.
+        """
         self._ai_device = ai_device_from_daq
         self._params = params
         self._scan_params = scan_params
@@ -25,6 +37,7 @@ class AiDeviceHandler:
         self._buffer = ul.create_float_buffer(channel_count, self._scan_params.samples_per_channel)
 
     def get(self) -> ul.AiDevice:
+        """Provides explicit access to the uldaq.AiDevice."""
         return self._ai_device
 
     # returns actual input scan rate

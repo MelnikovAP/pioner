@@ -9,8 +9,20 @@ from utils import is_int_or_raise, list_bitwise_or
 
 
 class SettingsParser:
+    """Parses configuration file with all necessary acquisition parameters."""
+
     def __init__(self, path: str):
-        json_dict = Settings(path).get_json()
+        """Initializes dictionary and checks that all needed fields exist.
+
+        After correct parsing it is possible to obtain ScanParams, DaqParams, AiParams and AoParams.
+
+        Args:
+            path: A string path to JSON file.
+
+        Raises:
+            ValueError if any field doesn't exist.
+        """
+        json_dict = Settings(path).json()
         if SETTINGS_FIELD not in json_dict:
             raise ValueError("No '{}' field found in the settings file.".format(SETTINGS_FIELD))
         else:
@@ -28,18 +40,23 @@ class SettingsParser:
         self._check_invalid_fields()
 
     def get_scan_params(self) -> ScanParams:
+        """Provides explicit access to the read ScanParams."""
         return self._scan_params
 
     def get_daq_params(self) -> DaqParams:
+        """Provides explicit access to the read DaqParams."""
         return self._daq_params
 
     def get_ai_params(self) -> AiParams:
+        """Provides explicit access to the read AiParams."""
         return self._ai_params
 
     def get_ao_params(self) -> AoParams:
+        """Provides explicit access to the read AoParams."""
         return self._ao_params
 
     def _parse_scan_params(self):
+        """Parses all necessary scanning parameters and fills ScanParams instance."""
         self._scan_params = ScanParams()
         scan_dict = self._settings_dict[SCAN_FIELD]
 
@@ -68,6 +85,7 @@ class SettingsParser:
         self._scan_params.samples_per_channel = self._scan_params.channel_count * self._scan_params.sample_rate
 
     def _parse_daq_params(self):
+        """Parses all necessary DAQ parameters and fills DaqParams instance."""
         self._daq_params = DaqParams()
         daq_dict = self._settings_dict[DAQ_FIELD]
 
@@ -88,6 +106,7 @@ class SettingsParser:
             self._invalid_fields.append(CONNECTION_CODE_FIELD)
 
     def _parse_ai_params(self):
+        """Parses all necessary analog-input parameters and fills AiParams instance."""
         self._ai_params = AiParams()
         ai_dict = self._settings_dict[AI_FIELD]
 
@@ -129,6 +148,7 @@ class SettingsParser:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
     def _parse_ao_params(self):
+        """Parses all necessary analog-output parameters and fills AoParams instance."""
         self._ao_params = AoParams()
         ao_dict = self._settings_dict[AO_FIELD]
 
@@ -184,6 +204,7 @@ class SettingsParser:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
     def _check_invalid_fields(self):
+        """Raises ValueError if at least one required field is missing in the settings."""
         if self._invalid_fields:
             invalid_fields_str = ", ".join(self._invalid_fields)
             raise ValueError("No fields found in the settings file: {}.".format(invalid_fields_str))
