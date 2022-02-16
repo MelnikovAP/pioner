@@ -1,3 +1,5 @@
+from typing import List
+
 import sys
 
 
@@ -12,7 +14,7 @@ def is_int_or_raise(key) -> bool:
     raise ValueError("'{}' is not an integer value.".format(key))
 
 
-def list_bitwise_or(ints: list) -> int:
+def list_bitwise_or(ints: List[int]) -> int:
     res = 0
     for i in ints:
         res |= i
