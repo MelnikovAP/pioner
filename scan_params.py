@@ -7,3 +7,6 @@ class ScanParams:
         self.channel_count = -1
         self.samples_per_channel = -1
         self.options = 8  # ul.ScanOption.CONTINUOUS
+
+    def __str__(self):
+        return str(vars(self))

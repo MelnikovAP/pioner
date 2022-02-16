@@ -12,19 +12,8 @@ class DaqDeviceHandler:
         if not devices_count:
             raise RuntimeError("Error. No DAQ devices found.")
 
-        print("There are {} DAQ device(s) found:\n".format(devices_count))
-        for i in range(devices_count):
-            print("#{} : {} ({})".format(i, devices[i].product_name, devices[i].unique_id))
-
-        descriptor_id = 0
-        if devices_count > 1:
-            input_str = "\nPlease select a DAQ device, enter a number between 0 and {} : ".format(devices_count - 1)
-            if not input_str.isdigit():
-                raise RuntimeError("Invalid input.")
-            descriptor_id = int(input(input_str))
-            if descriptor_id not in range(devices_count):
-                raise RuntimeError("Error. Invalid descriptor index entered.")
-        self._daq_device = ul.DaqDevice(devices[descriptor_id])
+        # by default connecting only to one DAQBoard with index 0
+        self._daq_device = ul.DaqDevice(devices[0]) 
 
     def descriptor(self) -> ul.DaqDeviceDescriptor:
         return self._daq_device.get_descriptor()

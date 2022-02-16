@@ -43,11 +43,14 @@ class AiDeviceHandler:
     # returns actual input scan rate
     def scan(self) -> float:
         info = self._ai_device.get_info()
+        
+        # not important. as DAQBoard 2637 has only one range -10 ... +10 V
         analog_ranges = info.get_ranges(self._params.input_mode)
         if self._params.range_id >= len(analog_ranges):
             self._params.range_id = len(analog_ranges) - 1
 
         analog_range = analog_ranges[self._params.range_id]
+        print(analog_range)
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
                                          self._params.input_mode, analog_range, 
                                          self._scan_params.samples_per_channel,

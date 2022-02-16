@@ -59,7 +59,7 @@ class SettingsParser:
         """Parses all necessary scanning parameters and fills ScanParams instance."""
         self._scan_params = ScanParams()
         scan_dict = self._settings_dict[SCAN_FIELD]
-
+        
         if SAMPLE_RATE_FIELD in scan_dict:
             sample_rate = scan_dict[SAMPLE_RATE_FIELD]
             if is_int_or_raise(sample_rate):
@@ -173,27 +173,6 @@ class SettingsParser:
         else:
             self._invalid_fields.append(HIGH_CHANNEL_FIELD)
 
-        if AMPLITUDE_FIELD in ao_dict:
-            amplitude = ao_dict[AMPLITUDE_FIELD]
-            if is_int_or_raise(amplitude):
-                self._ao_params.amplitude = int(amplitude)
-        else:
-            self._invalid_fields.append(AMPLITUDE_FIELD)
-
-        if OFFSET_FIELD in ao_dict:
-            offset = ao_dict[OFFSET_FIELD]
-            if is_int_or_raise(offset):
-                self._ao_params.offset = int(offset)
-        else:
-            self._invalid_fields.append(OFFSET_FIELD)
-
-        if PERIOD_FIELD in ao_dict:
-            period = ao_dict[PERIOD_FIELD]
-            if is_int_or_raise(period):
-                self._ao_params.period = int(period)
-        else:
-            self._invalid_fields.append(PERIOD_FIELD)
-
         if SCAN_FLAGS_FIELD in ao_dict:
             scan_flags = ao_dict[SCAN_FLAGS_FIELD]
             if isinstance(scan_flags, list):
@@ -212,7 +191,7 @@ class SettingsParser:
 
 if __name__ == '__main__':
     try:
-        _path = "./test_settings.json"
+        _path = "./settings.json"
         parser = SettingsParser(_path)
 
         _scan_params = parser.get_scan_params()

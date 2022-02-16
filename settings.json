@@ -1,29 +1,26 @@
 {
 	"Settings": {
 		"Scan": {
-			"SampleRate": 1000000,
+			"SampleRate": 1000,
 			"ChannelCount": 2,
-			"Options": [8]
+			"Options": [8], "help": "https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.ScanOption"
 		},
 		"DAQ": {
-			"InterfaceType": [1],
+			"InterfaceType": [1], "help": "USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType",
 			"ConnectionCode": 0
 		},
 		"AI": {
 			"RangeId": 0,
 			"LowChannel": 0,
 			"HighChannel": 0,
-			"InputMode": 2,
-			"ScanFlags": [0]
+			"InputMode": 2, "help": "DIFFERENTIAL = 1, SINGLE_ENDED = 2, PSEUDO_DIFFERENTIAL = 3 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html?highlight=input%20mode#uldaq.AiInputMode",
+			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		},
 		"AO": {
 			"RangeId": 0,
 			"LowChannel": 0,
 			"HighChannel": 0,
-			"Amplitude": 1,
-			"Offset": 0,
-			"Period": 10,
-			"ScanFlags": [0]
+			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		}
 	}
 }

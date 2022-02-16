@@ -35,6 +35,7 @@ class AoDeviceHandler:
         self._buffer = ul.create_float_buffer(channel_count, self._scan_params.samples_per_channel)
         self._fill_buffer()
 
+
     def get(self) -> ul.AoDevice:
         """Provides explicit access to the uldaq.AoDevice."""
         return self._ao_device
@@ -42,6 +43,8 @@ class AoDeviceHandler:
     # returns actual output scan rate
     def scan(self) -> float:
         info = self._ao_device.get_info()
+        
+        # not important. as DAQBoard 2637 has only one range -10 ... +10 V
         analog_ranges = info.get_ranges()
         if self._params.range_id >= len(analog_ranges):
             self._params.range_id = len(analog_ranges) - 1
@@ -58,13 +61,26 @@ class AoDeviceHandler:
     def status(self):
         return self._ao_device.get_scan_status()
 
+    # here need to add another class with voltage profile parameters
     def _fill_buffer(self):
-        samples_per_cycle = int(self._scan_params.sample_rate / self._params.period)
-        cycles_per_buffer = int(self._scan_params.samples_per_channel / samples_per_cycle)
-        i = 0
-        for _cycle in range(cycles_per_buffer):
-            for sample in range(samples_per_cycle):
-                for _chan in range(self._scan_params.channel_count):
-                    self._buffer[i] = self._params.amplitude * \
-                                      math.sin(2 * math.pi * sample / samples_per_cycle) + self._params.offset
-                    i += 1
+        
+        from numpy import linspace
+        import matplotlib.pyplot as plt
+        
+        start_volt = 0
+        end_volt = 1
+        volt_ramp = linspace(start_volt, end_volt, len(self._buffer))
+        for i in range(len(self._buffer)):
+            self._buffer[i] = volt_ramp[i]
+
+#        samples_per_cycle = int(self._scan_params.sample_rate / self._params.period)
+#        print(samples_per_cycle)
+#        cycles_per_buffer = int(self._scan_params.samples_per_channel / samples_per_cycle)
+#        print(cycles_per_buffer)
+#        i = 0
+#        for _cycle in range(cycles_per_buffer):
+#            for sample in range(samples_per_cycle):
+#                for _chan in range(self._scan_params.channel_count):
+#                    self._buffer[i] = self._params.amplitude * \
+#                                      math.sin(2 * math.pi * sample / samples_per_cycle) + self._params.offset
+#                    i += 1

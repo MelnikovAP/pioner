@@ -50,7 +50,6 @@ class AcquisitionManager:
 
     def _run_loop(self):
         try:
-            daq_descriptor = self._daq_device_handler.descriptor()
             ai_data = self._ai_device_handler.data()
 
             while True:
@@ -67,9 +66,9 @@ class AcquisitionManager:
                         break
                     ao_index = ao_transfer_status.current_index
 
+                    # for debugging, remove later
                     print("Enter 'CTRL+C' to terminate the process.\n")
-                    print("Active DAQ device: {} ({})\n".format(daq_descriptor.dev_string,
-                                                                daq_descriptor.unique_id))
+
                     print("Scan rate = {:.6f} Hz\n".format(self._scan_params.sample_rate))
 
                     print("AI channels to read: from {} to {}".format(self._ai_params.low_channel,
@@ -95,4 +94,10 @@ class AcquisitionManager:
                 except (ValueError, NameError, SyntaxError):
                     break
         except KeyboardInterrupt:
+            import matplotlib.pyplot as plt
+            
+            # for debugging, remove later
+            plt.plot(ai_data)
+            plt.show()
+            
             pass
