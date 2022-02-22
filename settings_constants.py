@@ -7,7 +7,6 @@ AO_FIELD   = "AO"
 AO_FIELD   = "AO"
 
 SAMPLE_RATE_FIELD   = "SampleRate"
-CHANNEL_COUNT_FIELD = "ChannelCount"
 OPTIONS_FIELD       = "Options"
 
 INTERFACE_TYPE_FIELD  = "InterfaceType"

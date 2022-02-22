@@ -32,7 +32,7 @@ class AoDeviceHandler:
             raise RuntimeError("Error. DAQ device doesn't support hardware paced analog output.")
 
         channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.samples_per_channel)
+        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.sample_rate)
         self._fill_buffer()
 
 
@@ -43,15 +43,10 @@ class AoDeviceHandler:
     # returns actual output scan rate
     def scan(self) -> float:
         info = self._ao_device.get_info()
-        
-        # not important. as DAQBoard 2637 has only one range -10 ... +10 V
-        analog_ranges = info.get_ranges()
-        if self._params.range_id >= len(analog_ranges):
-            self._params.range_id = len(analog_ranges) - 1
+        analog_range = ul.Range(self._params.range_id)
 
-        analog_range = analog_ranges[self._params.range_id]
         return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
-                                          analog_range, self._scan_params.samples_per_channel,
+                                          analog_range, self._scan_params.sample_rate,
                                           self._scan_params.sample_rate, self._scan_params.options, 
                                           self._params.scan_flags, self._buffer)
 
@@ -61,7 +56,8 @@ class AoDeviceHandler:
     def status(self):
         return self._ao_device.get_scan_status()
 
-    # here need to add another class with voltage profile parameters
+    # here we have to add another class with voltage profile parameters
+    # below 4 channels are used
     def _fill_buffer(self):
         
         from numpy import linspace
@@ -69,18 +65,15 @@ class AoDeviceHandler:
         
         start_volt = 0
         end_volt = 1
-        volt_ramp = linspace(start_volt, end_volt, len(self._buffer))
-        for i in range(len(self._buffer)):
-            self._buffer[i] = volt_ramp[i]
-
-#        samples_per_cycle = int(self._scan_params.sample_rate / self._params.period)
-#        print(samples_per_cycle)
-#        cycles_per_buffer = int(self._scan_params.samples_per_channel / samples_per_cycle)
-#        print(cycles_per_buffer)
-#        i = 0
-#        for _cycle in range(cycles_per_buffer):
-#            for sample in range(samples_per_cycle):
-#                for _chan in range(self._scan_params.channel_count):
-#                    self._buffer[i] = self._params.amplitude * \
-#                                      math.sin(2 * math.pi * sample / samples_per_cycle) + self._params.offset
-#                    i += 1
+        volt_ramp = linspace(start_volt, end_volt, int(len(self._buffer)/4))
+        for i in range(len(volt_ramp)):
+            self._buffer[i*4] = volt_ramp[i]
+            self._buffer[i*4+1] = 0.1
+            self._buffer[i*4+2] = 0.2
+            self._buffer[i*4+3] = 0.3
+        import matplotlib.pyplot as plt
+        plt.plot(self._buffer[::4])
+        plt.plot(self._buffer[1::4])
+        plt.plot(self._buffer[2::4])
+        plt.plot(self._buffer[3::4])
+        plt.show()

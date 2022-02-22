@@ -34,7 +34,7 @@ class AiDeviceHandler:
             self._params.input_mode = ul.AiInputMode.DIFFERENTIAL
 
         channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.samples_per_channel)
+        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.sample_rate)
 
     def get(self) -> ul.AiDevice:
         """Provides explicit access to the uldaq.AiDevice."""
@@ -43,17 +43,11 @@ class AiDeviceHandler:
     # returns actual input scan rate
     def scan(self) -> float:
         info = self._ai_device.get_info()
-        
-        # not important. as DAQBoard 2637 has only one range -10 ... +10 V
-        analog_ranges = info.get_ranges(self._params.input_mode)
-        if self._params.range_id >= len(analog_ranges):
-            self._params.range_id = len(analog_ranges) - 1
+        analog_range = ul.Range(self._params.range_id)
 
-        analog_range = analog_ranges[self._params.range_id]
-        print(analog_range)
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
                                          self._params.input_mode, analog_range, 
-                                         self._scan_params.samples_per_channel,
+                                         self._scan_params.sample_rate,
                                          self._scan_params.sample_rate, self._scan_params.options, 
                                          self._params.scan_flags, self._buffer)
 

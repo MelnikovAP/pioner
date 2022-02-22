@@ -2,7 +2,6 @@
 	"Settings": {
 		"Scan": {
 			"SampleRate": 1000,
-			"ChannelCount": 2,
 			"Options": [8], "help": "https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.ScanOption"
 		},
 		"DAQ": {
@@ -10,16 +9,16 @@
 			"ConnectionCode": 0
 		},
 		"AI": {
-			"RangeId": 0,
+			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
-			"HighChannel": 0,
+			"HighChannel": 9,
 			"InputMode": 2, "help": "DIFFERENTIAL = 1, SINGLE_ENDED = 2, PSEUDO_DIFFERENTIAL = 3 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html?highlight=input%20mode#uldaq.AiInputMode",
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		},
 		"AO": {
-			"RangeId": 0,
+			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
-			"HighChannel": 0,
+			"HighChannel": 3,
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		}
 	}

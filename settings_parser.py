@@ -67,13 +67,6 @@ class SettingsParser:
         else:
             self._invalid_fields.append(SAMPLE_RATE_FIELD)
 
-        if CHANNEL_COUNT_FIELD in scan_dict:
-            channel_count = scan_dict[CHANNEL_COUNT_FIELD]
-            if is_int_or_raise(channel_count):
-                self._scan_params.channel_count = int(channel_count)
-        else:
-            self._invalid_fields.append(CHANNEL_COUNT_FIELD)
-
         if OPTIONS_FIELD in scan_dict:
             options = scan_dict[OPTIONS_FIELD]
             if isinstance(options, list):
@@ -82,7 +75,6 @@ class SettingsParser:
                 self._scan_params.options = int(options)
         else:
             self._invalid_fields.append(OPTIONS_FIELD)
-        self._scan_params.samples_per_channel = self._scan_params.channel_count * self._scan_params.sample_rate
 
     def _parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
@@ -195,9 +187,13 @@ if __name__ == '__main__':
         parser = SettingsParser(_path)
 
         _scan_params = parser.get_scan_params()
+        print(_scan_params)
         _daq_params = parser.get_daq_params()
+        print(_daq_params)
         _ai_params = parser.get_ai_params()
+        print(_ai_params)
         _ao_params = parser.get_ao_params()
+        print(_ao_params)
 
     except BaseException as e:
         print(e)

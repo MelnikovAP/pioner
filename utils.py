@@ -20,12 +20,3 @@ def list_bitwise_or(ints: List[int]) -> int:
         res |= i
     return res
 
-
-def reset_cursor():
-    """Reset the cursor in the terminal window."""
-    sys.stdout.write('\033[1;1H')
-
-
-def clear_eol():
-    """Clear all characters to the end of the line."""
-    sys.stdout.write('\x1b[2K')

@@ -7,7 +7,6 @@ from daq_params import DaqParams
 from ai_params import AiParams
 from ao_params import AoParams
 
-from utils import reset_cursor, clear_eol
 from time import sleep
 
 import uldaq as ul
@@ -25,8 +24,12 @@ class AcquisitionManager:
         self._daq_device_handler = DaqDeviceHandler(self._daq_params)
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
                                                   self._ai_params, self._scan_params)
-        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
+
+        self._common_ao_device = self._daq_device_handler.get_ao_device()
+        self._ao_device_handler = AoDeviceHandler(self._common_ao_device,
                                                   self._ao_params, self._scan_params)
+
+        self.ai_data = []
 
     def __enter__(self):
         return self
@@ -46,58 +49,49 @@ class AcquisitionManager:
         self._daq_device_handler.connect()
         self._ai_device_handler.scan()
         self._ao_device_handler.scan()
-        self._run_loop()
+        self._save_data_loop()
 
-    def _run_loop(self):
+    def _save_data_loop(self):
         try:
-            ai_data = self._ai_device_handler.data()
+            print("Enter 'CTRL+C' to terminate the process.\n")
+            dump_ai_data = self._ai_device_handler.data()
+
+            _HIGH_HALF_FLAG = True
+            _half_buffer_lenght = int(len(dump_ai_data)/2)
 
             while True:
                 try:
-                    reset_cursor()
                     # Get background operations statuses
                     ai_status, ai_transfer_status = self._ai_device_handler.status()
-                    if ai_status != ul.ScanStatus.RUNNING:
-                        break
-                    ai_index = ai_transfer_status.current_index
-
                     ao_status, ao_transfer_status = self._ao_device_handler.status()
-                    if ao_status != ul.ScanStatus.RUNNING:
+                    if (ai_status != ul.ScanStatus.RUNNING) or (ao_status != ul.ScanStatus.RUNNING):
                         break
-                    ao_index = ao_transfer_status.current_index
 
-                    # for debugging, remove later
-                    print("Enter 'CTRL+C' to terminate the process.\n")
+                    ai_index = ai_transfer_status.current_index
+                    if ai_index>_half_buffer_lenght and _HIGH_HALF_FLAG:
+                        self.ai_data.extend(dump_ai_data[:_half_buffer_lenght])
+                        _HIGH_HALF_FLAG = False
+                    elif ai_index<_half_buffer_lenght and not _HIGH_HALF_FLAG:
+                        self.ai_data.extend(dump_ai_data[_half_buffer_lenght:])
+                        _HIGH_HALF_FLAG = True
 
-                    print("Scan rate = {:.6f} Hz\n".format(self._scan_params.sample_rate))
-
-                    print("AI channels to read: from {} to {}".format(self._ai_params.low_channel,
-                                                                      self._ai_params.high_channel))
-                    print("AI currentTotalCount = {}\n".format(ai_transfer_status.current_total_count))
-                    print("AI currentScanCount = {}\n".format(ai_transfer_status.current_scan_count))
-                    print("AI currentIndex = {}\n".format(ai_index))
-
-                    print("AO channels for output: from {} to {}\n".format(self._ao_params.low_channel,
-                                                                           self._ao_params.high_channel))
-                    print("AO currentTotalCount = {}\n".format(ao_transfer_status.current_total_count))
-                    print("AO currentScanCount = {}\n".format(ao_transfer_status.current_scan_count))
-                    print("AO currentIndex = {}\n".format(ao_index))
-                    sys.stdout.flush()
-
-                    # Display the data.
-                    for i in range(self._scan_params.channel_count):
-                        clear_eol()
-                        print("channel = {}: {:.6f}".format(i + self._ai_params.low_channel,
-                                                            ai_data[ai_index + i]))
                     sleep(0.1)
-
                 except (ValueError, NameError, SyntaxError):
                     break
         except KeyboardInterrupt:
-            import matplotlib.pyplot as plt
-            
-            # for debugging, remove later
-            plt.plot(ai_data)
-            plt.show()
-            
+
+            print('Acquisition aborted. Plotting the data...')
             pass
+        finally:
+            
+            # here we have to add another class with voltage read
+            # below 10 channels are used
+            import matplotlib.pyplot as plt
+            fig, ax1 = plt.subplots()
+            ax2 = ax1.twinx()
+            for i in range(1,10):
+                ax1.plot(self.ai_data[i::10], label='channel #'+str(i) )
+            ax2.plot(self.ai_data[0::10], label='channel #0')
+            ax1.legend()
+            ax2.legend()
+            plt.show()
