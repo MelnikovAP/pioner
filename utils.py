@@ -1,7 +1,5 @@
 from typing import List
 
-import sys
-
 
 def is_int(key) -> bool:
     if isinstance(key, int) or isinstance(key, str) and key.isdigit():
@@ -19,4 +17,3 @@ def list_bitwise_or(ints: List[int]) -> int:
     for i in ints:
         res |= i
     return res
-

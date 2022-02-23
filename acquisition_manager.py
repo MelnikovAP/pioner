@@ -10,7 +10,6 @@ from ao_params import AoParams
 from time import sleep
 
 import uldaq as ul
-import sys
 
 
 class AcquisitionManager:
@@ -57,7 +56,7 @@ class AcquisitionManager:
             dump_ai_data = self._ai_device_handler.data()
 
             _HIGH_HALF_FLAG = True
-            _half_buffer_lenght = int(len(dump_ai_data)/2)
+            _half_buffer_length = int(len(dump_ai_data)/2)
 
             while True:
                 try:
@@ -68,11 +67,11 @@ class AcquisitionManager:
                         break
 
                     ai_index = ai_transfer_status.current_index
-                    if ai_index>_half_buffer_lenght and _HIGH_HALF_FLAG:
-                        self.ai_data.extend(dump_ai_data[:_half_buffer_lenght])
+                    if ai_index > _half_buffer_length and _HIGH_HALF_FLAG:
+                        self.ai_data.extend(dump_ai_data[:_half_buffer_length])
                         _HIGH_HALF_FLAG = False
-                    elif ai_index<_half_buffer_lenght and not _HIGH_HALF_FLAG:
-                        self.ai_data.extend(dump_ai_data[_half_buffer_lenght:])
+                    elif ai_index < _half_buffer_length and not _HIGH_HALF_FLAG:
+                        self.ai_data.extend(dump_ai_data[_half_buffer_length:])
                         _HIGH_HALF_FLAG = True
 
                     sleep(0.1)
@@ -83,14 +82,13 @@ class AcquisitionManager:
             print('Acquisition aborted. Plotting the data...')
             pass
         finally:
-            
             # here we have to add another class with voltage read
             # below 10 channels are used
             import matplotlib.pyplot as plt
             fig, ax1 = plt.subplots()
             ax2 = ax1.twinx()
-            for i in range(1,10):
-                ax1.plot(self.ai_data[i::10], label='channel #'+str(i) )
+            for i in range(1, 10):
+                ax1.plot(self.ai_data[i::10], label='channel #'+str(i))
             ax2.plot(self.ai_data[0::10], label='channel #0')
             ax1.legend()
             ax2.legend()

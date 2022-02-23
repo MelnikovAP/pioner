@@ -2,7 +2,6 @@ from scan_params import ScanParams
 from ao_params import AoParams
 
 import uldaq as ul
-import math
 
 
 class AoDeviceHandler:
@@ -35,16 +34,13 @@ class AoDeviceHandler:
         self._buffer = ul.create_float_buffer(channel_count, self._scan_params.sample_rate)
         self._fill_buffer()
 
-
     def get(self) -> ul.AoDevice:
         """Provides explicit access to the uldaq.AoDevice."""
         return self._ao_device
 
     # returns actual output scan rate
     def scan(self) -> float:
-        info = self._ao_device.get_info()
         analog_range = ul.Range(self._params.range_id)
-
         return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
                                           analog_range, self._scan_params.sample_rate,
                                           self._scan_params.sample_rate, self._scan_params.options, 
@@ -59,10 +55,8 @@ class AoDeviceHandler:
     # here we have to add another class with voltage profile parameters
     # below 4 channels are used
     def _fill_buffer(self):
-        
         from numpy import linspace
-        import matplotlib.pyplot as plt
-        
+
         start_volt = 0
         end_volt = 1
         volt_ramp = linspace(start_volt, end_volt, int(len(self._buffer)/4))
@@ -71,6 +65,7 @@ class AoDeviceHandler:
             self._buffer[i*4+1] = 0.1
             self._buffer[i*4+2] = 0.2
             self._buffer[i*4+3] = 0.3
+
         import matplotlib.pyplot as plt
         plt.plot(self._buffer[::4])
         plt.plot(self._buffer[1::4])

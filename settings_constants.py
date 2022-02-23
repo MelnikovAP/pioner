@@ -4,7 +4,6 @@ SCAN_FIELD = "Scan"
 DAQ_FIELD  = "DAQ"
 AI_FIELD   = "AI"
 AO_FIELD   = "AO"
-AO_FIELD   = "AO"
 
 SAMPLE_RATE_FIELD   = "SampleRate"
 OPTIONS_FIELD       = "Options"
