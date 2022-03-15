@@ -33,8 +33,8 @@ class AiDeviceHandler:
         if info.get_num_chans_by_mode(ul.AiInputMode.SINGLE_ENDED) <= 0:
             self._params.input_mode = ul.AiInputMode.DIFFERENTIAL
 
-        channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.sample_rate)
+        self.channel_count = self._params.high_channel - self._params.low_channel + 1
+        self._buffer = ul.create_float_buffer(self.channel_count, self._scan_params.sample_rate)
 
     def get(self) -> ul.AiDevice:
         """Provides explicit access to the uldaq.AiDevice."""

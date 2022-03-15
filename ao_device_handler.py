@@ -1,5 +1,6 @@
 from scan_params import ScanParams
 from ao_params import AoParams
+from ao_data_generator import AoDataGenerator
 
 import uldaq as ul
 
@@ -30,9 +31,9 @@ class AoDeviceHandler:
         if not info.has_pacer():
             raise RuntimeError("Error. DAQ device doesn't support hardware paced analog output.")
 
-        channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(channel_count, self._scan_params.sample_rate)
-        self._fill_buffer()
+        self._buffer = AoDataGenerator(self._params.low_channel, 
+                                        self._params.high_channel,
+                                        self._scan_params.sample_rate).buffer
 
     def get(self) -> ul.AoDevice:
         """Provides explicit access to the uldaq.AoDevice."""
@@ -51,24 +52,3 @@ class AoDeviceHandler:
 
     def status(self):
         return self._ao_device.get_scan_status()
-
-    # here we have to add another class with voltage profile parameters
-    # below 4 channels are used
-    def _fill_buffer(self):
-        from numpy import linspace
-
-        start_volt = 0
-        end_volt = 1
-        volt_ramp = linspace(start_volt, end_volt, int(len(self._buffer)/4))
-        for i in range(len(volt_ramp)):
-            self._buffer[i*4] = volt_ramp[i]
-            self._buffer[i*4+1] = 0.1
-            self._buffer[i*4+2] = 0.2
-            self._buffer[i*4+3] = 0.3
-
-        import matplotlib.pyplot as plt
-        plt.plot(self._buffer[::4])
-        plt.plot(self._buffer[1::4])
-        plt.plot(self._buffer[2::4])
-        plt.plot(self._buffer[3::4])
-        plt.show()

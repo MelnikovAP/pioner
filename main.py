@@ -1,6 +1,7 @@
-from acquisition_manager import AcquisitionManager
+from experiment_manager import ExperimentManager
 from settings_parser import SettingsParser
 from argparse import ArgumentParser
+from ao_data_generator import AoDataGenerator
 
 
 # provide with-as for Settings classes
@@ -25,11 +26,22 @@ def main():
     args = parse_args()
     parser = SettingsParser(args.path_to_settings)
 
-    with AcquisitionManager(parser.get_scan_params(),
+    ai_channels = [0,1,2,3]
+    with ExperimentManager( AoDataGenerator, # voltage data for ao channels
+                            ai_channels, # channels to read from ai device
+                            parser.get_scan_params(),
                             parser.get_daq_params(),
                             parser.get_ai_params(),
-                            parser.get_ao_params()) as am:
-        am.run()
+                            parser.get_ao_params()) as em:
+        em.run()
+        
+        # plot to debug, remove later
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        for i in ai_channels:
+            ax1.plot(em.ai_data[i], label='channel #'+str(i))
+        ax1.legend()
+        plt.show()
 
 
 if __name__ == '__main__':
