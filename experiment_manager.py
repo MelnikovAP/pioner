@@ -10,7 +10,6 @@ from ai_params import AiParams
 from ao_params import AoParams
 
 from time import sleep
-import pandas as pd
 
 import uldaq as ul
 import sys
@@ -60,15 +59,13 @@ class ExperimentManager:
                     if (ai_status != ul.ScanStatus.RUNNING) or (ao_status != ul.ScanStatus.RUNNING):
                         break
                     
-                    _ai_index = ai_transfer_status.current_index
+                    _ai_index = ai_transfer_status.current_index          
                     if _ai_index > _half_buffer_length and _HIGH_HALF_FLAG:
-                        dump = pd.DataFrame(columns=self._ai_channels)
                         for _channel in self._ai_channels:
                             self.ai_data[_channel].extend(_dump_ai_data[:_half_buffer_length][_channel::_step])
                         _HIGH_HALF_FLAG = False
-                        
+                                         
                     elif _ai_index < _half_buffer_length and not _HIGH_HALF_FLAG:
-                        dump = pd.DataFrame(columns=self._ai_channels)
                         for _channel in self._ai_channels:
                             self.ai_data[_channel].extend(_dump_ai_data[_half_buffer_length:][_channel::_step])
                         _HIGH_HALF_FLAG = True
