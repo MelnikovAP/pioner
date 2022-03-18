@@ -36,12 +36,12 @@ def main():
         em.run()
         
         # plot to debug, remove later
-        import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        for i in ai_channels:
-            ax1.plot(em.ai_data[i], label='channel #'+str(i))
-        ax1.legend()
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # fig, ax1 = plt.subplots()
+        # for i in ai_channels:
+        #     ax1.plot(em.ai_data[i], label='channel #'+str(i))
+        # ax1.legend()
+        # plt.show()
 
 
 if __name__ == '__main__':

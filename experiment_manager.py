@@ -10,6 +10,7 @@ from ai_params import AiParams
 from ao_params import AoParams
 
 from time import sleep
+import pandas as pd
 
 import uldaq as ul
 import sys
@@ -26,9 +27,10 @@ class ExperimentManager:
         self._ai_params = ai_params
         self._ao_params = ao_params
 
-        self.ai_data = {}
-        for _i in self._ai_channels:
-            self.ai_data[_i] = []
+        # making empty DF and empty file for data saving
+        # later store data in ai_data and throw it into *h5 file
+        self.ai_data = pd.DataFrame()
+        self.ai_data.to_hdf('data.h5', key='dataset', format='table', mode='w')
 
     def __enter__(self):
         return self
@@ -45,11 +47,13 @@ class ExperimentManager:
     def save_data_loop(self, am: AcquisitionManager, ai_channels: list):
         try:
             print("Enter 'CTRL+C' to terminate the process.\n")
-            _dump_ai_data = am.ai_device_handler.data()
+            _temp_ai_data = am.ai_device_handler.data()
 
             _HIGH_HALF_FLAG = True
-            _half_buffer_length = int(len(_dump_ai_data)/2)
+            _half_buffer_length = int(len(_temp_ai_data)/2)
             _step = am.ai_device_handler.channel_count
+            _one_channel_half_buffer_length = int(_half_buffer_length / _step)
+            _index = 0
 
             while True:
                 try:
@@ -61,14 +65,34 @@ class ExperimentManager:
                     
                     _ai_index = ai_transfer_status.current_index          
                     if _ai_index > _half_buffer_length and _HIGH_HALF_FLAG:
-                        for _channel in self._ai_channels:
-                            self.ai_data[_channel].extend(_dump_ai_data[:_half_buffer_length][_channel::_step])
+                        df = pd.DataFrame(_temp_ai_data[:_half_buffer_length])
+                        multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
+                                                                list(range(_step))])
+                        print(multi_index)
+                        df.index = multi_index
+                        df = df.unstack()
+                        df.columns = df.columns.droplevel()
+                        df = df[self._ai_channels]
+                        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
+                        df.to_hdf('data.h5', key='dataset', format='table', append=True, mode='a')
+                        _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = False
                                          
                     elif _ai_index < _half_buffer_length and not _HIGH_HALF_FLAG:
-                        for _channel in self._ai_channels:
-                            self.ai_data[_channel].extend(_dump_ai_data[_half_buffer_length:][_channel::_step])
+                        df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
+                        multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
+                                                                list(range(_step))])
+                        print(multi_index)
+                        df.index = multi_index
+                        df = df.unstack()
+                        df.columns = df.columns.droplevel()
+                        df = df[self._ai_channels]
+                        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
+                        df.to_hdf('data.h5', key='dataset', format='table', append=True, mode='a')
+                        _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = True
+
+
                         
                     sleep(0.1)
                 except (ValueError, NameError, SyntaxError):
@@ -76,6 +100,7 @@ class ExperimentManager:
         except KeyboardInterrupt:
             print('Acquisition aborted')
             pass
+
 
 
 
