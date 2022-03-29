@@ -8,7 +8,7 @@ import uldaq as ul
 class AoDeviceHandler:
     """Wraps the analog-output uldaq.AoDevice."""
 
-    def __init__(self, ao_device_from_daq: ul.AoDevice,
+    def __init__(self, ao_buffer, ao_device_from_daq: ul.AoDevice,
                  params: AoParams, scan_params: ScanParams):
         """Initializes AO device and all parameters.
 
@@ -20,6 +20,7 @@ class AoDeviceHandler:
         Raises:
             RuntimeError if the DAQ device doesn't support analog output or hardware paced analog output.
         """
+        self._buffer = ao_buffer
         self._ao_device = ao_device_from_daq
         self._params = params
         self._scan_params = scan_params
@@ -31,9 +32,7 @@ class AoDeviceHandler:
         if not info.has_pacer():
             raise RuntimeError("Error. DAQ device doesn't support hardware paced analog output.")
 
-        self._buffer = AoDataGenerator(self._params.low_channel, 
-                                        self._params.high_channel,
-                                        self._scan_params.sample_rate).buffer
+        
 
     def get(self) -> ul.AoDevice:
         """Provides explicit access to the uldaq.AoDevice."""

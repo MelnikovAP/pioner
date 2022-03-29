@@ -13,8 +13,9 @@ import uldaq as ul
 
 
 class AcquisitionManager:
-    def __init__(self, scan_params: ScanParams, daq_params: DaqParams,
+    def __init__(self, ao_buffer, scan_params: ScanParams, daq_params: DaqParams,
                  ai_params: AiParams, ao_params: AoParams):
+        self._ao_buffer = ao_buffer
         self._scan_params = scan_params
         self._daq_params = daq_params
         self._ai_params = ai_params
@@ -25,7 +26,7 @@ class AcquisitionManager:
                                                   self._ai_params, self._scan_params)
 
         self._common_ao_device = self._daq_device_handler.get_ao_device()
-        self.ao_device_handler = AoDeviceHandler(self._common_ao_device,
+        self.ao_device_handler = AoDeviceHandler(self._ao_buffer, self._common_ao_device,
                                                   self._ao_params, self._scan_params)
 
 

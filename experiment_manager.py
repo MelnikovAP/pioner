@@ -17,10 +17,10 @@ import sys
 
 
 class ExperimentManager:
-    def __init__(self, ao_data: AoDataGenerator, ai_channels: list,
+    def __init__(self, voltage_profiles: dict, ai_channels: list,
                  scan_params: ScanParams, daq_params: DaqParams,
                  ai_params: AiParams, ao_params: AoParams):
-        self._ao_data = ao_data
+        self._voltage_profiles = voltage_profiles
         self._ai_channels = ai_channels
         self._scan_params = scan_params
         self._daq_params = daq_params
@@ -39,7 +39,11 @@ class ExperimentManager:
         print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
     def run(self):
-        with AcquisitionManager(self._scan_params, self._daq_params,
+        self._ao_buffer = AoDataGenerator(self._voltage_profiles, 
+                                            self._ao_params.low_channel, 
+                                            self._ao_params.high_channel,
+                                            self._scan_params.sample_rate).buffer
+        with AcquisitionManager(self._ao_buffer, self._scan_params, self._daq_params,
                                 self._ai_params, self._ao_params) as am:
             am.run()
             self.save_data_loop(am, self._ai_channels)
