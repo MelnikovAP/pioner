@@ -1,6 +1,7 @@
 from ao_data_generator import AoDataGenerator
 from experiment_manager import ExperimentManager
 from calibration import Calibration
+from utils import voltage_to_temp, temp_to_voltage
 from settings_parser import SettingsParser
 from scipy import interpolate
 from numpy import linspace
@@ -25,7 +26,7 @@ class FastHeat:
         print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
     def arm(self):
-        self.ai_channels = [0,1,2,3]
+        self.ai_channels = [0,1,2,3,4,5]
     
         voltage_profiles = {}
         # apply 0.1 to 0 channel (Uref). 0.1 - value of the offset. later to be changed
@@ -36,8 +37,16 @@ class FastHeat:
         interpolation = interpolate.interp1d(x=time, y=temp, kind = 'linear')
         time = linspace(time[0], time[-1], time[-1])
         temp = interpolation(time)
-        volt = _temp_to_volt(temp)
+        volt = list(map(temp_to_voltage, temp, len(temp)*[self.calibration]))
         voltage_profiles['ch0'] = volt
+
+    # # for debug, remove later
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(temp, label='temp')
+        ax1.plot(volt, label='volt')
+        ax1.legend()
+        plt.show()
     
         return(voltage_profiles)
 
@@ -54,10 +63,3 @@ class FastHeat:
 
     def _apply_calibration(self):
         pass
-
-def _temp_to_volt(profile):
-    # just to test. later to be changed
-    return(profile/100)
-
-def _volt_to_temp():
-    pass

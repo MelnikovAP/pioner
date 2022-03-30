@@ -1,5 +1,5 @@
 from constants import JSON_EXTENSION
-
+from utils import voltage_to_temp
 import json
 import os
 
@@ -52,6 +52,8 @@ class Calibration:
         self.rhtr = 1700.0
         # [Heater safe voltage]
         self.safevoltage = 9.0
+
+        self._add_params()
 
     def read(self, path: str):
         self._json_calib = dict()
@@ -109,6 +111,8 @@ class Calibration:
         self.rhtr = float(self._json_calib['Calibration coeff']['R heater'])
         # [Heater safe voltage]
         self.safevoltage = float(self._json_calib['Calibration coeff']['Heater safe voltage'])
+        
+        self._add_params()
 
     def write(self, path: str):
         # [Info]
@@ -161,6 +165,12 @@ class Calibration:
         with open(path, 'w') as f:
             json.dump(self._json_calib, f, indent='\t')
 
+    def _add_params(self):
+        # parameters that are not in calibration file but need to use later
+        self.maxtemp = self.theater0*self.safevoltage + \
+                        self.theater1*(self.safevoltage**2) + \
+                        self.theater2*(self.safevoltage**3)
+        self.mintemp = 0.
 
 if __name__ == '__main__':
     try:

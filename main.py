@@ -12,30 +12,32 @@ from fastheat import FastHeat
 
 def main():
     settings = SettingsParser('./settings.json')
-    calibration = Calibration().read('./calibration.json')
+    calibration = Calibration()
+    calibration.read('./calibration.json')
+
     time_temp_table = {'time': [0,50,450,550,950,1000],
-                        'temp': [0,0,100,100,0,0]}
+                        'temp': [0,0,300,300,0,0]}
 
 
     with FastHeat(time_temp_table, calibration, settings) as fh:
         voltage_profiles = fh.arm()
 
-    # for debug, remove later
-        import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        ax1.plot(voltage_profiles['ch0'])
-        ax1.plot(voltage_profiles['ch1'])
-        plt.show()
+    # # for debug, remove later
+    #     import matplotlib.pyplot as plt
+    #     fig, ax1 = plt.subplots()
+    #     ax1.plot(voltage_profiles['ch0'])
+    #     ax1.plot(voltage_profiles['ch1'])
+    #     plt.show()
 
 
         fh.run(voltage_profiles)
         fh_data = fh.get_ai_data()
 
-        
+
     # for debug, remove later
         import matplotlib.pyplot as plt
         fig, ax1 = plt.subplots()
-        for i in [0,1,2,3]:
+        for i in [0,1,2,3,4,5]:
             ax1.plot(fh_data[i], label='channel #'+str(i))
         ax1.legend()
         plt.show()

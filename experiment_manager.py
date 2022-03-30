@@ -30,13 +30,14 @@ class ExperimentManager:
         # making empty DF and empty file for data saving
         # later store data in ai_data and throw it into *h5 file
         self.ai_data = pd.DataFrame()
-        self.ai_data.to_hdf('data.h5', key='dataset', format='table', mode='w')
+        self.ai_data.to_hdf('.raw_data.h5', key='dataset', format='table', mode='w')
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+        # maybe add here dumping into h5 file??
 
     def get_ai_data(self):
         """Provides explicit access to the read ai_data."""
