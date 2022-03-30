@@ -1,8 +1,6 @@
-from experiment_manager import ExperimentManager
 from settings_parser import SettingsParser
-from argparse import ArgumentParser
-from ao_data_generator import AoDataGenerator
-
+from calibration import Calibration
+from fastheat import FastHeat
 
 # provide with-as for Settings classes
 # make abstract classes "Params", "AnalogParams" and "Device"?
@@ -12,45 +10,35 @@ from ao_data_generator import AoDataGenerator
 # provide output_folder
 # provide commentaries for each class
 
-
-def parse_args():
-    parser = ArgumentParser(description='.')
-    parser.add_argument('--path_to_settings', type=str, help='Path to the configuration file.')
-    # parser.add_argument('--output_folder', type=str, help='Path to the output folder for resulting files and logs.')
-    # parser.add_argument('--do_clear_output', type=bool, default=True, action=BooleanOptionalAction,
-    #                     help='True if all existing files should be removed from the output directory.')
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
-    parser = SettingsParser(args.path_to_settings)
+    settings = SettingsParser('./settings.json')
+    calibration = Calibration().read('./calibration.json')
+    time_temp_table = {'time': [0,50,450,550,950,1000],
+                        'temp': [0,0,100,100,0,0]}
 
-    ai_channels = [0,1,2,3]
-    from numpy import linspace
-    voltage_profiles = {'ch0':linspace(0,1, 1000),
-                        'ch2':linspace(0,2, 1000),
-                        }
 
-    with ExperimentManager( voltage_profiles, # voltage data for each used ao channel like {'ch0': [.......], 'ch3': [........]}
-                            ai_channels, # channels to read from ai device
-                            parser.get_scan_params(),
-                            parser.get_daq_params(),
-                            parser.get_ai_params(),
-                            parser.get_ao_params()) as em:
-        em.run()
+    with FastHeat(time_temp_table, calibration, settings) as fh:
+        voltage_profiles = fh.arm()
+
+    # for debug, remove later
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(voltage_profiles['ch0'])
+        ax1.plot(voltage_profiles['ch1'])
+        plt.show()
+
+
+        fh.run(voltage_profiles)
+        fh_data = fh.get_ai_data()
+
         
-        # plot to debug, remove later
-    import matplotlib.pyplot as plt
-    fig, ax1 = plt.subplots()
-    for i in ai_channels:
-        ax1.plot(em.ai_data[i], label='channel #'+str(i))
-    ax1.legend()
-    plt.show()
-
-def fastheatrun():
-
-
+    # for debug, remove later
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        for i in [0,1,2,3]:
+            ax1.plot(fh_data[i], label='channel #'+str(i))
+        ax1.legend()
+        plt.show()
 
 if __name__ == '__main__':
     try:

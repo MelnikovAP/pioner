@@ -38,6 +38,10 @@ class ExperimentManager:
     def __exit__(self, exc_type, exc_value, exc_tb):
         print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
+    def get_ai_data(self):
+        """Provides explicit access to the read ai_data."""
+        return self.ai_data
+
     def run(self):
         self._ao_buffer = AoDataGenerator(self._voltage_profiles, 
                                             self._ao_params.low_channel, 
