@@ -27,6 +27,11 @@ def main():
     parser = SettingsParser(args.path_to_settings)
 
     ai_channels = [0,1,2,3]
+    from numpy import linspace
+    voltage_profiles = {'ch0':linspace(0,1, 1000),
+                        'ch2':linspace(0,2, 1000),
+                        }
+
     with ExperimentManager( voltage_profiles, # voltage data for each used ao channel like {'ch0': [.......], 'ch3': [........]}
                             ai_channels, # channels to read from ai device
                             parser.get_scan_params(),
@@ -36,12 +41,15 @@ def main():
         em.run()
         
         # plot to debug, remove later
-        # import matplotlib.pyplot as plt
-        # fig, ax1 = plt.subplots()
-        # for i in ai_channels:
-        #     ax1.plot(em.ai_data[i], label='channel #'+str(i))
-        # ax1.legend()
-        # plt.show()
+    import matplotlib.pyplot as plt
+    fig, ax1 = plt.subplots()
+    for i in ai_channels:
+        ax1.plot(em.ai_data[i], label='channel #'+str(i))
+    ax1.legend()
+    plt.show()
+
+def fastheatrun():
+
 
 
 if __name__ == '__main__':
