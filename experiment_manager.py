@@ -72,13 +72,12 @@ class ExperimentManager:
                         df = pd.DataFrame(_temp_ai_data[:_half_buffer_length])
                         multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
                                                                 list(range(_step))])
-                        print(multi_index)
                         df.index = multi_index
                         df = df.unstack()
                         df.columns = df.columns.droplevel()
                         df = df[self._ai_channels]
                         self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('data.h5', key='dataset', format='table', append=True, mode='a')
+                        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = False
                                          
@@ -86,18 +85,15 @@ class ExperimentManager:
                         df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
                         multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
                                                                 list(range(_step))])
-                        print(multi_index)
                         df.index = multi_index
                         df = df.unstack()
                         df.columns = df.columns.droplevel()
                         df = df[self._ai_channels]
                         self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('data.h5', key='dataset', format='table', append=True, mode='a')
+                        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = True
 
-
-                        
                     sleep(0.1)
                 except (ValueError, NameError, SyntaxError):
                     break

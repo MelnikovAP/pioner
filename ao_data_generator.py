@@ -12,7 +12,6 @@ class AoDataGenerator:
         self._high_channel = high_channel
         self._sample_rate = sample_rate
         
-
         self._create_buffer()
         self._fill_buffer()
 
@@ -21,28 +20,23 @@ class AoDataGenerator:
         self.buffer = ul.create_float_buffer(self._channel_count, self._sample_rate)
 
     def _fill_buffer(self):
-        _ch_list = list(range(self._channel_count))
-        _ch_list = ['ch'+str(i) for i in _ch_list]
-        print(_ch_list)
-        print(list(self._voltage_profiles.keys()))
-        print(self._voltage_profiles)
-        # from numpy import linspace
+        lens = list(map(len, self._voltage_profiles.values()))
+        lens_with_sr = lens.copy()
+        lens_with_sr.append(self._sample_rate)
+        if len(set(lens)) > 1: 
+            raise ValueError("Cannot load analog output buffer. Channel profiles have different length.")
+        if len(set(lens_with_sr)) > 1: 
+            raise ValueError("Cannot load analog output buffer. One of the channel profile has length, different from buffer size.")
+        ch_list = list(range(self._channel_count))
+        ch_list = ['ch'+str(i) for i in ch_list]
+        
+        for i in ch_list:
+            if i not in list(self._voltage_profiles.keys()):
+                self._voltage_profiles[i] = [0.]*self._sample_rate
 
-        # start_volt = 0
-        # end_volt = 1
-        # volt_ramp = linspace(start_volt, end_volt, int(len(self.buffer)/4))
-        # for i in range(len(volt_ramp)):
-        #     self.buffer[i*4] = volt_ramp[i]
-        #     self.buffer[i*4+1] = 0.5
-        #     self.buffer[i*4+2] = 0.2
-        #     self.buffer[i*4+3] = 0.3
-
-        # import matplotlib.pyplot as plt
-        # plt.plot(self.buffer[::4])
-        # plt.plot(self.buffer[1::4])
-        # plt.plot(self.buffer[2::4])
-        # plt.plot(self.buffer[3::4])
-        # plt.show()
+        for i in range(self._sample_rate):
+            for ch in range(self._channel_count):
+                self.buffer[i*self._channel_count+ch] = self._voltage_profiles['ch'+str(ch)][i]
 
     def __str__(self):
         return str(vars(self))
@@ -51,10 +45,18 @@ class AoDataGenerator:
 
 if __name__ == '__main__':
     try:
-        voltage_profiles = {'ch0':[1,2,3,4,5,6,7,8,9],
-                            'ch2':[21,22,23,24,25,26,27,28,29],
+        from numpy import linspace
+        voltage_profiles = {'ch0':linspace(0,1, 1000),
+                            'ch2':linspace(0,10, 1000),
                             }
         ao_data_generator = AoDataGenerator(voltage_profiles, 0, 3, 1000)
+
+        import matplotlib.pyplot as plt
+        plt.plot(ao_data_generator.buffer[::4])
+        plt.plot(ao_data_generator.buffer[1::4])
+        plt.plot(ao_data_generator.buffer[2::4])
+        plt.plot(ao_data_generator.buffer[3::4])
+        plt.show()
 
     except BaseException as e:
         print(e)
