@@ -1,5 +1,7 @@
 from constants import JSON_EXTENSION
 from utils import voltage_to_temp
+import pandas as pd
+import numpy as np
 import json
 import os
 
@@ -9,43 +11,43 @@ class Calibration:
     # [Info]
         self.comment = 'no calibration'
     # [Modulation params]
-        self.amplitude = 0.1
-        self.offset = 0.3
-        self.frequency = 37.5
+        self.amplitude = 0.05
+        self.offset = 0.1
+        self.frequency = 75.
     # [Gains]
-        self.urefgain = 6.
-        self.umodgain = 6.
-        self.utplgain = 6.
-        self.uhtrgain = 6.
+        self.urefgain = 1.
+        self.umodgain = 2.
+        self.utplgain = 5.
+        self.uhtrgain = 10.
     # [Calibration coeff]
-        # [Utpl] = [U(mv)] + k1x
+        # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = 0.
-        # [Ttpl] = Ttpl1*[Utpl] + Ttpl2*[Utpl^2]                 
+        # [Ttpl] = ttpl0*[Utpl] + ttpl1*[Utpl^2]                 
         self.ttpl0 = 1.                 
         self.ttpl1 = 0.
-        # [Thtr] = Thtr1 + Thtr2*[R+Rhcorr] + Thtr3*[(R+Rhcorr)^2]
+        # [Thtr] = thtr0 + thtr1*[R+thtrcorr] + thtr2*[(R+thtrcorr)^2]
         self.thtr0 = 0.
         self.thtr1 = 1.
         self.thtr2 = 0.
-        self.thtrcorr = 0.
-        # [Thtrd] = Thtrd1 + Thtrd2*[R+Rhdcorr] + Thtrd3*[(R+Rhdcorr)^2]
+        self.thtrcorr = 48.94
+        # [Thtrd] = thtrd0 + thtrd1*[R+thtrdcorr] + thtrd2*[(R+thtrdcorr)^2]
         self.thtrd0 = 0.
         self.thtrd1 = 1.
         self.thtrd2 = 0.
-        self.thtrdcorr = 0. 
-        # [Uhtr] = ([U(mv)] + Uhtr1)*Uhtr2
+        self.thtrdcorr = 61.28 
+        # [Uhtr] = ([U(mv)] + uhtr0)*uhtr1
         self.uhtr0 = 0.
         self.uhtr1 = 1.
-        # [Ihtr] = Ihtr1 + Ihtr2*[I]
+        # [Ihtr] = ihtr0 + ihtr1*[I]
         self.ihtr0 = 0.
         self.ihtr1 = 1.
-        # [Theater] = Theater1*[U] + Theater2*[U^2] + Theater3*[U^3]
+        # [Theater] = theater0*[U] + theater1*[U^2] + theater2*[U^3]
         self.theater0 = 1.
         self.theater1 = 0.
         self.theater2 = 0.
-        # [Amplitude correction] = Ac1 + Ac2*[T] + Ac3*[T^2] + Ac4*[T^3]
-        self.ac0 = 1.
-        self.ac1 = 0.
+        # [Amplitude correction] = ac0 + ac1*[T] + ac2*[T^2] + ac3*[T^3]
+        self.ac0 = 0.
+        self.ac1 = 1.
         self.ac2 = 0.
         self.ac3 = 0.
         # [R heater]
@@ -77,32 +79,32 @@ class Calibration:
         self.utplgain = float(self._json_calib['Gains']['Utplgain'])
         self.uhtrgain = float(self._json_calib['Gains']['Uhtrgain'])
     # [Calibration coeff]
-        # [Utpl] = [U(mv)] + k1x
+        # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = float(self._json_calib['Calibration coeff']['Utpl']['0'])
-        # [Ttpl] = Ttpl1*[Utpl] + Ttpl2*[Utpl^2]                 
+        # [Ttpl] = ttpl0*[Utpl] + ttpl1*[Utpl^2]                  
         self.ttpl0 = float(self._json_calib['Calibration coeff']['Ttpl']['0'])             
         self.ttpl1 = float(self._json_calib['Calibration coeff']['Ttpl']['1'])
-        # [Thtr] = Thtr1 + Thtr2*[R+Rhcorr] + Thtr3*[(R+Rhcorr)^2]
+        # [Thtr] = thtr0 + thtr1*[R+thtrcorr] + thtr2*[(R+thtrcorr)^2]
         self.thtr0 = float(self._json_calib['Calibration coeff']['Thtr']['0']) 
         self.thtr1 = float(self._json_calib['Calibration coeff']['Thtr']['1']) 
         self.thtr2 = float(self._json_calib['Calibration coeff']['Thtr']['2']) 
         self.thtrcorr = float(self._json_calib['Calibration coeff']['Thtr']['corr']) 
-        # [Thtrd] = Thtrd1 + Thtrd2*[R+Rhdcorr] + Thtrd3*[(R+Rhdcorr)^2]
+        # [Thtrd] = thtrd0 + thtrd1*[R+thtrdcorr] + thtrd2*[(R+thtrdcorr)^2]
         self.thtrd0 = float(self._json_calib['Calibration coeff']['Thtrd']['0']) 
         self.thtrd1 = float(self._json_calib['Calibration coeff']['Thtrd']['1']) 
         self.thtrd2 = float(self._json_calib['Calibration coeff']['Thtrd']['2']) 
         self.thtrdcorr = float(self._json_calib['Calibration coeff']['Thtrd'] ['corr']) 
-        # [Uhtr] = ([U(mv)] + Uhtr1)*Uhtr2
+        # [Uhtr] = ([U(mv)] + uhtr0)*uhtr1
         self.uhtr0 = float(self._json_calib['Calibration coeff']['Uhtr']['0']) 
         self.uhtr1 = float(self._json_calib['Calibration coeff']['Uhtr']['1']) 
-        # [Ihtr] = Ihtr1 + Ihtr2*[I]
+        # [Ihtr] = ihtr0 + ihtr1*[I]
         self.ihtr0 = float(self._json_calib['Calibration coeff']['Ihtr']['0']) 
         self.ihtr1 = float(self._json_calib['Calibration coeff']['Ihtr']['1']) 
-        # [Theater] = Theater1*[U] + Theater2*[U^2] + Theater3*[U^3]
+        # [Theater] = theater0*[U] + theater1*[U^2] + theater2*[U^3]
         self.theater0 = float(self._json_calib['Calibration coeff']['Theater']['0']) 
         self.theater1 = float(self._json_calib['Calibration coeff']['Theater']['1']) 
         self.theater2 = float(self._json_calib['Calibration coeff']['Theater']['2']) 
-        # [Amplitude correction] = Ac1 + Ac2*[T] + Ac3*[T^2] + Ac4*[T^3]
+        # [Amplitude correction] = ac0 + ac1*[T] + ac2*[T^2] + ac3*[T^3]
         self.ac0 = float(self._json_calib['Calibration coeff']['Amplitude correction']['0']) 
         self.ac1 = float(self._json_calib['Calibration coeff']['Amplitude correction']['1']) 
         self.ac2 = float(self._json_calib['Calibration coeff']['Amplitude correction']['2']) 
@@ -127,32 +129,32 @@ class Calibration:
         self._json_calib['Gains']['Utplgain'] = self.utplgain
         self._json_calib['Gains']['Uhtrgain'] = self.uhtrgain
     # [Calibration coeff]
-        # [Utpl] = [U(mv)] + k1x
+        # [Utpl] = [U(mv)] + utpl0
         self._json_calib['Calibration coeff']['Utpl']['0'] = self.utpl0
-        # [Ttpl] = Ttpl1*[Utpl] + Ttpl2*[Utpl^2]                 
+        # [Ttpl] = ttpl0*[Utpl] + ttpl1*[Utpl^2]               
         self._json_calib['Calibration coeff']['Ttpl']['0'] = self.ttpl0            
         self._json_calib['Calibration coeff']['Ttpl']['1'] = self.ttpl1
-        # [Thtr] = Thtr1 + Thtr2*[R+Rhcorr] + Thtr3*[(R+Rhcorr)^2]
+        # [Thtr] = thtr0 + thtr1*[R+thtrcorr] + thtr2*[(R+thtrcorr)^2]
         self._json_calib['Calibration coeff']['Thtr']['0'] = self.thtr0
         self._json_calib['Calibration coeff']['Thtr']['1'] = self.thtr1 
         self._json_calib['Calibration coeff']['Thtr']['2'] = self.thtr2
         self._json_calib['Calibration coeff']['Thtr']['corr'] = self.thtrcorr 
-        # [Thtrd] = Thtrd1 + Thtrd2*[R+Rhdcorr] + Thtrd3*[(R+Rhdcorr)^2]
+        # [Thtrd] = thtrd0 + thtrd1*[R+thtrdcorr] + thtrd2*[(R+thtrdcorr)^2]
         self._json_calib['Calibration coeff']['Thtrd']['0'] = self.thtrd0 
         self._json_calib['Calibration coeff']['Thtrd']['1'] = self.thtrd1 
         self._json_calib['Calibration coeff']['Thtrd']['2'] = self.thtrd2 
         self._json_calib['Calibration coeff']['Thtrd'] ['corr'] = self.thtrdcorr 
-        # [Uhtr] = ([U(mv)] + Uhtr1)*Uhtr2
+        # [Uhtr] = ([U(mv)] + uhtr0)*uhtr1
         self._json_calib['Calibration coeff']['Uhtr']['0'] = self.uhtr0
         self._json_calib['Calibration coeff']['Uhtr']['1'] = self.uhtr1
-        # [Ihtr] = Ihtr1 + Ihtr2*[I]
+        # [Ihtr] = ihtr0 + ihtr1*[I]
         self._json_calib['Calibration coeff']['Ihtr']['0'] = self.ihtr0
         self._json_calib['Calibration coeff']['Ihtr']['1'] = self.ihtr1
-        # [Theater] = Theater1*[U] + Theater2*[U^2] + Theater3*[U^3]
+        # [Theater] = theater0*[U] + theater1*[U^2] + theater2*[U^3]
         self._json_calib['Calibration coeff']['Theater']['0'] = self.theater0
         self._json_calib['Calibration coeff']['Theater']['1'] = self.theater1
         self._json_calib['Calibration coeff']['Theater']['2'] = self.theater2
-        # [Amplitude correction] = Ac1 + Ac2*[T] + Ac3*[T^2] + Ac4*[T^3]
+        # [Amplitude correction] = ac0 + ac1*[T] + ac2*[T^2] + ac3*[T^3]
         self._json_calib['Calibration coeff']['Amplitude correction']['0'] = self.ac0
         self._json_calib['Calibration coeff']['Amplitude correction']['1'] = self.ac1
         self._json_calib['Calibration coeff']['Amplitude correction']['2'] = self.ac2 
@@ -171,12 +173,14 @@ class Calibration:
                         self.theater1*(self.safevoltage**2) + \
                         self.theater2*(self.safevoltage**3)
         self.mintemp = 0.
+        self.volt_temp_matrix = pd.DataFrame()
+        # using 10000 points gives accuracy about 1 mV in full voltage range from 0 to 10
+        self.volt_temp_matrix['Volt'] = np.linspace(0., self.safevoltage, 10000)
+        self.volt_temp_matrix['Temp'] = list(map(voltage_to_temp, self.volt_temp_matrix['Volt'], \
+                                            10000*[self]))
 
 if __name__ == '__main__':
     try:
         calib = Calibration()
-        calib.read('calibration.json')
-        calib.comment = 'test comment'
-        calib.write('calibration.json')
     except BaseException as e:
         print(e)

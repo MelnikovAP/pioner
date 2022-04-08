@@ -22,12 +22,12 @@ def main():
     with FastHeat(time_temp_table, calibration, settings) as fh:
         voltage_profiles = fh.arm()
 
-    # # for debug, remove later
-    #     import matplotlib.pyplot as plt
-    #     fig, ax1 = plt.subplots()
-    #     ax1.plot(voltage_profiles['ch0'])
-    #     ax1.plot(voltage_profiles['ch1'])
-    #     plt.show()
+    # for debug, remove later
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(voltage_profiles['ch0'])
+        ax1.plot(voltage_profiles['ch1'])
+        plt.show()
 
 
         fh.run(voltage_profiles)
@@ -37,7 +37,7 @@ def main():
     # for debug, remove later
         import matplotlib.pyplot as plt
         fig, ax1 = plt.subplots()
-        for i in [0,1,2,3,4,5]:
+        for i in [0,1]:
             ax1.plot(fh_data[i], label='channel #'+str(i))
         ax1.legend()
         plt.show()

@@ -6,6 +6,10 @@ from settings_parser import SettingsParser
 from scipy import interpolate
 from numpy import linspace
 
+
+import time as ttt
+
+
 class FastHeat:
     def __init__(self, time_temp_table,
                         calibration: Calibration,
@@ -37,16 +41,11 @@ class FastHeat:
         interpolation = interpolate.interp1d(x=time, y=temp, kind = 'linear')
         time = linspace(time[0], time[-1], time[-1])
         temp = interpolation(time)
+        t0 = ttt.time()
         volt = list(map(temp_to_voltage, temp, len(temp)*[self.calibration]))
+        t1 = ttt.time()
+        print('linearisation process took', t1-t0, 's')
         voltage_profiles['ch0'] = volt
-
-    # # for debug, remove later
-        import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        ax1.plot(temp, label='temp')
-        ax1.plot(volt, label='volt')
-        ax1.legend()
-        plt.show()
     
         return(voltage_profiles)
 

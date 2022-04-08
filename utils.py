@@ -29,17 +29,9 @@ def voltage_to_temp(voltage, calibration):
 
 
 def temp_to_voltage(temp, calibration):
-    vlt = 0.
     if temp < calibration.mintemp:
         return 0.
     elif temp > calibration.maxtemp:
         return calibration.safevoltage
     else:
-        for i in range(50000):
-            error = temp - voltage_to_temp(vlt, calibration)
-            if abs(error)>5000: 
-                return 0.
-            elif abs(error)<0.005:
-                break
-            vlt += error/300.
-    return vlt
+        return round(calibration.volt_temp_matrix['Volt'][calibration.volt_temp_matrix['Temp']>=temp].iloc[0], 3)
