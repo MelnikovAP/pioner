@@ -16,7 +16,7 @@ def main():
     calibration.read('./calibration.json')
 
     time_temp_table = {'time': [0,50,450,550,950,1000],
-                        'temp': [0,0,300,300,0,0]}
+                        'temp': [0,0,5,5,0,0]}
 
 
     with FastHeat(time_temp_table, calibration, settings) as fh:

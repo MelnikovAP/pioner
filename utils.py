@@ -34,4 +34,4 @@ def temp_to_voltage(temp, calibration):
     elif temp > calibration.maxtemp:
         return calibration.safevoltage
     else:
-        return round(calibration.volt_temp_matrix['Volt'][calibration.volt_temp_matrix['Temp']>=temp].iloc[0], 3)
+        return s#round(calibration.volt_temp_matrix['Volt'][calibration.volt_temp_matrix['Temp']>=temp].iloc[0], 3)

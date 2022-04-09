@@ -1,7 +1,4 @@
 from constants import JSON_EXTENSION
-from utils import voltage_to_temp
-import pandas as pd
-import numpy as np
 import json
 import os
 
@@ -173,14 +170,13 @@ class Calibration:
                         self.theater1*(self.safevoltage**2) + \
                         self.theater2*(self.safevoltage**3)
         self.mintemp = 0.
-        self.volt_temp_matrix = pd.DataFrame()
-        # using 10000 points gives accuracy about 1 mV in full voltage range from 0 to 10
-        self.volt_temp_matrix['Volt'] = np.linspace(0., self.safevoltage, 10000)
-        self.volt_temp_matrix['Temp'] = list(map(voltage_to_temp, self.volt_temp_matrix['Volt'], \
-                                            10000*[self]))
+
 
 if __name__ == '__main__':
     try:
         calib = Calibration()
+        print(calib.maxtemp)
+        calib.read('./calibration.json')
+        print(calib.maxtemp)
     except BaseException as e:
         print(e)
