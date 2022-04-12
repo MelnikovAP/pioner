@@ -32,18 +32,17 @@ def temperature_to_voltage(temp, calibration):
     # generating temp-volt dependency in full calibration range
     resolution = 0.001 # in V 
     volt_calib = np.linspace(0, calibration.safevoltage, int(1/resolution))
-    v_test = pd.DataFrame({'Volt' : volt_calib})
-    v_test['Temp'] = voltage_to_temperature(v_test['Volt'], calibration)
+    temp_calib = voltage_to_temperature(volt_calib, calibration)
 
-    
     temp = temp.copy()
     temp[temp<=calibration.mintemp] = calibration.mintemp
     temp[temp>=calibration.maxtemp] = calibration.maxtemp
     
     voltage = np.zeros(len(temp))
-    for idx, t in np.ndenumerate(temp):
-        voltage[idx] = v_test['Volt'][v_test['Temp']<=t].iloc[-1]
-    
+    for i, t in np.ndenumerate(temp):
+        idx = np.abs(temp_calib-t).argmin()
+        voltage[i] = volt_calib[idx]
+
     return voltage
 
 if __name__=='__main__':
@@ -54,8 +53,12 @@ if __name__=='__main__':
     from time import time
     calibration = Calibration()
 
-    temp_exp = np.linspace(0, 400, 1000)
+    temp_exp = np.linspace(0, 400, 10000)
+
+    t1 = time()
     volt_exp = temperature_to_voltage(temp_exp, calibration)
+    t2 = time()
+    print(t2-t1)
 
     # plt.plot(temp_exp, label = 'temp_exp')
     # plt.plot(volt_exp, label = 'volt_exp')
