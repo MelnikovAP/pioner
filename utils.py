@@ -1,5 +1,6 @@
 from typing import List
-
+import pandas as pd
+import numpy as np
 
 def is_int(key) -> bool:
     if isinstance(key, int) or isinstance(key, str) and key.isdigit():
@@ -19,19 +20,44 @@ def list_bitwise_or(ints: List[int]) -> int:
     return res
 
 
-def voltage_to_temp(voltage, calibration):
-    if voltage <= 0.:
-        return 0.
-    elif voltage >= calibration.safevoltage:
-        return calibration.maxtemp
-    else:
-        return calibration.theater0*voltage + calibration.theater1*(voltage**2) + calibration.theater2*(voltage**3)
+def voltage_to_temperature(voltage, calibration):
+    volt = voltage.copy()
+    volt[volt<0] = 0
+    volt[volt>calibration.safevoltage] = calibration.safevoltage
+    temp = calibration.theater0*volt + calibration.theater1*(volt**2) + calibration.theater2*(volt**3)
+    return temp
 
 
-def temp_to_voltage(temp, calibration):
-    if temp < calibration.mintemp:
-        return 0.
-    elif temp > calibration.maxtemp:
-        return calibration.safevoltage
-    else:
-        return s#round(calibration.volt_temp_matrix['Volt'][calibration.volt_temp_matrix['Temp']>=temp].iloc[0], 3)
+def temperature_to_voltage(temp, calibration):
+    # generating temp-volt dependency in full calibration range
+    resolution = 0.001 # in V 
+    volt_calib = np.linspace(0, calibration.safevoltage, int(1/resolution))
+    v_test = pd.DataFrame({'Volt' : volt_calib})
+    v_test['Temp'] = voltage_to_temperature(v_test['Volt'], calibration)
+
+    
+    temp = temp.copy()
+    temp[temp<=calibration.mintemp] = calibration.mintemp
+    temp[temp>=calibration.maxtemp] = calibration.maxtemp
+    
+    voltage = np.zeros(len(temp))
+    for idx, t in np.ndenumerate(temp):
+        voltage[idx] = v_test['Volt'][v_test['Temp']<=t].iloc[-1]
+    
+    return voltage
+
+if __name__=='__main__':
+
+    import numpy as np 
+    import matplotlib.pyplot as plt
+    from calibration import Calibration
+    from time import time
+    calibration = Calibration()
+
+    temp_exp = np.linspace(0, 400, 1000)
+    volt_exp = temperature_to_voltage(temp_exp, calibration)
+
+    # plt.plot(temp_exp, label = 'temp_exp')
+    # plt.plot(volt_exp, label = 'volt_exp')
+    # plt.legend()
+    # plt.show()

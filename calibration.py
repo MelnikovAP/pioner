@@ -39,7 +39,7 @@ class Calibration:
         self.ihtr0 = 0.
         self.ihtr1 = 1.
         # [Theater] = theater0*[U] + theater1*[U^2] + theater2*[U^3]
-        self.theater0 = 1.
+        self.theater0 = 2.
         self.theater1 = 0.
         self.theater2 = 0.
         # [Amplitude correction] = ac0 + ac1*[T] + ac2*[T^2] + ac3*[T^3]
