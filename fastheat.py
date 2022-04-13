@@ -1,10 +1,10 @@
 from ao_data_generator import AoDataGenerator
 from experiment_manager import ExperimentManager
 from calibration import Calibration
-from utils import voltage_to_temp, temp_to_voltage
+from utils import temperature_to_voltage
 from settings_parser import SettingsParser
 from scipy import interpolate
-from numpy import linspace
+import numpy as np
 import pandas as pd
 
 
@@ -31,37 +31,17 @@ class FastHeat:
 
         self.ai_channels = [0,1,2,3,4,5]
         voltage_profiles = {}
-        # apply 0.1 to 0 channel (Uref). 0.1 - value of the offset. later to be changed
-        voltage_profiles['ch0'] = linspace(0.1, 0.1, self.time_temp_table['time'][-1]) 
-        # apply voltage profile to ch1
+        # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. later to be changed
+        voltage_profiles['ch0'] = np.ones(self.time_temp_table['time'][-1])/10
+        # construct voltage profile to ch1
         time = self.time_temp_table['time']
         temp = self.time_temp_table['temp']
-
-        #seslf.volt_temp_matrix = pd.DataFrame()
-        #import time as ttt
-        #t0 = ttt.time()
-        #self.volt_temp_matrix['Volt'] = linspace(0., self.calibration.safevoltage, time[-1])
-        #self.volt_temp_matrix['Temp'] = list(map(voltage_to_temp, self.volt_temp_matrix['Volt'], \
-        #                                    time[-1]*[self.calibration]))
-        #t1 = ttt.time()
-        #print('making matrix took', t1-t0, 's')
-        #print(self.volt_temp_matrix['Temp'][50:100])
-
-        #import matplotlib.pyplot as plt
-        #fig, ax = plt.subplots()
-        #ax.plot(self.volt_temp_matrix['Volt'], self.volt_temp_matrix['Temp'])
-        #plt.show()
-
         interpolation = interpolate.interp1d(x=time, y=temp, kind = 'linear')
-        time = linspace(time[0], time[-1], time[-1])
+        time = np.linspace(time[0], time[-1], time[-1])
         temp = interpolation(time)
-        print(temp[100:115])
-        import time as ttt
-        t0 = ttt.time()
-        #volt = list(map(temp_to_voltage, temp, len(temp)*[self.calibration]))
-        t1 = ttt.time()
-        print('linearisation process took', t1-t0, 's')
-        #voltage_profiles['ch1'] = volt
+        volt = temperature_to_voltage(temp, self.calibration)
+        # arm voltage profile to ch1
+        voltage_profiles['ch1'] = volt
     
         return(voltage_profiles)
 
