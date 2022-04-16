@@ -48,9 +48,9 @@ class Calibration:
         self.ac2 = 0.
         self.ac3 = 0.
         # [R heater]
-        self.rhtr = 1700.0
+        self.rhtr = 1700.
         # [Heater safe voltage]
-        self.safevoltage = 9.0
+        self.safe_voltage = 9.  # V
 
         self._add_params()
 
@@ -109,7 +109,7 @@ class Calibration:
         # [R heater]
         self.rhtr = float(self._json_calib['Calibration coeff']['R heater'])
         # [Heater safe voltage]
-        self.safevoltage = float(self._json_calib['Calibration coeff']['Heater safe voltage'])
+        self.safe_voltage = float(self._json_calib['Calibration coeff']['Heater safe voltage'])
         
         self._add_params()
 
@@ -159,16 +159,16 @@ class Calibration:
         # [R heater]
         self._json_calib['Calibration coeff']['R heater'] = self.rhtr
         # [Heater safe voltage]
-        self._json_calib['Calibration coeff']['Heater safe voltage'] = self.safevoltage
+        self._json_calib['Calibration coeff']['Heater safe voltage'] = self.safe_voltage
 
         with open(path, 'w') as f:
             json.dump(self._json_calib, f, indent='\t')
 
     def _add_params(self):
         # parameters that are not in calibration file but need to use later
-        self.maxtemp = self.theater0*self.safevoltage + \
-                        self.theater1*(self.safevoltage**2) + \
-                        self.theater2*(self.safevoltage**3)
+        self.maxtemp = self.theater0 * self.safe_voltage + \
+                       self.theater1 * (self.safe_voltage ** 2) + \
+                       self.theater2 * (self.safe_voltage ** 3)
         self.mintemp = 0.
 
 

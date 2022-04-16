@@ -1,12 +1,14 @@
 import uldaq as ul
 
+
 class AoDataGenerator:
     # The buffer for AO device of daqboard should be linear.
-    # This calss generates the linear buffer from dictionary, some kind of 2D array
+    # This class generates the linear buffer from dictionary, some kind of 2D array
     # like {'ch0': [.......], 'ch3': [........]}. Unused channels are being set to 0.
 
-    def __init__(self, voltage_profiles: dict, low_channel: int, high_channel: int,
-                    sample_rate: int):
+    def __init__(self, voltage_profiles: dict,
+                 low_channel: int, high_channel: int,
+                 sample_rate: int):
         self._voltage_profiles = voltage_profiles
         self._low_channel = low_channel
         self._high_channel = high_channel
@@ -26,7 +28,8 @@ class AoDataGenerator:
         if len(set(lens)) > 1: 
             raise ValueError("Cannot load analog output buffer. Channel profiles have different length.")
         if len(set(lens_with_sr)) > 1: 
-            raise ValueError("Cannot load analog output buffer. One of the channel profile has length, different from buffer size.")
+            raise ValueError("Cannot load analog output buffer. "
+                             "One of the channel profile has length, different from buffer size.")
         ch_list = list(range(self._channel_count))
         ch_list = ['ch'+str(i) for i in ch_list]
         
@@ -42,14 +45,15 @@ class AoDataGenerator:
         return str(vars(self))
 
 
-
 if __name__ == '__main__':
     try:
         from numpy import linspace
-        voltage_profiles = {'ch0':linspace(0,1, 1000),
-                            'ch2':linspace(0,10, 1000),
-                            }
-        ao_data_generator = AoDataGenerator(voltage_profiles, 0, 3, 1000)
+
+        _voltage_profiles = {
+            'ch0': linspace(0, 1, 1000),
+            'ch2': linspace(0, 10, 1000)
+        }
+        ao_data_generator = AoDataGenerator(_voltage_profiles, 0, 3, 1000)
 
         import matplotlib.pyplot as plt
         plt.plot(ao_data_generator.buffer[::4])

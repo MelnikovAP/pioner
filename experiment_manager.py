@@ -44,10 +44,11 @@ class ExperimentManager:
         return self.ai_data
 
     def run(self):
-        self._ao_buffer = AoDataGenerator(self._voltage_profiles, 
-                                            self._ao_params.low_channel, 
-                                            self._ao_params.high_channel,
-                                            self._scan_params.sample_rate).buffer
+        self._ao_buffer = AoDataGenerator(self._voltage_profiles,
+                                          self._ao_params.low_channel,
+                                          self._ao_params.high_channel,
+                                          self._scan_params.sample_rate).buffer
+
         with AcquisitionManager(self._ao_buffer, self._scan_params, self._daq_params,
                                 self._ai_params, self._ao_params) as am:
             am.run()

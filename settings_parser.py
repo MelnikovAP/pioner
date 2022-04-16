@@ -5,7 +5,7 @@ from ai_params import AiParams
 from ao_params import AoParams
 from constants import MAX_SCAN_SAMPLE_RATE
 from settings import Settings
-from utils import is_int_or_raise, list_bitwise_or
+from extra_utils import is_int_or_raise, list_bitwise_or
 
 
 class SettingsParser:
