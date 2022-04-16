@@ -15,6 +15,9 @@ class FastHeat:
                  calibration: Calibration,
                  settings: SettingsParser):
         self.time_temp_table = time_temp_table
+        if len(self.time_temp_table[PhysQuantity.TIME]) != len(self.time_temp_table[PhysQuantity.TEMPERATURE]):
+            raise ValueError("Different imput number of time and temperature points.")
+
         self.calibration = calibration
         self.settings = settings
 
@@ -58,11 +61,13 @@ class FastHeat:
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
         time = self.time_temp_table[PhysQuantity.TIME]
+        time = np.linspace(time[0], time[-1], time[-1])
+
         temp = self.time_temp_table[PhysQuantity.TEMPERATURE]
 
         interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
-        time = np.linspace(time[0], time[-1], time[-1])
         temp = interpolation(time)
+
         return temperature_to_voltage(temp, self.calibration)
 
     def _apply_calibration(self):
