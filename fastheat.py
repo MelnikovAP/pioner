@@ -61,11 +61,11 @@ class FastHeat:
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
         time = self.time_temp_table[PhysQuantity.TIME]
-        time = np.linspace(time[0], time[-1], time[-1])
-
         temp = self.time_temp_table[PhysQuantity.TEMPERATURE]
-
         interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
+
+        points_num = time[-1] + 1  # to get "time[-1]" intervals !!
+        time = np.linspace(time[0], time[-1], points_num)
         temp = interpolation(time)
 
         return temperature_to_voltage(temp, self.calibration)
