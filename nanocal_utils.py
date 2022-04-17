@@ -11,15 +11,15 @@ def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.ar
     return temp
 
 
+# TODO: think maybe to create a T-V (and vice versa) converter class
 def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.array:
     # generating temp-volt dependency in full calibration range
     resolution = 0.0001  # V
     volt_calib = np.linspace(0, calibration.safe_voltage, int(1 / resolution))
-    temp_calib = voltage_to_temperature(volt_calib, calibration)
 
-    temp = temp.copy()
-    temp[temp <= calibration.mintemp] = calibration.mintemp
-    temp[temp >= calibration.maxtemp] = calibration.maxtemp
+    temp_calib = voltage_to_temperature(volt_calib, calibration)
+    temp_calib[temp_calib <= calibration.min_temp] = calibration.min_temp
+    temp_calib[temp_calib >= calibration.max_temp] = calibration.max_temp
 
     voltage = np.zeros(len(temp))
     for i, t in np.ndenumerate(temp):

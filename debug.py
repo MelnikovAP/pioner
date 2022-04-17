@@ -13,25 +13,27 @@ if __name__ == "__main__":
         PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0]
     }
 
+    # for not to truncate printing numpy arrays
     np.set_printoptions(threshold=sys.maxsize)
 
     time = time_temp_table[PhysQuantity.TIME]
-    print("time: \n{}".format(time))
+    # print("time: \n{}".format(time))
 
     temp = time_temp_table[PhysQuantity.TEMPERATURE]
-    print("temp: \n{}".format(temp))
+    # print("temp: \n{}".format(temp))
 
     interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
 
-    points_num = time[-1] + 1
+    points_num = time[-1] + 1  # to get "time[-1]" intervals !!
     time_program_points = np.linspace(time[0], time[-1], points_num)
-    print("time upd: \n{}".format(time_program_points))
+    # print("time upd: \n{}".format(time_program_points))
 
     temp_program_points = interpolation(time_program_points)
-    print("temp upd: \n{}".format(temp_program_points))
+    # print("temp upd: \n{}".format(temp_program_points))
 
     calibration = Calibration()
-    print(calibration.safe_voltage, calibration.maxtemp, calibration.mintemp)
+    calibration.read('./calibration.json')
+    # print(calibration.safe_voltage, calibration.max_temp, calibration.min_temp)
 
     volt_program_points = temperature_to_voltage(temp_program_points, calibration)
-    print("voltage: \n{}".format(volt_program_points))
+    # print("voltage: \n{}".format(volt_program_points))

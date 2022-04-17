@@ -170,17 +170,17 @@ class Calibration:
 
     def _add_params(self):
         # parameters that are not in calibration file but need to use later
-        self.maxtemp = self.theater0 * self.safe_voltage + \
-                       self.theater1 * (self.safe_voltage ** 2) + \
-                       self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
-        self.mintemp = 0.
+        self.max_temp = self.theater0 * self.safe_voltage + \
+                        self.theater1 * (self.safe_voltage ** 2) + \
+                        self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
+        self.min_temp = 0.
 
 
 if __name__ == '__main__':
     try:
         calib = Calibration()
-        print(calib.maxtemp)
+        print(calib.max_temp)
         calib.read('./calibration.json')
-        print(calib.maxtemp)
+        print(calib.max_temp)
     except BaseException as e:
         print(e)
