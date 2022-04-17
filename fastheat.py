@@ -65,10 +65,11 @@ class FastHeat:
         interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
 
         points_num = time[-1] + 1  # to get "time[-1]" intervals !!
-        time = np.linspace(time[0], time[-1], points_num)
-        temp = interpolation(time)
+        time_program_points = np.linspace(time[0], time[-1], points_num)
+        temp_program_points = interpolation(time_program_points)
 
-        return temperature_to_voltage(temp, self.calibration)
+        volt_program_points = temperature_to_voltage(temp_program_points, self.calibration)
+        return volt_program_points
 
     def _apply_calibration(self):
         pass
