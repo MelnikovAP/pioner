@@ -1,0 +1,37 @@
+from enums_utils import PhysQuantity
+from nanocal_utils import temperature_to_voltage
+from calibration import Calibration
+from scipy import interpolate
+import numpy as np
+import sys
+
+
+if __name__ == "__main__":
+
+    time_temp_table = {
+        PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
+        PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0]
+    }
+
+    np.set_printoptions(threshold=sys.maxsize)
+
+    time = time_temp_table[PhysQuantity.TIME]
+    print("time: \n{}".format(time))
+
+    temp = time_temp_table[PhysQuantity.TEMPERATURE]
+    print("temp: \n{}".format(temp))
+
+    interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
+
+    points_num = time[-1] + 1
+    time_program_points = np.linspace(time[0], time[-1], points_num)
+    print("time upd: \n{}".format(time_program_points))
+
+    temp_program_points = interpolation(time_program_points)
+    print("temp upd: \n{}".format(temp_program_points))
+
+    calibration = Calibration()
+    print(calibration.safe_voltage, calibration.maxtemp, calibration.mintemp)
+
+    volt_program_points = temperature_to_voltage(temp_program_points, calibration)
+    print("voltage: \n{}".format(volt_program_points))
