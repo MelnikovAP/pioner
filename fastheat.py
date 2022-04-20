@@ -52,7 +52,6 @@ class FastHeat:
                                self.settings.get_ao_params()) as em:
             em.run()
         self.ai_data = em.get_ai_data()
-
         self._apply_calibration()
 
     def _get_channel0_voltage(self):
@@ -64,7 +63,7 @@ class FastHeat:
         temp = self.time_temp_table[PhysQuantity.TEMPERATURE]
         interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')
 
-        points_num = time[-1] + 1  # to get "time[-1]" intervals !!
+        points_num = time[-1]        # to get "time[-1]" intervals !!
         time_program_points = np.linspace(time[0], time[-1], points_num)
         temp_program_points = interpolation(time_program_points)
 
@@ -72,4 +71,4 @@ class FastHeat:
         return volt_program_points
 
     def _apply_calibration(self):
-        pass
+        print(self.ai_data.head())

@@ -15,35 +15,38 @@ from enums_utils import PhysQuantity
 def main():
     settings = SettingsParser('./settings.json')
     calibration = Calibration()
-    calibration.read('./calibration.json')
+    #calibration.read('./calibration.json')
+    calibration.read('./default_calibration.json')
 
     # TODO: read from somewhere
     time_temp_table = {
         PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
-        PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0]
+        #PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0],
+        PhysQuantity.TEMPERATURE: [0, 0, 5, 5, 0, 0],
     }
 
     with FastHeat(time_temp_table, calibration, settings) as fh:
         voltage_profiles = fh.arm()
 
-    # for debug, remove later
-        import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        ax1.plot(voltage_profiles['ch0'])
-        ax1.plot(voltage_profiles['ch1'])
-        plt.show()
+    ######### for debug, remove later
+        # import matplotlib.pyplot as plt
+        # fig, ax1 = plt.subplots()
+        # ax1.plot(voltage_profiles['ch0'])
+        # ax1.plot(voltage_profiles['ch1'])
+        # plt.show()
+    ###################
 
         fh.run(voltage_profiles)
         fh_data = fh.get_ai_data()
 
-    # for debug, remove later
+    ######## for debug, remove later
         import matplotlib.pyplot as plt
         fig, ax1 = plt.subplots()
-        for i in [0, 1]:
+        for i in [0, 1, 2, 3, 4, 5]:
             ax1.plot(fh_data[i], label='channel #'+str(i))
         ax1.legend()
         plt.show()
-
+    ###################
 
 if __name__ == '__main__':
     try:
