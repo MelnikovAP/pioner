@@ -22,7 +22,7 @@ def main():
     time_temp_table = {
         PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
         #PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0],
-        PhysQuantity.TEMPERATURE: [0, 0, 5, 5, 0, 0],
+        PhysQuantity.TEMPERATURE: [0, 0, 3, 3, 0, 0],
     }
 
     with FastHeat(time_temp_table, calibration, settings) as fh:
@@ -41,10 +41,7 @@ def main():
 
     ######## for debug, remove later
         import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        for i in [0, 1, 2, 3, 4, 5]:
-            ax1.plot(fh_data[i], label='channel #'+str(i))
-        ax1.legend()
+        fh_data.plot()
         plt.show()
     ###################
 

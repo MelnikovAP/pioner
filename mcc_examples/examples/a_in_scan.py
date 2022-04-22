@@ -46,9 +46,9 @@ def main():
     range_index = 0
     interface_type = InterfaceType.ANY
     low_channel = 0
-    high_channel = 0
-    samples_per_channel = 100000
-    rate = 1000000
+    high_channel = 5
+    samples_per_channel = 1000
+    rate = 1000
     scan_options = ScanOption.CONTINUOUS
     flags = AInScanFlag.DEFAULT
 

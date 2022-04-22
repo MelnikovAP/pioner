@@ -39,7 +39,7 @@ class FastHeat:
         voltage_profiles['ch0'] = self._get_channel0_voltage()
         # arm voltage profile to ch1
         voltage_profiles['ch1'] = self._get_channel1_voltage()
-    
+
         return voltage_profiles
 
     def run(self, voltage_profiles):
@@ -52,10 +52,10 @@ class FastHeat:
                                self.settings.get_ao_params()) as em:
             em.run()
         self.ai_data = em.get_ai_data()
-        self._apply_calibration()
+        #self.ai_data = self._apply_calibration(self.ai_data)
 
     def _get_channel0_voltage(self):
-        return np.ones(self.time_temp_table[PhysQuantity.TIME][-1]) / 10.
+        return np.ones(self.time_temp_table[PhysQuantity.TIME][-1]) / 10.       # apply 0.1 voltage on channel0
 
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
@@ -70,5 +70,36 @@ class FastHeat:
         volt_program_points = temperature_to_voltage(temp_program_points, self.calibration)
         return volt_program_points
 
-    def _apply_calibration(self):
-        print(self.ai_data.head())
+    def _apply_calibration(self, ai_data):
+
+        # Taux
+        #Uaux = self.ai_data[3].mean()
+        #Taux = 100.*Uaux
+        # if Taux < -12:                            # corrrection for AD595 below -12C
+        #     Taux = 2.6843 + 1.2709*Taux + 0.0042867*Taux*Taux + 3.4944e-05*Taux*Taux*Taux
+        ai_data['Taux'] = self.ai_data[3]
+        ai_data['Taux_mean'] = self.ai_data[3].mean()
+
+        # Utpl or temp - temperature of the calibrated internal termopile + Taux
+        ai_data[4] *= (1000./11.)              # scaling to mV with the respect of amplification factor of 11
+        ax = ai_data[4] + self.calibration.utpl0
+        ai_data['temp'] = self.calibration.ttpl0*ax + self.calibration.ttpl1*(ax**2)
+        ai_data['temp'] += Taux
+
+        # temp-hr ??? add explanation Umod mV
+        ai_data[1] *= (1000./121.)             # scaling to mV; why 121?? amplifier cascade??
+        ax = ai_data[1] + self.calibration.utpl0
+        ai_data['temp-hr'] = self.calibration.ttpl0*ax + self.calibration.ttpl1*(ax**2)
+        
+        # Uref
+        
+        # Thtr
+        #self.ai_data[5] *= 1000.                # Uhtr mV 
+        
+        
+        ai_data.drop(self.ai_channels, axis=1, inplace=True)
+        return ai_data
+        
+
+
+
