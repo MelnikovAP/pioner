@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     time_temp_table = {
         PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
-        PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0]
+        PhysQuantity.TEMPERATURE: [0, 0, 5, 5, 0, 0]
     }
 
     # for not to truncate printing numpy arrays
