@@ -17,7 +17,7 @@ def main():
     calibration = Calibration()
     #calibration.read('./calibration.json')
     calibration.read('./default_calibration.json')
-
+    
     # TODO: read from somewhere
     time_temp_table = {
         PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],

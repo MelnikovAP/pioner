@@ -29,12 +29,12 @@ class Calibration:
         self.thtr0 = 0.
         self.thtr1 = 1.
         self.thtr2 = 0.
-        self.thtrcorr = 48.94
+        self.thtrcorr = 0
         # [Thtrd] = thtrd0 + thtrd1 * [R + thtrdcorr] + thtrd2 * [(R + thtrdcorr)^2]
         self.thtrd0 = 0.
         self.thtrd1 = 1.
         self.thtrd2 = 0.
-        self.thtrdcorr = 61.28 
+        self.thtrdcorr = 0 
         # [Uhtr] = ([U(mv)] + uhtr0) * uhtr1
         self.uhtr0 = 0.
         self.uhtr1 = 1.
@@ -42,7 +42,7 @@ class Calibration:
         self.ihtr0 = 0.
         self.ihtr1 = 1.
         # [Theater] = theater0 * [U] + theater1 * [U^2] + theater2 * [U^3]
-        self.theater0 = 2.
+        self.theater0 = 1.
         self.theater1 = 0.
         self.theater2 = 0.
         # [Amplitude correction] = ac0 + ac1 * [T] + ac2 * [T^2] + ac3 * [T^3]
