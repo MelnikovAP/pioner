@@ -2,7 +2,7 @@
 	"Settings": {
 		"Scan": {
 			"SampleRate": 1000,
-			"Options": [8], "help": "https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.ScanOption"
+			"Options": [2], "help": "https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.ScanOption"
 		},
 		"DAQ": {
 			"InterfaceType": [1], "help": "USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType",

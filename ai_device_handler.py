@@ -44,11 +44,13 @@ class AiDeviceHandler:
     def scan(self) -> float:
         info = self._ai_device.get_info()
         analog_range = ul.Range(self._params.range_id)
-
+    # as a patch ul.ScanOption.CONTINUOUS was put as an option. In fast heating mode 
+    # ao device outputs the certain voltage in the frame of certain buffer in BLOCKIO mode.
+    # But ai device reads the buffer continiousely. Maybe need to change later...
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
                                          self._params.input_mode, analog_range, 
                                          self._scan_params.sample_rate,
-                                         self._scan_params.sample_rate, self._scan_params.options, 
+                                         self._scan_params.sample_rate, ul.ScanOption.CONTINUOUS, 
                                          self._params.scan_flags, self._buffer)
 
     def data(self):

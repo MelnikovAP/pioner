@@ -46,8 +46,7 @@ class ExperimentManager:
     def run(self):
         self._ao_buffer = AoDataGenerator(self._voltage_profiles,
                                           self._ao_params.low_channel,
-                                          self._ao_params.high_channel,
-                                          self._scan_params.sample_rate).buffer
+                                          self._ao_params.high_channel).buffer
 
         with AcquisitionManager(self._ao_buffer, self._scan_params, self._daq_params,
                                 self._ai_params, self._ao_params) as am:
@@ -56,7 +55,11 @@ class ExperimentManager:
 
     def save_data_loop(self, am: AcquisitionManager, ai_channels: list):
         try:
-            print("Enter 'CTRL+C' to terminate the process.\n")
+            if self._scan_params.options == 8:
+                print("CONTINUOUS mode. Enter 'CTRL+C' to terminate the process.\n")
+            if self._scan_params.options == 2:
+                print("BLOCKIO  mode. Wait util scan is finished.\n")
+
             _temp_ai_data = am.ai_device_handler.data()
 
             _HIGH_HALF_FLAG = True
@@ -71,9 +74,10 @@ class ExperimentManager:
                     ai_status, ai_transfer_status = am.ai_device_handler.status()
                     ao_status, ao_transfer_status = am.ao_device_handler.status()
 
-                    _ai_index = ai_transfer_status.current_index          
+                    _ai_index = ai_transfer_status.current_index        
                     if _ai_index > _half_buffer_length and _HIGH_HALF_FLAG:
                         # reading low half 
+                        print('reading low half ')
                         df = pd.DataFrame(_temp_ai_data[:_half_buffer_length])
                         multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
                                                                 list(range(_step))])
@@ -88,6 +92,7 @@ class ExperimentManager:
                              
                     elif _ai_index < _half_buffer_length and not _HIGH_HALF_FLAG:
                         # reading high half
+                        print('reading high half')
                         df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
                         multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
                                                                 list(range(_step))])
@@ -101,19 +106,22 @@ class ExperimentManager:
                         _HIGH_HALF_FLAG = True
                     
                     if (ai_status != ul.ScanStatus.RUNNING) or (ao_status != ul.ScanStatus.RUNNING):
-                        # reading last high half
-                        df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
-                        multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
-                                                                list(range(_step))])
-                        df.index = multi_index
-                        df = df.unstack()
-                        df.columns = df.columns.droplevel()
-                        df = df[self._ai_channels]
-                        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
+                        # print('reading last high half')
+                        # print(ai_status)
+                        # print(ao_status)
+                        # reading last high half if the last reading was in the low half
+                        # if not _HIGH_HALF_FLAG:
+                        #     df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
+                        #     multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
+                        #                                             list(range(_step))])
+                        #     df.index = multi_index
+                        #     df = df.unstack()
+                        #     df.columns = df.columns.droplevel()
+                        #     df = df[self._ai_channels]
+                        #     self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
+                        #     df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         break  
 
-                    sleep(0.1)
                 except (ValueError, NameError, SyntaxError):
                     break
         except KeyboardInterrupt:

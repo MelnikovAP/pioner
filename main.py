@@ -20,20 +20,20 @@ def main():
     
     # TODO: read from somewhere
     time_temp_table = {
-        PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
+        PhysQuantity.TIME: [0, 5000, 15000, 20000, 30000, 35000, 40000, 42000, 50000, 50000, 51000, 51000, 55000, 60000],
         #PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0],
-        PhysQuantity.TEMPERATURE: [0, 0, 3, 3, 0, 0],
+        PhysQuantity.TEMPERATURE: [0, 0, 1, 1, 0, 0, 2, 2, 0, 0, 3, 3, 0, 0],
     }
 
     with FastHeat(time_temp_table, calibration, settings) as fh:
         voltage_profiles = fh.arm()
 
     ######### for debug, remove later
-        # import matplotlib.pyplot as plt
-        # fig, ax1 = plt.subplots()
-        # ax1.plot(voltage_profiles['ch0'])
-        # ax1.plot(voltage_profiles['ch1'])
-        # plt.show()
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(voltage_profiles['ch0'])
+        ax1.plot(voltage_profiles['ch1'])
+        plt.show()
     ###################
 
         fh.run(voltage_profiles)
