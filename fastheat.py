@@ -1,12 +1,12 @@
 from experiment_manager import ExperimentManager
 from calibration import Calibration
-from nanocal_utils import temperature_to_voltage
-from settings_parser import SettingsParser
+from utils import temperature_to_voltage, PhysQuantity
+from settings import SettingsParser
+
 from scipy import interpolate
-from typing import Dict, List
-from enums_utils import PhysQuantity
 import numpy as np
 import pandas as pd
+from typing import Dict, List
 
 
 class FastHeat:
@@ -21,15 +21,18 @@ class FastHeat:
 
         self.profile_time = self.time_temp_table[PhysQuantity.TIME]
         self.profile_temp = self.time_temp_table[PhysQuantity.TEMPERATURE]
-        # buffer size, sample_rate*{experiment duration in seconds}
 
         self.ai_channels = [0, 1, 2, 3, 4, 5]  # TODO: check is it ok here
-        self.scan_params = self.settings.get_scan_params()
-        self.scan_params.buffer_size = int(self.profile_time[-1]/1000 * \
-                                            self.settings.get_scan_params().sample_rate)
+
         self.daq_params = self.settings.get_daq_params()
         self.ai_params = self.settings.get_ai_params()
         self.ao_params = self.settings.get_ao_params()
+
+        self.ai_params.options = 2
+        self.ao_params.options = 2
+
+        self.ao_params.samples_per_channel = int(self.profile_time[-1]/1000 * \
+                                                self.ao_params.sample_rate)
 
     def get_ai_data(self):
         """Provides explicit access to the read ai_data."""
@@ -53,7 +56,6 @@ class FastHeat:
         # voltage data for each used ao channel like {'ch0': [.......], 'ch3': [........]}
         with ExperimentManager(voltage_profiles,
                                self.ai_channels,  # channels to read from ai device
-                               self.scan_params,
                                self.daq_params,
                                self.ai_params,
                                self.ao_params) as em:
@@ -63,13 +65,13 @@ class FastHeat:
         self._apply_calibration()
 
     def _get_channel0_voltage(self):
-        return np.ones(self.scan_params.buffer_size) / 10.       # apply 0.1 voltage on channel0
+        return np.ones(self.ao_params.samples_per_channel) / 10.       # apply 0.1 voltage on channel0
 
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
         interpolation = interpolate.interp1d(x=self.profile_time, y=self.profile_temp, kind='linear')
         
-        time_program_points = np.linspace(self.profile_time[0], self.profile_time[-1], self.scan_params.buffer_size)
+        time_program_points = np.linspace(self.profile_time[0], self.profile_time[-1], self.ao_params.samples_per_channel)
         temp_program_points = interpolation(time_program_points)
 
         volt_program_points = temperature_to_voltage(temp_program_points, self.calibration)
@@ -83,7 +85,7 @@ class FastHeat:
         if Taux < -12:                            # corrrection for AD595 below -12C
             Taux = 2.6843 + 1.2709*Taux + 0.0042867*Taux*Taux + 3.4944e-05*Taux*Taux*Taux
         self.ai_data['Taux'] = Taux
-        
+
         # Utpl or temp - temperature of the calibrated internal termopile + Taux
         self.ai_data[4] *= (1000./11.)              # scaling to mV with the respect of amplification factor of 11
         ax = self.ai_data[4] + self.calibration.utpl0

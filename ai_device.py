@@ -1,27 +1,33 @@
-from scan_params import ScanParams
-from ai_params import AiParams
-
 import uldaq as ul
 
+class AiParams:
+    def __init__(self):
+        self.sample_rate = -1  # Hz
+        self.range_id = -1
+        self.low_channel = -1
+        self.high_channel = -1
+        self.input_mode = 2  # ul.AiInputMode.SINGLE_ENDED
+        self.scan_flags = 0  # ul.AInScanFlag.DEFAULT
+        self.options = 8  # ul.ScanOption.CONTINUOUS by default
+
+    def __str__(self):
+        return str(vars(self))
 
 class AiDeviceHandler:
     """Wraps the analog-input uldaq.AiDevice."""
 
     def __init__(self, ai_device_from_daq: ul.AiDevice,
-                 params: AiParams, scan_params: ScanParams):
+                 params: AiParams):
         """Initializes AI device and all parameters.
 
         Args:
             ai_device_from_daq: uldaq.AiDevice obtained from uldaq.DaqDevice.
             params: An AiParams instance, containing all needed analog-input parameters parsed from JSON.
-            scan_params: A ScanParams instance, containing all needed scanning parameters parsed from JSON.
-
         Raises:
             RuntimeError if the DAQ device doesn't support analog input or hardware paced analog input.
         """
         self._ai_device = ai_device_from_daq
         self._params = params
-        self._scan_params = scan_params
 
         if self._ai_device is None:
             raise RuntimeError("Error. DAQ device doesn't support analog input.")
@@ -34,30 +40,36 @@ class AiDeviceHandler:
             self._params.input_mode = ul.AiInputMode.DIFFERENTIAL
 
         self.channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(self.channel_count, self._scan_params.sample_rate)
+        self._buffer = ul.create_float_buffer(self.channel_count, self._params.sample_rate)
 
     def get(self) -> ul.AiDevice:
         """Provides explicit access to the uldaq.AiDevice."""
         return self._ai_device
 
     # returns actual input scan rate
-    def scan(self) -> float:
-        info = self._ai_device.get_info()
+    def scan_infinite(self) -> float:
         analog_range = ul.Range(self._params.range_id)
     # as a patch ul.ScanOption.CONTINUOUS was put as an option. In fast heating mode 
     # ao device outputs the certain voltage in the frame of certain buffer in BLOCKIO mode.
     # But ai device reads the buffer continiousely. Maybe need to change later...
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
                                          self._params.input_mode, analog_range, 
-                                         self._scan_params.sample_rate,
-                                         self._scan_params.sample_rate, ul.ScanOption.CONTINUOUS, 
+                                         self._params.sample_rate,
+                                         self._params.sample_rate, self._params.options, 
                                          self._params.scan_flags, self._buffer)
+    def scan_finite(self) -> float:
+        analog_range = ul.Range(self._params.range_id)
+        return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
+                                         self._params.input_mode, analog_range, 
+                                         self._params.sample_rate,
+                                         self._params.sample_rate, ul.ScanOption.BLOCKIO, 
+                                         self._params.scan_flags, self._buffer)                                     
 
     def data(self):
         return self._buffer
 
     def stop(self):
         self._ai_device.scan_stop()
-
+  
     def status(self):
         return self._ai_device.get_scan_status()

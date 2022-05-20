@@ -1,5 +1,4 @@
-from constants import JSON_EXTENSION
-from settings_constants import *
+from constants import *
 import json
 import os
 
@@ -14,11 +13,6 @@ class Calibration:
         self.amplitude = 0.05
         self.offset = 0.1
         self.frequency = 75.
-    # [Gains]
-        self.urefgain = 1.
-        self.umodgain = 2.
-        self.utplgain = 5.
-        self.uhtrgain = 10.
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = 0.
@@ -74,11 +68,6 @@ class Calibration:
         self.amplitude = float(self._json_calib[MODULATION_PARAMS_FIELD][AMPLITUDE_FIELD])
         self.offset = float(self._json_calib[MODULATION_PARAMS_FIELD][OFFSET_FIELD])
         self.frequency = float(self._json_calib[MODULATION_PARAMS_FIELD][FREQUENCY_FIELD])
-    # [Gains]
-        self.urefgain = float(self._json_calib[GAINS_FIELD][U_REF_GAIN_FIELD])
-        self.umodgain = float(self._json_calib[GAINS_FIELD][U_MOD_GAIN_FIELD])
-        self.utplgain = float(self._json_calib[GAINS_FIELD][U_TPL_GAIN_FIELD])
-        self.uhtrgain = float(self._json_calib[GAINS_FIELD][U_HTR_GAIN_FIELD])
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = float(self._json_calib[CALIBRATION_COEFFS_FIELD][U_TPL_FIELD]['0'])
@@ -124,11 +113,6 @@ class Calibration:
         self._json_calib[MODULATION_PARAMS_FIELD][AMPLITUDE_FIELD] = self.amplitude
         self._json_calib[MODULATION_PARAMS_FIELD][OFFSET_FIELD] = self.offset
         self._json_calib[MODULATION_PARAMS_FIELD][FREQUENCY_FIELD] = self.frequency
-    # [Gains]
-        self._json_calib[GAINS_FIELD][U_REF_GAIN_FIELD] = self.urefgain
-        self._json_calib[GAINS_FIELD][U_MOD_GAIN_FIELD] = self.umodgain
-        self._json_calib[GAINS_FIELD][U_TPL_GAIN_FIELD] = self.utplgain
-        self._json_calib[GAINS_FIELD][U_HTR_GAIN_FIELD] = self.uhtrgain
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self._json_calib[CALIBRATION_COEFFS_FIELD][U_TPL_FIELD]['0'] = self.utpl0

@@ -1,14 +1,11 @@
 {
 	"Settings": {
-		"Scan": {
-			"SampleRate": 1000,
-			"Options": [2], "help": "https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.ScanOption"
-		},
 		"DAQ": {
 			"InterfaceType": [1], "help": "USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType",
 			"ConnectionCode": 0
 		},
 		"AI": {
+			"SampleRate": 1000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
 			"HighChannel": 9,
@@ -16,6 +13,7 @@
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		},
 		"AO": {
+			"SampleRate": 1000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
 			"HighChannel": 3,

@@ -1,7 +1,7 @@
 import uldaq as ul
 
 
-class AoDataGenerator:
+class PulseDataGenerator:
     # The buffer for AO device of daqboard should be linear.
     # This class generates the linear buffer from dictionary, some kind of 2D array
     # like {'ch0': [.......], 'ch3': [........]}. Unused channels are being set to 0.

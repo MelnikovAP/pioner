@@ -1,8 +1,35 @@
+from typing import List
+from enum import Enum
 import numpy as np
 from bisect import bisect_left
 from calibration import Calibration
 
 
+def is_int(key) -> bool:
+    if isinstance(key, int) or isinstance(key, str) and key.isdigit():
+        return True
+
+
+def is_int_or_raise(key) -> bool:
+    if is_int(key):
+        return True
+    raise ValueError("'{}' is not an integer value.".format(key))
+
+
+def list_bitwise_or(ints: List[int]) -> int:
+    res = 0
+    for i in ints:
+        res |= i
+    return res
+
+
+class PhysQuantity(Enum):
+    TIME = 0,
+    TEMPERATURE = 1,
+    VOLTAGE = 2
+
+# calorimeter utils
+# ====================================================
 def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.array:
     volt = voltage.copy()
     volt[volt < 0] = 0
@@ -14,7 +41,7 @@ def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.ar
 # TODO: think maybe to create a T-V (and vice versa) converter class
 def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.array:
     # generating temp-volt dependency in full calibration range
-    resolution = 0.001  # V
+    resolution = 0.0001  # V
     volt_calib = np.linspace(0, calibration.safe_voltage, int(1 / resolution))
 
     temp_calib = voltage_to_temperature(volt_calib, calibration)

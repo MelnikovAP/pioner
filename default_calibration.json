@@ -5,12 +5,6 @@
 		"Offset": 0.1,
 		"Frequency": 75.0
 	},
-	"Gains": {
-		"Urefgain": 1.0,
-		"Umodgain": 2.0,
-		"Utplgain": 5.0,
-		"Uhtrgain": 10.0
-	},
 	"Calibration coeff": {
 		"Utpl": {
 			"0": 0.0
