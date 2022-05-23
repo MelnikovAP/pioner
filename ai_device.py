@@ -44,26 +44,7 @@ class AiDeviceHandler:
 
     def get(self) -> ul.AiDevice:
         """Provides explicit access to the uldaq.AiDevice."""
-        return self._ai_device
-
-    # returns actual input scan rate
-    def scan_infinite(self) -> float:
-        analog_range = ul.Range(self._params.range_id)
-    # as a patch ul.ScanOption.CONTINUOUS was put as an option. In fast heating mode 
-    # ao device outputs the certain voltage in the frame of certain buffer in BLOCKIO mode.
-    # But ai device reads the buffer continiousely. Maybe need to change later...
-        return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
-                                         self._params.input_mode, analog_range, 
-                                         self._params.sample_rate,
-                                         self._params.sample_rate, self._params.options, 
-                                         self._params.scan_flags, self._buffer)
-    def scan_finite(self) -> float:
-        analog_range = ul.Range(self._params.range_id)
-        return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
-                                         self._params.input_mode, analog_range, 
-                                         self._params.sample_rate,
-                                         self._params.sample_rate, ul.ScanOption.BLOCKIO, 
-                                         self._params.scan_flags, self._buffer)                                     
+        return self._ai_device                                   
 
     def data(self):
         return self._buffer
@@ -73,3 +54,12 @@ class AiDeviceHandler:
   
     def status(self):
         return self._ai_device.get_scan_status()
+
+    # returns actual input scan rate
+    def scan(self) -> float:
+        analog_range = ul.Range(self._params.range_id)
+        return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
+                                         self._params.input_mode, analog_range, 
+                                         self._params.sample_rate,
+                                         self._params.sample_rate, self._params.options, 
+                                         self._params.scan_flags, self._buffer)

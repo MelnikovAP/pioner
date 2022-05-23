@@ -2,6 +2,7 @@ from experiment_manager import ExperimentManager
 from calibration import Calibration
 from utils import temperature_to_voltage, PhysQuantity
 from settings import SettingsParser
+from constants import SETTINGS_PATH
 
 from scipy import interpolate
 import numpy as np
@@ -11,28 +12,20 @@ from typing import Dict, List
 
 class FastHeat:
     def __init__(self, time_temp_table: Dict[PhysQuantity, List[int]],
-                 calibration: Calibration,
-                 settings: SettingsParser):
+                 calibration: Calibration):
         self.time_temp_table = time_temp_table
         if len(self.time_temp_table[PhysQuantity.TIME]) != len(self.time_temp_table[PhysQuantity.TEMPERATURE]):
             raise ValueError("Different imput number of time and temperature points.")
         self.calibration = calibration
-        self.settings = settings
 
         self.profile_time = self.time_temp_table[PhysQuantity.TIME]
         self.profile_temp = self.time_temp_table[PhysQuantity.TEMPERATURE]
 
-        self.ai_channels = [0, 1, 2, 3, 4, 5]  # TODO: check is it ok here
+        self.ai_channels = [0, 1, 2, 3, 4, 5]
 
-        self.daq_params = self.settings.get_daq_params()
-        self.ai_params = self.settings.get_ai_params()
-        self.ao_params = self.settings.get_ao_params()
-
-        self.ai_params.options = 2
-        self.ao_params.options = 2
-
-        self.ao_params.samples_per_channel = int(self.profile_time[-1]/1000 * \
-                                                self.ao_params.sample_rate)
+        self._ao_params = SettingsParser(SETTINGS_PATH).get_ao_params()
+        self._samples_per_channel = int(self.profile_time[-1]/1000 * \
+                                        self._ao_params.sample_rate)
 
     def get_ai_data(self):
         """Provides explicit access to the read ai_data."""
@@ -54,24 +47,22 @@ class FastHeat:
 
     def run(self, voltage_profiles):
         # voltage data for each used ao channel like {'ch0': [.......], 'ch3': [........]}
-        with ExperimentManager(voltage_profiles,
-                               self.ai_channels,  # channels to read from ai device
-                               self.daq_params,
-                               self.ai_params,
-                               self.ao_params) as em:
+        with ExperimentManager() as em:
             em.run()
+            em.ao_scan(self.voltage_profiles)
+            em.ai_continuous(ai_channels_to_read=self.ai_channels, SAVE_DATA=True)
+            self.ai_data = em.get_ai_data()
 
-        self.ai_data = em.get_ai_data()
         self._apply_calibration()
 
     def _get_channel0_voltage(self):
-        return np.ones(self.ao_params.samples_per_channel) / 10.       # apply 0.1 voltage on channel0
+        return np.ones(self._samples_per_channel) / 10.       # apply 0.1 voltage on channel0
 
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
         interpolation = interpolate.interp1d(x=self.profile_time, y=self.profile_temp, kind='linear')
         
-        time_program_points = np.linspace(self.profile_time[0], self.profile_time[-1], self.ao_params.samples_per_channel)
+        time_program_points = np.linspace(self.profile_time[0], self.profile_time[-1], self._samples_per_channel)
         temp_program_points = interpolation(time_program_points)
 
         volt_program_points = temperature_to_voltage(temp_program_points, self.calibration)

@@ -5,6 +5,7 @@ JSON_EXTENSION = "json"
 
 # Settings constants
 # =================================================================================
+SETTINGS_PATH = "./settings/settings.json"
 
 # Settings data
 SETTINGS_FIELD = "Settings"
@@ -25,6 +26,8 @@ SCAN_FLAGS_FIELD   = "ScanFlags"
 
 # Calibration constants
 # =================================================================================
+CALIBRATION_PATH = "./settings/calibration.json"
+
 INFO_FIELD = "Info"
 
 MODULATION_PARAMS_FIELD = "Modulation params"

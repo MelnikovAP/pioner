@@ -13,27 +13,26 @@ from utils import PhysQuantity
 
 
 def main():
-    settings = SettingsParser('./settings.json')
     calibration = Calibration()
     #calibration.read('./calibration.json')
-    calibration.read('./default_calibration.json')
+    calibration.read('./settings/default_calibration.json')
     
     # TODO: read from somewhere
     time_temp_table = {
-        PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
+        PhysQuantity.TIME: [0, 50, 450, 550, 3950, 5000],
         #PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0],
         PhysQuantity.TEMPERATURE: [0, 0, 1, 1, 0, 0],
     }
 
-    with FastHeat(time_temp_table, calibration, settings) as fh:
+    with FastHeat(time_temp_table, calibration) as fh:
         voltage_profiles = fh.arm()
         
     ######### for debug, remove later
-        # import matplotlib.pyplot as plt
-        # fig, ax1 = plt.subplots()
-        # ax1.plot(voltage_profiles['ch0'])
-        # ax1.plot(voltage_profiles['ch1'])
-        # plt.show()
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(voltage_profiles['ch0'])
+        ax1.plot(voltage_profiles['ch1'])
+        plt.show()
     ###################
 
         fh.run(voltage_profiles)

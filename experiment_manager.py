@@ -1,7 +1,9 @@
 from daq_device import DaqDeviceHandler, DaqParams
 from ai_device import AiDeviceHandler, AiParams
 from ao_device import AoDeviceHandler, AoParams
-from ao_data_generators import PulseDataGenerator
+from ao_data_generators import ScanDataGenerator
+from settings import SettingsParser
+from constants import SETTINGS_PATH
 
 from time import sleep
 import pandas as pd
@@ -9,21 +11,13 @@ import uldaq as ul
 import sys
 
 class ExperimentManager:
-    def __init__(self, voltage_profiles: dict, 
-                ai_channels: list,
-                daq_params: DaqParams,
-                ai_params: AiParams, 
-                ao_params: AoParams):
-        self._voltage_profiles = voltage_profiles
-        self._ai_channels = ai_channels
-        self._daq_params = daq_params
-        self._ai_params = ai_params
-        self._ao_params = ao_params
+    def __init__(self):      
+        self.apply_settings()
 
         # making empty DF and empty file for data saving
         # later store data in ai_data and throw it into *h5 file
         self.ai_data = pd.DataFrame()
-        self.ai_data.to_hdf('.raw_data.h5', key='dataset', format='table', mode='w')
+        self.ai_data.to_hdf('./data/raw_data.h5', key='dataset', format='table', mode='w')
 
     def __enter__(self):
         return self
@@ -42,50 +36,66 @@ class ExperimentManager:
 
     def get_ai_data(self):
         """Provides explicit access to the read ai_data."""
-        
         return self.ai_data
+    
+    def apply_settings(self):
+        self.settings = SettingsParser(SETTINGS_PATH)
+        self.daq_params = self.settings.get_daq_params()
+        self.ai_params = self.settings.get_ai_params()
+        self.ao_params = self.settings.get_ao_params()
 
     def run(self):
-        self.daq_device_handler = DaqDeviceHandler(self._daq_params)
-        self.daq_device_handler.connect()
+        self.daq_device_handler = DaqDeviceHandler(self.daq_params)
+        if not self.daq_device_handler.is_connected():
+            self.daq_device_handler.connect()
 
-        # for pulses in both ao and ai
-        if self._ai_params.options==2 and self._ao_params.options==2:
-            print("BLOCKIO  mode. Wait util scan is finished.\n")
-            self._ao_buffer = PulseDataGenerator(self._voltage_profiles,
-                                    self._ao_params.low_channel,
-                                    self._ao_params.high_channel).buffer
-            self.ai_device_handler = AiDeviceHandler(self.daq_device_handler.get_ai_device(),
-                                                    self._ai_params)
-            self.ao_device_handler = AoDeviceHandler(self._ao_buffer, 
-                                                    self.daq_device_handler.get_ao_device(),
-                                                    self._ao_params)
-            self.ai_device_handler.scan_finite()
-            self.ao_device_handler.scan_finite()
-            
-            self.ai_data = self.save_data_finite(self._ai_channels, 
-                                                self.ai_device_handler, 
-                                                self.ao_device_handler)
+    # for limited scans (one ao buffer will be applied)
+    def ao_scan(self, voltage_profiles: dict):
+        print("AO SCAN  mode. Wait util scan is finished.\n")
+        self.ao_params.options = 2 # ul.ScanOption.BLOCKIO
 
-        # for continuous scan in both ao and ai
-        if self._ai_params.options==8 and self._ao_params.options==8:
-            print("CONTINUOUS mode. To be developed. For exit use Ctrl+C\n")
-            pass
-    
-    def save_data_finite(self, ai_channels: list, 
-                        ai_device_handler: AiDeviceHandler,
-                        ao_device_handler: AoDeviceHandler):
-        df = pd.DataFrame(ai_device_handler.data()[:])
-        _step = ai_device_handler.channel_count
-        multi_index = pd.MultiIndex.from_product([list(range(int(len(df)/_step))), list(range(_step))])
-        df.index = multi_index
-        df = df.unstack()
-        df.columns = df.columns.droplevel()
-        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='w')
-        return df
+        self._ao_buffer = ScanDataGenerator(voltage_profiles,
+                                self.ao_params.low_channel,
+                                self.ao_params.high_channel).buffer
 
+        self.ao_device_handler = AoDeviceHandler(self.daq_device_handler.get_ao_device(),
+                                                self.ao_params)
+        # need to stop ao before scan
+        if self.ao_device_handler.status == ul.ScanStatus.RUNNING:
+            self.ao_device_handler.stop()
 
-    def save_data_infinite(self, ai_channels: list, 
+        self.ao_device_handler.scan(self._ao_buffer)
+
+    # for setting voltage
+    def ao_set(self, channel_voltages: dict, duration: int):
+        print("AO PULSE mode.\n")
+        # TODO: set specified voltage on selected channels + sinus on reference channel
+        pass
+
+    # for continuous scans (ao buffer will be repeated)
+    def ao_continuous(self, voltage_profiles: dict):
+        self.ao_params.options = 8  # ul.ScanOption.CONTINUOUS
+        # TODO: think about difference with ao_set, maybe leave just one of them
+        pass
+
+    def ai_continuous(self, ai_channels_to_read: list,
+                        SAVE_DATA: bool):
+        # Ai buffer is 1 s and ai is made in loop. Ao buffer equals to ao profile length
+        self.ai_params.options = 8  # ul.ScanOption.CONTINUOUS
+        self.ai_device_handler = AiDeviceHandler(self.daq_device_handler.get_ai_device(),
+                                                self.ai_params)
+        # need to stop aquisition before scan
+        if self.ai_device_handler.status == ul.ScanStatus.RUNNING:
+            self.ai_device_handler.stop()    
+        self.ai_device_handler.scan()
+
+        if SAVE_DATA == True:
+            self._save_data_loop(ai_channels_to_read, 
+                                self.ai_device_handler, 
+                                self.ao_device_handler)
+
+        
+    def _save_data_loop(self, ai_channels_to_read: list, 
                         ai_device_handler: AiDeviceHandler,
                         ao_device_handler: AoDeviceHandler):
         try:
@@ -113,9 +123,9 @@ class ExperimentManager:
                         df.index = multi_index
                         df = df.unstack()
                         df.columns = df.columns.droplevel()
-                        df = df[self._ai_channels]
+                        df = df[ai_channels_to_read]
                         self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
+                        df.to_hdf('./data/raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = False
                              
@@ -128,13 +138,15 @@ class ExperimentManager:
                         df.index = multi_index
                         df = df.unstack()
                         df.columns = df.columns.droplevel()
-                        df = df[self._ai_channels]
+                        df = df[ai_channels_to_read]
                         self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
+                        df.to_hdf('./data/raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         _index += _one_channel_half_buffer_length
                         _HIGH_HALF_FLAG = True
                     
-                    if (ai_status != ul.ScanStatus.RUNNING) or (ao_status != ul.ScanStatus.RUNNING):
+                    if (ao_status != ul.ScanStatus.RUNNING):
+                        # TODO: correct aborting the scan. now it is not fully saved. 
+                        
                         # print('reading last high half')
                         # print(ai_status)
                         # print(ao_status)
@@ -146,7 +158,7 @@ class ExperimentManager:
                         #     df.index = multi_index
                         #     df = df.unstack()
                         #     df.columns = df.columns.droplevel()
-                        #     df = df[self._ai_channels]
+                        #     df = df[ai_channels_to_read]
                         #     self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
                         #     df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
                         break  

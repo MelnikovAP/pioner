@@ -48,3 +48,4 @@ class DaqDeviceHandler:
 
     def get_ao_device(self):
         return self._daq_device.get_ao_device()
+
