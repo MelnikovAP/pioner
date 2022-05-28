@@ -4,3 +4,4 @@ uldaq==1.2.3
 scipy==1.8.0
 setuptools==41.2.0
 pandas==1.4.1
+matplotlib~=3.5.1
