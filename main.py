@@ -13,14 +13,14 @@ from utils import PhysQuantity
 
 def main():
     calibration = Calibration()
-    # calibration.read('./calibration.json')
+    # calibration.read('./settings/calibration.json')
     calibration.read('./settings/default_calibration.json')
     
     # TODO: read from somewhere
     time_temp_table = {
-        PhysQuantity.TIME: [0, 50, 450, 550, 3950, 5000],
+        PhysQuantity.TIME: [0, 50, 450, 550, 650, 4000],
         # PhysQuantity.TEMPERATURE: [0, 0, 300, 300, 0, 0],
-        PhysQuantity.TEMPERATURE: [0, 0, 1, 1, 0, 0],
+        PhysQuantity.TEMPERATURE: [0, 0, 2, 2, 0, 1],
     }
 
     with FastHeat(time_temp_table, calibration) as fh:

@@ -16,7 +16,6 @@ class ExperimentManager:
         # making empty DF and empty file for data saving
         # later store data in ai_data and throw it into *h5 file
         self.ai_data = pd.DataFrame()
-        self.ai_data.to_hdf('./data/raw_data.h5', key='dataset', format='table', mode='w')
 
     def __enter__(self):
         return self
@@ -52,7 +51,7 @@ class ExperimentManager:
     def ao_scan(self, voltage_profiles: dict):
         print("AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = 2 # ul.ScanOption.BLOCKIO
-
+        
         self._ao_buffer = ScanDataGenerator(voltage_profiles,
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).buffer
@@ -89,14 +88,17 @@ class ExperimentManager:
         self._ai_device_handler.scan()
 
         if SAVE_DATA:
-            self._save_data_loop(ai_channels_to_read,
-                                 self._ai_device_handler,
-                                 self._ao_device_handler)
+            self.ai_data.to_hdf('./data/raw_data.h5', key='dataset', format='table', mode='w')
+        self._read_data_loop(ai_channels_to_read,
+                            self._ai_device_handler,
+                            self._ao_device_handler,
+                            SAVE_DATA = True)
 
         
-    def _save_data_loop(self, ai_channels_to_read: list, 
+    def _read_data_loop(self, ai_channels_to_read: list, 
                         ai_device_handler: AiDeviceHandler,
-                        ao_device_handler: AoDeviceHandler):
+                        ao_device_handler: AoDeviceHandler,
+                        SAVE_DATA: bool):
         try:
             _temp_ai_data = ai_device_handler.data()
 
@@ -112,58 +114,56 @@ class ExperimentManager:
                     ai_status, ai_transfer_status = ai_device_handler.status()
                     ao_status, ao_transfer_status = ao_device_handler.status()
 
-                    _ai_index = ai_transfer_status.current_index        
+                    _ai_index = ai_transfer_status.current_index
+
                     if _ai_index > _half_buffer_length and _HIGH_HALF_FLAG:
                         # reading low half 
-                        print('reading low half ')
-                        df = pd.DataFrame(_temp_ai_data[:_half_buffer_length])
-                        multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
-                                                                list(range(_step))])
-                        df.index = multi_index
-                        df = df.unstack()
-                        df.columns = df.columns.droplevel()
-                        df = df[ai_channels_to_read]
-                        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('./data/raw_data.h5', key='dataset', format='table', append=True, mode='a')
-                        _index += _one_channel_half_buffer_length
-                        _HIGH_HALF_FLAG = False
+                        # print('reading low half. index=', _ai_index)
+                        _HIGH_HALF_FLAG, _index = self._read_half_buffer(_temp_ai_data, 
+                                                            ai_channels_to_read,
+                                                            _HIGH_HALF_FLAG, _half_buffer_length, 
+                                                            _step, _index, _one_channel_half_buffer_length,
+                                                            SAVE_DATA)
                              
                     elif _ai_index < _half_buffer_length and not _HIGH_HALF_FLAG:
                         # reading high half
-                        print('reading high half')
-                        df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
-                        multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
-                                                                list(range(_step))])
-                        df.index = multi_index
-                        df = df.unstack()
-                        df.columns = df.columns.droplevel()
-                        df = df[ai_channels_to_read]
-                        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        df.to_hdf('./data/raw_data.h5', key='dataset', format='table', append=True, mode='a')
-                        _index += _one_channel_half_buffer_length
-                        _HIGH_HALF_FLAG = True
+                        # print('reading high half. index=', _ai_index)
+                        _HIGH_HALF_FLAG, _index = self._read_half_buffer(_temp_ai_data, 
+                                                            ai_channels_to_read,
+                                                            _HIGH_HALF_FLAG, _half_buffer_length, 
+                                                            _step, _index, _one_channel_half_buffer_length,
+                                                            SAVE_DATA)
                     
                     if (ao_status != ul.ScanStatus.RUNNING):
-                        # TODO: correct aborting the scan. now it is not fully saved. 
-                        
-                        # print('reading last high half')
-                        # print(ai_status)
-                        # print(ao_status)
-                        # reading last high half if the last reading was in the low half
-                        # if not _HIGH_HALF_FLAG:
-                        #     df = pd.DataFrame(_temp_ai_data[_half_buffer_length:])
-                        #     multi_index = pd.MultiIndex.from_product([list(range(_index, _one_channel_half_buffer_length+_index)), 
-                        #                                             list(range(_step))])
-                        #     df.index = multi_index
-                        #     df = df.unstack()
-                        #     df.columns = df.columns.droplevel()
-                        #     df = df[ai_channels_to_read]
-                        #     self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
-                        #     df.to_hdf('.raw_data.h5', key='dataset', format='table', append=True, mode='a')
+                        self._ai_device_handler.stop()
                         break  
-
                 except (ValueError, NameError, SyntaxError):
                     break
         except KeyboardInterrupt:
             print('Acquisition aborted')
             pass
+    
+    def _read_half_buffer(self, temp_ai_data, ai_channels_to_read: list,
+                        HIGH_HALF_FLAG: bool, half_buffer_length: int, 
+                        step: int, index: int, one_channel_half_buffer_length: int,
+                        SAVE_DATA: bool):
+        if HIGH_HALF_FLAG == True:
+            df = pd.DataFrame(temp_ai_data[:half_buffer_length])
+            HIGH_HALF_FLAG = False
+        else:
+            df = pd.DataFrame(temp_ai_data[half_buffer_length:])
+            HIGH_HALF_FLAG = True
+
+        multi_index = pd.MultiIndex.from_product([list(range(index, one_channel_half_buffer_length+index)), 
+                                                list(range(step))])
+        df.index = multi_index
+        df = df.unstack()
+        df.columns = df.columns.droplevel()
+        df = df[ai_channels_to_read]
+        self.ai_data = pd.concat([self.ai_data, df], ignore_index=True)
+        if SAVE_DATA:
+            df.to_hdf('./data/raw_data.h5', key='dataset', format='table', append=True, mode='a')
+        index += one_channel_half_buffer_length
+
+        return HIGH_HALF_FLAG, index
+

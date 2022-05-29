@@ -49,8 +49,10 @@ class AoDeviceHandler:
 
     # returns actual output scan rate
     def scan(self, ao_buffer) -> float:
+        _samples_per_channel = int((len(ao_buffer)/(self._params.high_channel - \
+                                self._params.low_channel + 1)))
         return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
                                           ul.Range(self._params.range_id), 
-                                          self._params.sample_rate,
+                                          _samples_per_channel,
                                           self._params.sample_rate, self._params.options, 
                                           self._params.scan_flags, ao_buffer)
