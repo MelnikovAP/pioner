@@ -5,15 +5,15 @@
 			"ConnectionCode": 0
 		},
 		"AI": {
-			"SampleRate": 1000,
+			"SampleRate": 10000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
-			"HighChannel": 9,
+			"HighChannel": 5,
 			"InputMode": 2, "help": "DIFFERENTIAL = 1, SINGLE_ENDED = 2, PSEUDO_DIFFERENTIAL = 3 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html?highlight=input%20mode#uldaq.AiInputMode",
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		},
 		"AO": {
-			"SampleRate": 5000,
+			"SampleRate": 10000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
 			"HighChannel": 3,

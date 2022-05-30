@@ -51,8 +51,8 @@ class FastHeat:
         with ExperimentManager() as em:
             em.run()
             em.ao_scan(self._voltage_profiles)
-            em.ai_continuous(ai_channels_to_read=self._ai_channels, SAVE_DATA=True)
-            self.ai_data = em.get_ai_data()
+            em.ai_continuous(SAVE_DATA=True)
+            self.ai_data = em.get_ai_data(self._ai_channels)
 
         self._apply_calibration()
 
@@ -98,14 +98,14 @@ class FastHeat:
         
         # Thtr
         self.ai_data[5] *= 1000.                # Uhtr mV 
-        # Rhtr = self.ai_data[5] * 0.
-        # Ih = self._calibration.ihtr0 + self.ai_data[0] * self._calibration.ihtr1
-        # Rhtr.loc[Ih!=0] = (self.ai_data[5] - self.ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+        Rhtr = self.ai_data[5] * 0.
+        Ih = self._calibration.ihtr0 + self.ai_data[0] * self._calibration.ihtr1
+        Rhtr.loc[Ih!=0] = (self.ai_data[5] - self.ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
         # Rhtr.loc[Ih==0] = 0
-        # Thtr = self._calibration.thtr0 + \
-        #        self._calibration.thtr1 * (Rhtr + self._calibration.thtrcorr) + \
-        #        self._calibration.thtr2 * ((Rhtr + self._calibration.thtrcorr) ** 2)
-        # self.ai_data['Thtr'] = Thtr
+        Thtr = self._calibration.thtr0 + \
+               self._calibration.thtr1 * (Rhtr + self._calibration.thtrcorr) + \
+               self._calibration.thtr2 * ((Rhtr + self._calibration.thtrcorr) ** 2)
+        self.ai_data['Thtr'] = Thtr
         self.ai_data['Uhtr'] = self.ai_data[5]
         
         self.ai_data.drop(self._ai_channels, axis=1, inplace=True)

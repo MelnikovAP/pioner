@@ -3,6 +3,9 @@
 MAX_SCAN_SAMPLE_RATE = 1000000
 JSON_EXTENSION = "json"
 
+DATA_PATH = "./data/"
+RAW_DATA_PATH = "./data/raw_data/"
+
 # Settings constants
 # =================================================================================
 SETTINGS_PATH = "./settings/settings.json"
