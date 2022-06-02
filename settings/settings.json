@@ -5,7 +5,7 @@
 			"ConnectionCode": 0
 		},
 		"AI": {
-			"SampleRate": 10000,
+			"SampleRate": 20000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
 			"HighChannel": 5,
@@ -13,7 +13,7 @@
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
 		},
 		"AO": {
-			"SampleRate": 10000,
+			"SampleRate": 20000,
 			"RangeId": 5, "help": "BIP10VOLTS = 5",
 			"LowChannel": 0,
 			"HighChannel": 3,

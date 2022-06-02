@@ -11,6 +11,7 @@ import shutil
 import os
 import glob
 
+
 class ExperimentManager:
     def __init__(self):      
         self._apply_settings()
@@ -33,6 +34,15 @@ class ExperimentManager:
     def get_ai_data(self, ai_channels : list):
         fpath = RAW_DATA_PATH+'raw_data.h5'
         df = pd.read_hdf(fpath, key='dataset')
+
+        chan_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
+        one_chan_len = int(len(df) / chan_num)
+        multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(chan_num))])
+        df.index = multi_index
+        df = df.unstack()
+        df.columns = df.columns.droplevel()
+        df = df[ai_channels]
+        
         return df
     
     def _apply_settings(self):
@@ -46,12 +56,19 @@ class ExperimentManager:
         if not self._daq_device_handler.is_connected():
             self._daq_device_handler.connect()
 
+        # Strange, but the first invoke of pandas.to_hdf takes a lot of time. 
+        # So in order not to loose points during aquisition, we invoke it here with empty dataframe
+        df = pd.DataFrame([])
+        fpath = RAW_DATA_PATH+'raw_data.h5'
+        df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
+
         # before starting, removing the previous generated files with data from separated buffers
         files = glob.glob(RAW_DATA_PATH+'raw_data_buffer_'+'*.h5', recursive=True)
         files.append(RAW_DATA_PATH+'raw_data.h5')
         for f in files:
             try: os.remove(f)
             except: pass
+        
 
     # for limited scans (one AO buffer will be applied)
     def ao_scan(self, voltage_profiles: dict):
@@ -107,11 +124,6 @@ class ExperimentManager:
 
             if not os.path.exists(RAW_DATA_PATH): 
                 os.makedirs(RAW_DATA_PATH)
-            # Strange, but the first invoke of pandas.to_hdf takes a lot of time. 
-            # So in order not to loose points during aquisition, we invoke it here with empty dataframe
-            df = pd.DataFrame([])
-            fpath = RAW_DATA_PATH+'raw_data_buffer_'+str(_buffer_index)+'.h5'
-            df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
 
             while True:
                 try:
