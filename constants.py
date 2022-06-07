@@ -30,6 +30,7 @@ SCAN_FLAGS_FIELD   = "ScanFlags"
 # Calibration constants
 # =================================================================================
 CALIBRATION_PATH = "./settings/calibration.json"
+DEFAULT_CALIBRATION_PATH = "./settings/default_calibration.json"
 
 INFO_FIELD = "Info"
 
