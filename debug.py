@@ -1,4 +1,4 @@
-from enums_utils import PhysQuantity
+
 from nanocal_utils import temperature_to_voltage
 from calibration import Calibration
 from scipy import interpolate
@@ -9,17 +9,17 @@ import sys
 if __name__ == "__main__":
 
     time_temp_table = {
-        PhysQuantity.TIME: [0, 50, 450, 550, 950, 1000],
-        PhysQuantity.TEMPERATURE: [0, 0, 5, 5, 0, 0]
+        'time'.TIME: [0, 50, 450, 550, 950, 1000],
+        'temperature': [0, 0, 5, 5, 0, 0]
     }
 
     # for not to truncate printing numpy arrays
     np.set_printoptions(threshold=sys.maxsize)
 
-    time = time_temp_table[PhysQuantity.TIME]
+    time = time_temp_table['time']
     # print("time: \n{}".format(time))
 
-    temp = time_temp_table[PhysQuantity.TEMPERATURE]
+    temp = time_temp_table['temperature']
     # print("temp: \n{}".format(temp))
 
     interpolation = interpolate.interp1d(x=time, y=temp, kind='linear')

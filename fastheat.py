@@ -1,24 +1,23 @@
 from experiment_manager import ExperimentManager
-from calibration import Calibration
-from utils import temperature_to_voltage, PhysQuantity
+from utils import temperature_to_voltage
 from settings import SettingsParser
 from constants import SETTINGS_PATH
+from calibration import Calibration
 
 from scipy import interpolate
 import numpy as np
-# import pandas as pd
 from typing import Dict, List
 
 
 class FastHeat:
-    def __init__(self, time_temp_table: Dict[PhysQuantity, List[int]],
+    def __init__(self, time_temp_table: dict,
                  calibration: Calibration):
 
-        if len(time_temp_table[PhysQuantity.TIME]) != len(time_temp_table[PhysQuantity.TEMPERATURE]):
+        if len(time_temp_table['time']) != len(time_temp_table['temperature']):
             raise ValueError("Different input number of time and temperature points.")
 
-        self._profile_time = time_temp_table[PhysQuantity.TIME]
-        self._profile_temp = time_temp_table[PhysQuantity.TEMPERATURE]
+        self._profile_time = time_temp_table['time']
+        self._profile_temp = time_temp_table['temperature']
 
         self._calibration = calibration
 
@@ -48,11 +47,11 @@ class FastHeat:
         self._voltage_profiles['ch1'] = self._get_channel1_voltage()
         return self._voltage_profiles
 
-    def run(self):
+    def run(self, voltage_profiles):
         # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}
         with ExperimentManager() as em:
             em.run()
-            em.ao_scan(self._voltage_profiles)
+            em.ao_scan(voltage_profiles)
             em.ai_continuous(SAVE_DATA=True)
             self.ai_data = em.get_ai_data(self._ai_channels)
             

@@ -1,5 +1,4 @@
 from typing import List
-from enum import Enum
 import numpy as np
 from bisect import bisect_left
 from calibration import Calibration
@@ -21,12 +20,6 @@ def list_bitwise_or(ints: List[int]) -> int:
     for i in ints:
         res |= i
     return res
-
-
-class PhysQuantity(Enum):
-    TIME = 0,
-    TEMPERATURE = 1,
-    VOLTAGE = 2
 
 # calorimeter utils
 # ====================================================

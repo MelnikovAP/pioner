@@ -7,7 +7,6 @@ from constants import SETTINGS_PATH, RAW_DATA_PATH
 
 import pandas as pd
 import uldaq as ul
-import shutil
 import os
 import glob
 
