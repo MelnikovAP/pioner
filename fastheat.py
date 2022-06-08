@@ -6,8 +6,6 @@ from calibration import Calibration
 
 from scipy import interpolate
 import numpy as np
-from typing import Dict, List
-
 
 class FastHeat:
     def __init__(self, time_temp_table: dict,
@@ -40,7 +38,7 @@ class FastHeat:
     def __exit__(self, exc_type, exc_value, exc_tb):
         print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
-    def arm(self) -> Dict[str, np.ndarray]:
+    def arm(self):
         # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change
         self._voltage_profiles['ch0'] = self._get_channel0_voltage()
         # arm voltage profile to ch1

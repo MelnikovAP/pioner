@@ -15,21 +15,6 @@ class ExperimentManager:
     def __init__(self):      
         self._apply_settings()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
-        if self._daq_device_handler:
-            if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
-                self._ai_device_handler.stop()
-            if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
-                self._ao_device_handler.stop()
-            if self._daq_device_handler.is_connected():
-                self._daq_device_handler.disconnect()
-            self._daq_device_handler.release()
-        # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable
-
     def get_ai_data(self, ai_channels : list):
         fpath = RAW_DATA_PATH+'raw_data.h5'
         df = pd.read_hdf(fpath, key='dataset')
@@ -164,3 +149,17 @@ class ExperimentManager:
             print('Acquisition aborted')
             pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+        if self._daq_device_handler:
+            if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
+                self._ai_device_handler.stop()
+            if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
+                self._ao_device_handler.stop()
+            if self._daq_device_handler.is_connected():
+                self._daq_device_handler.disconnect()
+            self._daq_device_handler.release()
+        # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable
