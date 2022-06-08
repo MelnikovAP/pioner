@@ -1,21 +1,19 @@
-Package         Version
---------------- -------
-cycler          0.11.0
-fonttools       4.33.3
-kiwisolver      1.4.2
-matplotlib      3.5.2
-numexpr         2.8.1
-numpy           1.22.4
-packaging       21.3
-pandas          1.4.2
-Pillow          9.1.1
-pip             20.3.4
-pkg-resources   0.0.0
-pyparsing       3.0.9
-python-dateutil 2.8.2
-pytz            2022.1
-scipy           1.8.1
-setuptools      44.1.1
-six             1.16.0
-tables          3.7.0
-uldaq           1.2.3
+cycler==0.11.0
+fonttools==4.33.3
+kiwisolver==1.4.2
+matplotlib==3.5.2
+numexpr==2.8.1
+numpy==1.22.4
+packaging==21.3
+pandas==1.4.2
+Pillow==9.1.1
+pip==20.3.4
+pkg-resources==0.0.0
+pyparsing==3.0.9
+python-dateutil==2.8.2
+pytz==2022.1
+scipy==1.8.1
+setuptools==44.1.1
+six==1.16.0
+tables==3.7.0
+uldaq==1.2.3
