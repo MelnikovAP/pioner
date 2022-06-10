@@ -8,7 +8,6 @@ packaging==21.3
 pandas==1.4.2
 Pillow==9.1.1
 pip==20.3.4
-pkg-resources==0.0.0
 pyparsing==3.0.9
 python-dateutil==2.8.2
 pytz==2022.1
