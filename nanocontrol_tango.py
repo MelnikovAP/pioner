@@ -8,9 +8,13 @@ from fastheat import FastHeat
 
 import time
 
+import logging
+
 class NanoControl(Device):
 
     def init_device(self):
+        logging.basicConfig(filename='./logs/nanocontrol.log', encoding='utf-8', level=logging.DEBUG, filemode="w")
+        logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
         Device.init_device(self)
         self.calibration = Calibration()
         self.time_temp_table = {'time':[], 
@@ -19,7 +23,7 @@ class NanoControl(Device):
     
     def change_calibration(self, path):
         self.calibration.read(path)
-        print('Calibration was applied from '+path)
+        logging.info('Calibration was applied from '+path)
         return 'Calibration was applied from '+path
 
     @pipe
@@ -44,7 +48,7 @@ class NanoControl(Device):
     @command
     def get_calibration_info(self):
         self.info_stream(self.calibration.comment)
-        print(self.calibration.comment)
+        logging.info(self.calibration.comment)
         return True
 
     # ===================================

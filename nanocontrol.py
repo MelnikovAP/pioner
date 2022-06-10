@@ -22,19 +22,19 @@ def main():
         voltage_profiles = fh.arm()
 
     # for debug, remove later
-        # import matplotlib.pyplot as plt
-        # fig, ax1 = plt.subplots()
-        # ax1.plot(voltage_profiles['ch0'])
-        # ax1.plot(voltage_profiles['ch1'])
-        # plt.show()
+        import matplotlib.pyplot as plt
+        fig, ax1 = plt.subplots()
+        ax1.plot(voltage_profiles['ch0'])
+        ax1.plot(voltage_profiles['ch1'])
+        plt.show()
     # ----------------------------------------
         fh.run(voltage_profiles)
         fh_data = fh.get_ai_data()
 
     # for debug, remove later
-        # import matplotlib.pyplot as plt
-        # fh_data.plot()
-        # plt.show()
+        import matplotlib.pyplot as plt
+        fh_data.plot()
+        plt.show()
     # ----------------------------------------
 
 
