@@ -1,4 +1,5 @@
 import uldaq as ul
+import logging
 
 class DaqParams:
     def __init__(self):
@@ -16,6 +17,7 @@ class DaqDeviceHandler:
         devices = ul.get_daq_device_inventory(self._params.interface_type)
         devices_count = len(devices)
         if not devices_count:
+            logging.error("Error. No DAQ devices found.")
             raise RuntimeError("Error. No DAQ devices found.")
 
         # by default connecting only to one DAQBoard with index 0
@@ -29,15 +31,17 @@ class DaqDeviceHandler:
 
     def connect(self):
         descriptor = self.descriptor()
-        print("Connecting to {} - please wait...".format(descriptor.dev_string))
+        logging.info("Connecting to {} - please wait...".format(descriptor.dev_string))
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         self._daq_device.connect(connection_code=self._params.connection_code)
 
     def disconnect(self):
+        logging.info("DAQ device has been disconnected")
         return self._daq_device.disconnect()
 
     def release(self):
+        logging.info("DAQ device has been released")
         return self._daq_device.release()
 
     def get(self):

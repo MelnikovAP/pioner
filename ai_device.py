@@ -30,10 +30,12 @@ class AiDeviceHandler:
         self._params = params
 
         if self._ai_device is None:
+            logging.error("Error. DAQ device doesn't support analog input.")
             raise RuntimeError("Error. DAQ device doesn't support analog input.")
 
         info = self._ai_device.get_info()
         if not info.has_pacer():
+            logging.error("Error. DAQ device doesn't support hardware paced analog input.")
             raise RuntimeError("Error. DAQ device doesn't support hardware paced analog input.")
 
         if info.get_num_chans_by_mode(ul.AiInputMode.SINGLE_ENDED) <= 0:
