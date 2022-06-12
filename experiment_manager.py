@@ -117,6 +117,7 @@ class ExperimentManager:
 
                     if _buffer_index >= _buffers_num:
                         self._ai_device_handler.stop()
+                        # merging all the buffer files into one file raw_data.h5
                         fpath = RAW_DATA_PATH+'raw_data.h5'
                         for i in list(range(_buffers_num)):
                             buf_path = RAW_DATA_PATH+'raw_data_buffer_'+str(i)+'.h5'
