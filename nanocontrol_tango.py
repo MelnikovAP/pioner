@@ -11,6 +11,11 @@ class NanoControl(Device):
 
     @command
     def init_device(self):
+        if not (os.path.exists('./logs')):
+            os.makedirs('./logs')
+        if not (os.path.exists('./data/raw_data')):
+            os.makedirs('./data/raw_data')
+            
         logging.basicConfig(filename='./logs/nanocontrol.log', encoding='utf-8', level=logging.DEBUG, 
                             filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
 
