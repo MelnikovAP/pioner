@@ -18,6 +18,8 @@ class DaqDeviceHandler:
 
     def _init_daq_device(self):
         devices = ul.get_daq_device_inventory(self._params.interface_type)
+        print(self._params)
+        print(devices)
         if not devices:
             error_str = "Error. No DAQ devices found."
             logging.error(error_str)
