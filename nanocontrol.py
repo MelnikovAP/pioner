@@ -1,40 +1,49 @@
+from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from fastheat import FastHeat
-
-# provide with-as for Settings classes
-# make singletons?
-# provide commentaries for each class
+from settings import SettingsParser
+from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
+from utils import connect_to_daq_device
 
 
 def main():
+    # do read calibration
     calibration = Calibration()
-    calibration.read('./settings/calibration.json')
-    # calibration.read('./settings/default_calibration.json')
-    
-    # TODO: read from somewhere
+    calibration.read(CALIBRATION_PATH)
+    # calibration.read(DEFAULT_CALIBRATION_PATH)
+
+    # do read settings
+    settings_parser = SettingsParser(SETTINGS_PATH)
+
+    # trying to connect to DaqDevice
+    daq_params = settings_parser.get_daq_params()
+    daq_device_handler = DaqDeviceHandler(daq_params)
+    connect_to_daq_device(daq_device_handler)
+
+    # read temperature profile (from UI or from some experiment settings file)
     time_temp_table = {
         'time': [0, 100, 1000, 1500, 2000, 3000],
-        'temperature': [0, 0, 300, 300, 0, 0],
-        # 'temperature': [0, 0, 5, 5, 0, 0],
+        'temperature': [0, 0, 300, 300, 0, 0]
     }
 
-    with FastHeat(time_temp_table, calibration) as fh:
+    with FastHeat(daq_device_handler, settings_parser,
+                  time_temp_table, calibration) as fh:
         voltage_profiles = fh.arm()
 
     # for debug, remove later
-        import matplotlib.pyplot as plt
-        fig, ax1 = plt.subplots()
-        ax1.plot(voltage_profiles['ch0'])
-        ax1.plot(voltage_profiles['ch1'])
-        plt.show()
+    #     import matplotlib.pyplot as plt
+    #     fig, ax1 = plt.subplots()
+    #     ax1.plot(voltage_profiles['ch0'])
+    #     ax1.plot(voltage_profiles['ch1'])
+    #     plt.show()
     # ----------------------------------------
-        fh.run(voltage_profiles)
+        fh.run()
         fh_data = fh.get_ai_data()
 
     # for debug, remove later
-        import matplotlib.pyplot as plt
-        fh_data.plot()
-        plt.show()
+    #     import matplotlib.pyplot as plt
+    #     fh_data.plot()
+    #     plt.show()
     # ----------------------------------------
 
 

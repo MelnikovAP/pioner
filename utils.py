@@ -1,7 +1,10 @@
-from typing import List
-import numpy as np
-from bisect import bisect_left
 from calibration import Calibration
+from daq_device import DaqDeviceHandler
+
+from typing import List
+from bisect import bisect_left
+import numpy as np
+import time
 
 
 def is_int(key) -> bool:
@@ -47,6 +50,16 @@ def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.arra
         voltage[i] = volt_calib[idx]
 
     return voltage.round(4)
+
+def connect_to_daq_device(daq_device_handler: DaqDeviceHandler,
+                          timeout: int = 60, sleep_time: int = 1):
+    for _ in range(timeout):
+        if not daq_device_handler.is_connected():
+            daq_device_handler.connect()
+        else:
+            return
+        time.sleep(sleep_time)
+    raise TimeoutError("Connection timed out.")
 
 
 if __name__ == '__main__':
