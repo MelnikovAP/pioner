@@ -65,12 +65,12 @@ class ScanDataGenerator:
 
     def _fill_buffer(self):
         lens = list(map(len, self._voltage_profiles.values()))
-        if len(lens) > 1:
+        if len(set(lens)) > 1:
             raise ValueError("Cannot load analog output buffer. Channel profiles have different length.")
 
         lens_with_bf = lens.copy()
         lens_with_bf.append(self._buffer_size)
-        if len(lens_with_bf) > 1:
+        if len(set(lens_with_bf)) > 1:
             raise ValueError("Cannot load analog output buffer. "
                              "One of the channel profile has length, different from buffer size.")
         ch_list = list(range(self._low_channel, self._high_channel + 1))
