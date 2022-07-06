@@ -60,6 +60,9 @@ class FastHeat:
         self._voltage_profiles['ch1'] = self._get_channel1_voltage()
         return self._voltage_profiles  # returns for debug. TODO: remove
 
+    def is_armed(self) -> bool:
+        return bool(not self._voltage_profiles)
+
     def run(self):
         # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}
         with ExperimentManager(self._daq_device_handler,

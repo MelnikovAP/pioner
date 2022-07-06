@@ -120,9 +120,12 @@ class NanoControl(Device):
 
     @command
     def run_fast_heat(self):
-        logging.info("Fast heating started.")
-        self._fh.run()
-        logging.info("Fast heating finished.")
+        if self._fh.is_armed():
+            logging.info("Fast heating started.")
+            self._fh.run()
+            logging.info("Fast heating finished.")
+        else:
+            logging.warning("Fast heating cannot be started, since it should be armed first.")
 
 
 if __name__ == '__main__':
