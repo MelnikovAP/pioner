@@ -47,11 +47,11 @@ class FastHeat:
         """Provides explicit access to the already read AI data."""
         return self._ai_data
     
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+    # def __enter__(self):
+    #     return self
+    #
+    # def __exit__(self, exc_type, exc_value, exc_tb):
+    #     print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
     def arm(self) -> Dict[str, np.array]:
         # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change

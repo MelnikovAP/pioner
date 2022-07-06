@@ -164,7 +164,5 @@ class ExperimentManager:
                 self._ai_device_handler.stop()
             if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
                 self._ao_device_handler.stop()
-            if self._daq_device_handler.is_connected():
-                self._daq_device_handler.disconnect()
-            self._daq_device_handler.release()
+            self._daq_device_handler.quit()
         # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable

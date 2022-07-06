@@ -3,7 +3,6 @@ from calibration import Calibration
 from fastheat import FastHeat
 from settings import SettingsParser
 from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
-from utils import connect_to_daq_device
 
 
 def main():
@@ -28,9 +27,8 @@ def main():
         'temperature': [0, 0, 1, 1, 0, 0]
     }
 
-    with FastHeat(daq_device_handler, settings_parser,
-                  time_temp_table, calibration) as fh:
-        voltage_profiles = fh.arm()
+    fh = FastHeat(daq_device_handler, settings_parser, time_temp_table, calibration)
+    voltage_profiles = fh.arm()
 
     # for debug, remove later
     #     import matplotlib.pyplot as plt
@@ -39,8 +37,8 @@ def main():
     #     ax1.plot(voltage_profiles['ch1'])
     #     plt.show()
     # ----------------------------------------
-        fh.run()
-        fh_data = fh.get_ai_data()
+    fh.run()
+    fh_data = fh.get_ai_data()
 
     # for debug, remove later
     #     import matplotlib.pyplot as plt
