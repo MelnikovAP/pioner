@@ -3,9 +3,10 @@ from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
 from settings import SettingsParser
-from constants import (SETTINGS_PATH, RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH,
-                       RAW_DATA_BUFFER_FILE, RAW_DATA_BUFFER_FILE_PREFIX)
+from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE,
+                       RAW_DATA_BUFFER_FILE_PREFIX)
 
+from typing import List
 import pandas as pd
 import uldaq as ul
 import os
@@ -14,18 +15,34 @@ import logging
 
 
 class ExperimentManager:
-    def __init__(self):      
-        self._apply_settings()
+    def __init__(self, daq_device_handler: DaqDeviceHandler,
+                 voltage_profiles: dict,
+                 settings_parser: SettingsParser):
+        self._daq_device_handler = daq_device_handler
+        self._voltage_profiles = voltage_profiles
+        self._ai_params = settings_parser.get_ai_params()
+        self._ao_params = settings_parser.get_ao_params()
 
-    def _apply_settings(self):
-        self._settings = SettingsParser(SETTINGS_PATH)
-        self._daq_params = self._settings.get_daq_params()
-        self._ai_params = self._settings.get_ai_params()
-        self._ao_params = self._settings.get_ao_params()
+        ExperimentManager._do_smth_strange()  # TODO: check and try to avoid this action
 
-    def get_ai_data(self, ai_channels: list) -> pd.DataFrame:
-        fpath = RAW_DATA_FILE_REL_PATH
-        df = pd.DataFrame(pd.read_hdf(fpath, key='dataset'))
+    @staticmethod
+    def _do_smth_strange():
+        # Strange, but the first invoke of pandas.to_hdf takes a lot of time.
+        # So in order not to lose points during acquisition, we invoke it here with empty dataframe
+        df = pd.DataFrame([])
+        df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', append=True, mode='a')
+
+        # before starting, removing the previous generated files with data from separated buffers
+        files = glob.glob(RAW_DATA_FOLDER_REL_PATH + RAW_DATA_BUFFER_FILE_PREFIX + '*.h5', recursive=True)
+        files.append(RAW_DATA_FILE_REL_PATH)
+        for file in files:
+            try:
+                os.remove(file)
+            except:
+                pass
+
+    def get_ai_data(self, ai_channels: List[int]) -> pd.DataFrame:
+        df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
 
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
@@ -37,31 +54,15 @@ class ExperimentManager:
         return df
     
     def run(self):
-        self._daq_device_handler = DaqDeviceHandler(self._daq_params)  # TODO: remove from here
-        if not self._daq_device_handler.is_connected():
-            self._daq_device_handler.connect()
-
-        # Strange, but the first invoke of pandas.to_hdf takes a lot of time. 
-        # So in order not to lose points during acquisition, we invoke it here with empty dataframe
-        df = pd.DataFrame([])
-        fpath = RAW_DATA_FILE_REL_PATH
-        df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
-
-        # before starting, removing the previous generated files with data from separated buffers
-        files = glob.glob(RAW_DATA_FOLDER_REL_PATH + RAW_DATA_BUFFER_FILE_PREFIX + '*.h5', recursive=True)
-        files.append(RAW_DATA_FILE_REL_PATH)
-        for file in files:
-            try:
-                os.remove(file)
-            except:
-                pass
+        self._ao_scan()
+        self._ai_continuous(do_save_data=True)
 
     # for limited scans (one AO buffer will be applied)
-    def ao_scan(self, voltage_profiles: dict):
+    def _ao_scan(self):
         logging.info("AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
         
-        self._ao_buffer = ScanDataGenerator(voltage_profiles,
+        self._ao_buffer = ScanDataGenerator(self._voltage_profiles,
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).get_buffer()  # TODO: check
 
@@ -85,7 +86,7 @@ class ExperimentManager:
         # TODO: think about difference with ao_set, maybe leave just one of them
         pass
 
-    def ai_continuous(self, do_save_data: bool):
+    def _ai_continuous(self, do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
@@ -94,6 +95,7 @@ class ExperimentManager:
         # need to stop acquisition before scan
         if self._ai_device_handler.status == ul.ScanStatus.RUNNING:
             self._ai_device_handler.stop()
+
         self._ai_device_handler.scan()
         self._read_data_loop(do_save_data)
 

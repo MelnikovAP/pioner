@@ -37,7 +37,6 @@ class AiDeviceHandler:
         self._check_device()
         self._init_buffer()
 
-    # TODO: maybe check it right after connecting to the DaqDevice ?
     def _check_device(self):
         if self._ai_device is None:
             error_str = "Error. DAQ device doesn't support analog input."
