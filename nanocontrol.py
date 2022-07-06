@@ -18,14 +18,12 @@ def main():
     # trying to connect to DaqDevice
     daq_params = settings_parser.get_daq_params()
     daq_device_handler = DaqDeviceHandler(daq_params)
-    # if daq_device_handler.is_connected():
-    #     daq_device_handler.disconnect()
-    # daq_device_handler.connect()
+    connect_to_daq_device(daq_device_handler)
 
     # read temperature profile (from UI or from some experiment settings file)
     time_temp_table = {
         'time': [0, 100, 1000, 1500, 2000, 3000],
-        'temperature': [0, 0, 1, 1, 0, 0]
+        'temperature': [0, 0, 300, 300, 0, 0]
     }
 
     with FastHeat(daq_device_handler, settings_parser,
