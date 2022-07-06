@@ -35,6 +35,7 @@ class AoDeviceHandler:
         self._params = params
         self._check_device()
 
+    # TODO: maybe check it right after connecting to the DaqDevice ?
     def _check_device(self):
         if self._ao_device is None:
             error_str = "Error. DAQ device doesn't support analog output."

@@ -14,9 +14,7 @@ class DaqParams:
 class DaqDeviceHandler:
     def __init__(self, params: DaqParams):
         self._params = params
-        self._init_daq_device()
 
-    def _init_daq_device(self):
         devices = ul.get_daq_device_inventory(self._params.interface_type)
         if not devices:
             error_str = "Error. No DAQ devices found."
@@ -24,7 +22,7 @@ class DaqDeviceHandler:
             raise RuntimeError(error_str)
 
         # by default connecting only to the first DAQBoard with index 0
-        self._daq_device = ul.DaqDevice(devices[0])
+        self._daq_device = ul.DaqDevice(devices[0]) 
 
     def descriptor(self) -> ul.DaqDeviceDescriptor:
         return self._daq_device.get_descriptor()
@@ -38,10 +36,9 @@ class DaqDeviceHandler:
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         self._daq_device.connect(connection_code=self._params.connection_code)
-        logging.info("DAQ device has been successfully connected.")
 
     def disconnect(self):
-        logging.info("DAQ device has been disconnected.")
+        logging.info("DAQ device has been disconnected")
         return self._daq_device.disconnect()
 
     def release(self):

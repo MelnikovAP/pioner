@@ -1,46 +1,43 @@
 from tango.server import Device, attribute, pipe, command, AttrWriteType
-from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_REL_PATH, RAW_DATA_FOLDER_REL_PATH,
-                       NANOCONTROL_LOG_FILE_REL_PATH)
+from constants import RAW_DATA_FOLDER_REL_PATH, CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH
 from calibration import Calibration
 from fastheat import FastHeat
 
 import logging
+import time
 import os
 
-
 class NanoControl(Device):
+
     def init_device(self):
         self.initial_setup()
         Device.init_device(self)
-
-    def initial_setup(self):
-        if not (os.path.exists(LOGS_FOLDER_REL_PATH)):
-            os.makedirs(LOGS_FOLDER_REL_PATH)
-        if not (os.path.exists(RAW_DATA_FOLDER_REL_PATH)):
-            os.makedirs(RAW_DATA_FOLDER_REL_PATH)
             
-        logging.basicConfig(filename=NANOCONTROL_LOG_FILE_REL_PATH, encoding='utf-8', level=logging.DEBUG,
+    def initial_setup(self):
+        if not (os.path.exists('./logs')):
+            os.makedirs('./logs')
+        if not (os.path.exists('./data/raw_data')):
+            os.makedirs('./data/raw_data')
+            
+        logging.basicConfig(filename='./logs/nanocontrol.log', encoding='utf-8', level=logging.DEBUG, 
                             filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
         
         self.calibration = Calibration()
-        self.time_temp_table = {
-            'time': [],
-            'temperature': []
-        }
-
+        self.time_temp_table = {'time':[], 
+                                'temperature':[]
+                                }
+        
     @command
     def set_connection(self):
-        logging.info('Successfully connected.')
+        logging.info('Successfully connected')
 
     @pipe
     def info(self):
-        return ('Information',
+        return ('Information', 
                 dict(developer='Alexey Melnikov',
-                     contact='alexey0703@esrf.fr',
-                     model='nanocal 2.0',
-                     version_number=0.1
-                     )
-                )
+                    contact='alexey0703@esrf.fr',
+                    model='nanocal 2.0',
+                    version_number=0.1))
 
     # ===================================
     # Calibration
@@ -48,12 +45,12 @@ class NanoControl(Device):
     @command
     def apply_default_calibration(self):
         self.calibration.read(DEFAULT_CALIBRATION_PATH)
-        logging.info('Calibration was applied from {}'.format(DEFAULT_CALIBRATION_PATH))
+        logging.info('Calibration was applied from '+DEFAULT_CALIBRATION_PATH)
 
     @command
     def apply_calibration(self):
         self.calibration.read(CALIBRATION_PATH)
-        logging.info('Calibration was applied from {}'.format(CALIBRATION_PATH))
+        logging.info('Calibration was applied from '+CALIBRATION_PATH)
     
     @pipe
     def get_calibration(self):
@@ -86,6 +83,7 @@ class NanoControl(Device):
             fh.run(self.voltage_profiles)
             logging.info("Fast heating finished")
 
-
-if __name__ == '__main__':
+if __name__=='__main__':
     NanoControl.run_server()
+
+    

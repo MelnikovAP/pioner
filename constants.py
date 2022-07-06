@@ -6,8 +6,6 @@ MAX_SCAN_SAMPLE_RATE = 1000000
 JSON_EXTENSION = "json"
 H5_EXTENSION = "h5"
 
-# Raw data constants
-# =================================================================================
 DATA_FOLDER = "data"
 DATA_FOLDER_REL_PATH = os.path.join(".", DATA_FOLDER)
 RAW_DATA_FOLDER = "raw_data"
@@ -18,22 +16,11 @@ RAW_DATA_FILE_REL_PATH = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
 RAW_DATA_BUFFER_FILE_PREFIX = "raw_data_buffer_"
 RAW_DATA_BUFFER_FILE = "raw_data_buffer_{}.h5"
 
-# Logs constants
-# =================================================================================
-LOGS_FOLDER = "logs"
-LOGS_FOLDER_REL_PATH = os.path.join(".", LOGS_FOLDER)
-NANOCONTROL_LOG_FILE = "nanocontrol.log"
-NANOCONTROL_LOG_FILE_REL_PATH = os.path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
-
 # Settings constants
 # =================================================================================
-SETTINGS_FOLDER = "settings"
-SETTINGS_FOLDER_REL_PATH = os.path.join(".", SETTINGS_FOLDER)
-SETTINGS_FILE = "settings.json"
-SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)  # TODO: use
 SETTINGS_PATH = "./settings/settings.json"
 
-# JSON fields
+# Settings data
 SETTINGS_FIELD = "Settings"
 
 DAQ_FIELD = "DAQ"
