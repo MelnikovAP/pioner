@@ -7,6 +7,7 @@ from calibration import Calibration
 from scipy import interpolate
 import numpy as np
 
+
 class FastHeat:
     def __init__(self, time_temp_table: dict,
                  calibration: Calibration):
@@ -50,13 +51,13 @@ class FastHeat:
         with ExperimentManager() as em:
             em.run()
             em.ao_scan(voltage_profiles)
-            em.ai_continuous(SAVE_DATA=True)
-            self.ai_data = em.get_ai_data(self._ai_channels)
+            em.ai_continuous(do_save_data=True)
+            self.ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
             
         self._apply_calibration()
 
     def _get_channel0_voltage(self):
-        return np.ones(self._samples_per_channel) / 10.       # apply 0.1 voltage on channel0
+        return np.ones(self._samples_per_channel) / 10.  # apply 0.1 voltage on channel 0
 
     def _get_channel1_voltage(self):
         # construct voltage profile to ch1
@@ -73,18 +74,18 @@ class FastHeat:
         Uaux = self.ai_data[3].mean()
         Taux = 100. * Uaux
         if Taux < -12.:  # correction for AD595 below -12 C
-            Taux = 2.6843 + 1.2709*Taux + 0.0042867*Taux*Taux + 3.4944e-05*Taux*Taux*Taux
+            Taux = 2.6843 + 1.2709 * Taux + 0.0042867 * Taux * Taux + 3.4944e-05 * Taux * Taux * Taux
         self.ai_data['Taux'] = Taux
         
         # Utpl or temp - temperature of the calibrated internal thermopile + Taux
-        self.ai_data[4] *= (1000./11.)              # scaling to mV with the respect of amplification factor of 11
+        self.ai_data[4] *= (1000. / 11.)  # scaling to mV with the respect of amplification factor of 11
         ax = self.ai_data[4] + self._calibration.utpl0
         self.ai_data['temp'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
         self.ai_data['temp'] += Taux
 
         # temp-hr ??? add explanation Umod mV
         
-        self.ai_data[1] *= (1000./121.)             # scaling to mV; why 121?? amplifier cascade??
+        self.ai_data[1] *= (1000. / 121.)  # scaling to mV; why 121?? amplifier cascade??
         ax = self.ai_data[1] + self._calibration.utpl0
         self.ai_data['temp-hr'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
 
@@ -95,7 +96,7 @@ class FastHeat:
         # self.ai_data['Uref'] = profile
         
         # Thtr
-        self.ai_data[5] *= 1000.                # Uhtr mV 
+        self.ai_data[5] *= 1000.  # Uhtr mV
         Rhtr = self.ai_data[5] * 0.
         Ih = self._calibration.ihtr0 + self.ai_data[0] * self._calibration.ihtr1
         Rhtr.loc[Ih!=0] = (self.ai_data[5] - self.ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih

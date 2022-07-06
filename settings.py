@@ -147,7 +147,6 @@ class SettingsParser:
         else:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
-
     def _parse_ao_params(self):
         """Parses all necessary analog-output parameters and fills AoParams instance."""
         self._ao_params = AoParams()
