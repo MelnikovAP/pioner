@@ -1,20 +1,10 @@
-import os
-
-# Common constants
+# Commom constants
 # =================================================================================
 MAX_SCAN_SAMPLE_RATE = 1000000
 JSON_EXTENSION = "json"
-H5_EXTENSION = "h5"
 
-DATA_FOLDER = "data"
-DATA_FOLDER_REL_PATH = os.path.join(".", DATA_FOLDER)
-RAW_DATA_FOLDER = "raw_data"
-RAW_DATA_FOLDER_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, RAW_DATA_FOLDER)
-RAW_DATA_FILE = "raw_data.h5"
-RAW_DATA_FILE_REL_PATH = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
-
-RAW_DATA_BUFFER_FILE_PREFIX = "raw_data_buffer_"
-RAW_DATA_BUFFER_FILE = "raw_data_buffer_{}.h5"
+DATA_PATH = "./data/"
+RAW_DATA_PATH = "./data/raw_data/"
 
 # Settings constants
 # =================================================================================
@@ -23,19 +13,19 @@ SETTINGS_PATH = "./settings/settings.json"
 # Settings data
 SETTINGS_FIELD = "Settings"
 
-DAQ_FIELD = "DAQ"
-AI_FIELD = "AI"
-AO_FIELD = "AO"
+DAQ_FIELD  = "DAQ"
+AI_FIELD   = "AI"
+AO_FIELD   = "AO"
 
-INTERFACE_TYPE_FIELD = "InterfaceType"
+INTERFACE_TYPE_FIELD  = "InterfaceType"
 CONNECTION_CODE_FIELD = "ConnectionCode"
 
-SAMPLE_RATE_FIELD = "SampleRate"
-RANGE_ID_FIELD = "RangeId"
-LOW_CHANNEL_FIELD = "LowChannel"
+SAMPLE_RATE_FIELD   = "SampleRate"
+RANGE_ID_FIELD     = "RangeId"
+LOW_CHANNEL_FIELD  = "LowChannel"
 HIGH_CHANNEL_FIELD = "HighChannel"
-INPUT_MODE_FIELD = "InputMode"
-SCAN_FLAGS_FIELD = "ScanFlags"
+INPUT_MODE_FIELD   = "InputMode"
+SCAN_FLAGS_FIELD   = "ScanFlags"
 
 # Calibration constants
 # =================================================================================
@@ -46,7 +36,7 @@ INFO_FIELD = "Info"
 
 MODULATION_PARAMS_FIELD = "Modulation params"
 AMPLITUDE_FIELD = "Amplitude"
-OFFSET_FIELD = "Offset"
+OFFSET_FIELD    = "Offset"
 FREQUENCY_FIELD = "Frequency"
 
 CALIBRATION_COEFFS_FIELD = "Calibration coeff"

@@ -1,8 +1,4 @@
-from typing import Tuple
-
 import uldaq as ul
-import logging
-
 
 class AoParams:
     def __init__(self):
@@ -10,8 +6,8 @@ class AoParams:
         self.range_id = -1
         self.low_channel = -1
         self.high_channel = -1
-        self.scan_flags = ul.AOutScanFlag.DEFAULT  # 0
-        self.options = ul.ScanOption.CONTINUOUS  # 8
+        self.scan_flags = 0  # ul.AOutScanFlag.DEFAULT
+        self.options = 8  # ul.ScanOption.CONTINUOUS by default
 
     def __str__(self):
         return str(vars(self))
@@ -33,20 +29,13 @@ class AoDeviceHandler:
         """
         self._ao_device = ao_device_from_daq
         self._params = params
-        self._check_device()
 
-    # TODO: maybe check it right after connecting to the DaqDevice ?
-    def _check_device(self):
         if self._ao_device is None:
-            error_str = "Error. DAQ device doesn't support analog output."
-            logging.error(error_str)
-            raise RuntimeError(error_str)
+            raise RuntimeError("Error. DAQ device doesn't support analog output.")
 
         info = self._ao_device.get_info()
         if not info.has_pacer():
-            error_str = "Error. DAQ device doesn't support hardware paced analog output."
-            logging.error(error_str)
-            raise RuntimeError(error_str)
+            raise RuntimeError("Error. DAQ device doesn't support hardware paced analog output.")
 
     def get(self) -> ul.AoDevice:
         """Provides explicit access to the uldaq.AoDevice."""
@@ -55,12 +44,13 @@ class AoDeviceHandler:
     def stop(self):
         self._ao_device.scan_stop()
 
-    def status(self) -> Tuple[ul.ScanStatus, ul.TransferStatus]:
+    def status(self):
         return self._ao_device.get_scan_status()
 
     # returns actual output scan rate
     def scan(self, ao_buffer) -> float:
-        _samples_per_channel = int((len(ao_buffer) / (self._params.high_channel - self._params.low_channel + 1)))
+        _samples_per_channel = int((len(ao_buffer)/(self._params.high_channel - \
+                                self._params.low_channel + 1)))
         return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
                                           ul.Range(self._params.range_id), 
                                           _samples_per_channel,

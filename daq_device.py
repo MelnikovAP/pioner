@@ -1,10 +1,9 @@
 import uldaq as ul
 import logging
 
-
 class DaqParams:
     def __init__(self):
-        self.interface_type = ul.InterfaceType.ANY  # 7
+        self.interface_type = 7  # ul.InterfaceType.ANY
         self.connection_code = -1
 
     def __str__(self):
@@ -16,12 +15,12 @@ class DaqDeviceHandler:
         self._params = params
 
         devices = ul.get_daq_device_inventory(self._params.interface_type)
-        if not devices:
-            error_str = "Error. No DAQ devices found."
-            logging.error(error_str)
-            raise RuntimeError(error_str)
+        devices_count = len(devices)
+        if not devices_count:
+            logging.error("Error. No DAQ devices found.")
+            raise RuntimeError("Error. No DAQ devices found.")
 
-        # by default connecting only to the first DAQBoard with index 0
+        # by default connecting only to one DAQBoard with index 0
         self._daq_device = ul.DaqDevice(devices[0]) 
 
     def descriptor(self) -> ul.DaqDeviceDescriptor:
@@ -45,7 +44,7 @@ class DaqDeviceHandler:
         logging.info("DAQ device has been released")
         return self._daq_device.release()
 
-    def get(self) -> ul.DaqDevice:
+    def get(self):
         return self._daq_device
 
     def get_ai_device(self):
@@ -53,3 +52,4 @@ class DaqDeviceHandler:
 
     def get_ao_device(self):
         return self._daq_device.get_ao_device()
+

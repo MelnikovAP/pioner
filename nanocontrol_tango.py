@@ -1,5 +1,5 @@
 from tango.server import Device, attribute, pipe, command, AttrWriteType
-from constants import RAW_DATA_FOLDER_REL_PATH, CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH
+from constants import RAW_DATA_PATH, CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH
 from calibration import Calibration
 from fastheat import FastHeat
 
