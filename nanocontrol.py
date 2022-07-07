@@ -14,37 +14,36 @@ def main():
     # do read settings
     settings_parser = SettingsParser(SETTINGS_PATH)
 
-    # trying to connect to DaqDevice
-    daq_params = settings_parser.get_daq_params()
-    daq_device_handler = DaqDeviceHandler(daq_params)
-    # if daq_device_handler.is_connected():
-    #     daq_device_handler.disconnect()
-    # daq_device_handler.connect()
-
     # read temperature profile (from UI or from some experiment settings file)
     time_temp_table = {
         'time': [0, 100, 1000, 1500, 2000, 3000],
         'temperature': [0, 0, 1, 1, 0, 0]
     }
 
-    fh = FastHeat(daq_device_handler, settings_parser, time_temp_table, calibration)
-    voltage_profiles = fh.arm()
+    # trying to connect to DaqDevice
+    daq_params = settings_parser.get_daq_params()
+    daq_device_handler = DaqDeviceHandler(daq_params)
+    daq_device_handler.try_connect()
 
-    # for debug, remove later
-    #     import matplotlib.pyplot as plt
-    #     fig, ax1 = plt.subplots()
-    #     ax1.plot(voltage_profiles['ch0'])
-    #     ax1.plot(voltage_profiles['ch1'])
-    #     plt.show()
-    # ----------------------------------------
-    fh.run()
-    fh_data = fh.get_ai_data()
+    with FastHeat(daq_device_handler, settings_parser,
+                  time_temp_table, calibration) as fh:
 
-    # for debug, remove later
-    #     import matplotlib.pyplot as plt
-    #     fh_data.plot()
-    #     plt.show()
-    # ----------------------------------------
+        voltage_profiles = fh.arm()
+        # for debug, remove later
+        #     import matplotlib.pyplot as plt
+        #     fig, ax1 = plt.subplots()
+        #     ax1.plot(voltage_profiles['ch0'])
+        #     ax1.plot(voltage_profiles['ch1'])
+        #     plt.show()
+        # ----------------------------------------
+
+        fh.run()
+        fh_data = fh.get_ai_data()
+        # for debug, remove later
+        #     import matplotlib.pyplot as plt
+        #     fh_data.plot()
+        #     plt.show()
+        # ----------------------------------------
 
 
 if __name__ == '__main__':

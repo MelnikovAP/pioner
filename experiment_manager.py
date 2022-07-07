@@ -15,6 +15,9 @@ import logging
 
 
 class ExperimentManager:
+    _ai_device_handler: AiDeviceHandler
+    _ao_device_handler: AoDeviceHandler
+
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  voltage_profiles: dict,
                  settings_parser: SettingsParser):
@@ -90,7 +93,7 @@ class ExperimentManager:
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
-                                                  self._ai_params)  # TODO: check
+                                                  self._ai_params)
 
         # need to stop acquisition before scan
         if self._ai_device_handler.status == ul.ScanStatus.RUNNING:
@@ -151,14 +154,14 @@ class ExperimentManager:
                 except (ValueError, NameError, SyntaxError):
                     break
         except KeyboardInterrupt:
-            logging.warning('Acquisition aborted.')
+            logging.warning('WARNING. Acquisition aborted.')
             pass
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        logging.error("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+        logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
         if self._daq_device_handler:
             if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
                 self._ai_device_handler.stop()

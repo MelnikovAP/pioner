@@ -42,10 +42,10 @@ class NanoControl(Device):
             self._daq_device_handler.try_connect()
             logging.info('Successfully connected.')
         except ul.ULException as e:
-            logging.error("Error while setting connection."
+            logging.error("ERROR. ULException while setting connection."
                           "Code: {}, message: {}.".format(e.error_code, e.error_message))
         except TimeoutError as e:
-            logging.error("Error while setting connection: {}".format(e))
+            logging.error("ERROR. Timeout exception while setting connection: {}".format(e))
         finally:
             self._daq_device_handler.quit()
 
@@ -61,7 +61,7 @@ class NanoControl(Device):
             logging.info("Product info: {}".format(descriptor.dev_string))
             logging.info("Interface type: {}".format(descriptor.dev_interface))
         except ul.ULException as e:
-            logging.error("Error while logging info."
+            logging.error("ERROR. Exception while logging info."
                           "Code: {}, message: {}.".format(e.error_code, e.error_message))
 
     @pipe
@@ -91,7 +91,7 @@ class NanoControl(Device):
             self._calibration.read(CALIBRATION_PATH)
             logging.info('Calibration was applied from {}'.format(CALIBRATION_PATH))
         except Exception as e:
-            logging.error("Error while applying calibration: {}.".format(e))
+            logging.error("ERROR. Exception while applying calibration: {}.".format(e))
 
     @pipe
     def get_calibration(self):
@@ -125,7 +125,7 @@ class NanoControl(Device):
             self._fh.run()
             logging.info("Fast heating finished.")
         else:
-            logging.warning("Fast heating cannot be started, since it should be armed first.")
+            logging.warning("WARNING. Fast heating cannot be started, since it should be armed first.")
 
 
 if __name__ == '__main__':

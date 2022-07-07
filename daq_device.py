@@ -29,6 +29,25 @@ class DaqDeviceHandler:
         # by default connecting only to the first DAQBoard with index 0
         self._daq_device = ul.DaqDevice(devices[0])
 
+    def __del__(self):
+        if self._is_device_ok():
+            try:
+                if self.is_connected():
+                    self.disconnect()
+            finally:
+                self.release()
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exe_type, exe_value, exe_traceback):
+        self.disconnect()
+        self.release()
+
+    def _is_device_ok(self) -> bool:
+        return self._daq_device._handle is not None  # TODO: check a protected member usage
+
     def get_descriptor(self) -> ul.DaqDeviceDescriptor:
         return self._daq_device.get_descriptor()
 
