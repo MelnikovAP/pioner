@@ -1,5 +1,4 @@
 import json
-import os
 
 from daq_device import DaqParams
 from ai_device import AiParams

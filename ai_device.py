@@ -74,7 +74,6 @@ class AiDeviceHandler:
     def scan(self) -> float:
         analog_range = ul.Range(self._params.range_id)
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
-                                         self._params.input_mode, analog_range, 
-                                         self._params.sample_rate,
+                                         self._params.input_mode, analog_range, self._params.sample_rate,
                                          self._params.sample_rate, self._params.options, 
                                          self._params.scan_flags, self._buffer)

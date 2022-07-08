@@ -63,7 +63,7 @@ class FastHeat:
         return self._voltage_profiles  # returns for debug. TODO: remove
 
     def is_armed(self) -> bool:
-        return bool(not self._voltage_profiles)
+        return not not self._voltage_profiles
 
     def run(self):
         # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}

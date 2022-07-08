@@ -32,8 +32,8 @@ class AoDeviceHandler:
             RuntimeError if the DAQ device doesn't support analog output or hardware paced analog output.
         """
         self._ao_device = ao_device_from_daq
-        self._params = params
         self._check_device()
+        self._params = params
 
     def _check_device(self):
         if self._ao_device is None:
@@ -59,9 +59,9 @@ class AoDeviceHandler:
 
     # returns actual output scan rate
     def scan(self, ao_buffer) -> float:
-        _samples_per_channel = int((len(ao_buffer) / (self._params.high_channel - self._params.low_channel + 1)))
+        analog_range = ul.Range(self._params.range_id)
+        samples_per_channel = int((len(ao_buffer) / (self._params.high_channel - self._params.low_channel + 1)))
         return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
-                                          ul.Range(self._params.range_id), 
-                                          _samples_per_channel,
+                                          analog_range, samples_per_channel,
                                           self._params.sample_rate, self._params.options, 
                                           self._params.scan_flags, ao_buffer)

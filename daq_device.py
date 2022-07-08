@@ -19,15 +19,16 @@ class DaqDeviceHandler:
 
     def _init_daq_device(self):
         devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
-        print(self._params)
-        print(devices)
         if not devices:
-            error_str = "Error. No DAQ devices found."
-            logging.error(error_str)
+            error_str = "No DAQ devices found."
+            logging.error("ERROR. {}".format(error_str))
             raise RuntimeError(error_str)
 
         # by default connecting only to the first DAQBoard with index 0
         self._daq_device = ul.DaqDevice(devices[0])
+
+    def _is_device_ok(self) -> bool:
+        return self._daq_device._handle is not None  # TODO: check a protected member usage
 
     def __del__(self):
         if self._is_device_ok():
@@ -45,9 +46,6 @@ class DaqDeviceHandler:
         self.disconnect()
         self.release()
 
-    def _is_device_ok(self) -> bool:
-        return self._daq_device._handle is not None  # TODO: check a protected member usage
-
     def get_descriptor(self) -> ul.DaqDeviceDescriptor:
         return self._daq_device.get_descriptor()
 
@@ -62,7 +60,7 @@ class DaqDeviceHandler:
         self._daq_device.connect(connection_code=self._params.connection_code)
         logging.info("DAQ device has been successfully connected.")
 
-    def try_connect(self, timeout: int = 60, sleep_time: int = 1):
+    def try_connect(self, timeout: int = 60, sleep_time: int = 2):
         for _ in range(timeout):
             if not self.is_connected():
                 self.connect()
