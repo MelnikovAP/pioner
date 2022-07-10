@@ -51,7 +51,8 @@ class FastHeat:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        print("Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+        if exc_value is not None:
+            logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
         self._daq_device_handler.quit()
 
 
