@@ -2,6 +2,8 @@ import uldaq as ul
 import logging
 import time
 
+# TODO: add an abstract class for device + add a mock device for testing
+
 
 class DaqParams:
     def __init__(self):
@@ -27,24 +29,15 @@ class DaqDeviceHandler:
         # by default connecting only to the first DAQBoard with index 0
         self._daq_device = ul.DaqDevice(devices[0])
 
-    def _is_device_ok(self) -> bool:
-        return self._daq_device._handle is not None  # TODO: check a protected member usage
-
-    def __del__(self):
-        if self._is_device_ok():
-            try:
-                if self.is_connected():
-                    self.disconnect()
-            finally:
-                self.release()
+    def __bool__(self):
+        return self.is_connected()
 
     def __enter__(self):
-        self.connect()
+        # self.try_connect()
         return self
 
     def __exit__(self, exe_type, exe_value, exe_traceback):
-        self.disconnect()
-        self.release()
+        self.quit()
 
     def get_descriptor(self) -> ul.DaqDeviceDescriptor:
         return self._daq_device.get_descriptor()
@@ -58,9 +51,12 @@ class DaqDeviceHandler:
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         self._daq_device.connect(connection_code=self._params.connection_code)
-        logging.info("DAQ device has been successfully connected.")
+        if self._daq_device.is_connected():
+            logging.info("DAQ device has been successfully connected.")
+        else:
+            logging.warning("WARNING. DAQ device hasn't been connected.")
 
-    def try_connect(self, timeout: int = 60, sleep_time: int = 2):
+    def try_connect(self, timeout: int = 60, sleep_time: int = 1):
         for _ in range(timeout):
             if not self.is_connected():
                 self.connect()
