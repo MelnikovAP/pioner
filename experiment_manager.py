@@ -7,16 +7,20 @@ from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DAT
                        RAW_DATA_BUFFER_FILE_PREFIX)
 
 from typing import List
+from ctypes import Array
 import pandas as pd
 import uldaq as ul
 import os
 import glob
 import logging
 
+# TODO: check why we create analog devices inside scanning methods
+
 
 class ExperimentManager:
     _ai_device_handler: AiDeviceHandler
     _ao_device_handler: AoDeviceHandler
+    _ao_buffer: Array[float]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  voltage_profiles: dict,
@@ -67,10 +71,10 @@ class ExperimentManager:
         
         self._ao_buffer = ScanDataGenerator(self._voltage_profiles,
                                             self._ao_params.low_channel,
-                                            self._ao_params.high_channel).get_buffer()  # TODO: check
+                                            self._ao_params.high_channel).get_buffer()
 
         self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
-                                                  self._ao_params)  # TODO: check
+                                                  self._ao_params)
         # need to stop AO before scan
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()
@@ -161,11 +165,13 @@ class ExperimentManager:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+        if exc_value is not None:
+            logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+
         if self._daq_device_handler:
             if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
                 self._ai_device_handler.stop()
             if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
                 self._ao_device_handler.stop()
-            self._daq_device_handler.quit()
+            # self._daq_device_handler.quit()
         # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable
