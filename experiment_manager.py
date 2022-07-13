@@ -106,7 +106,7 @@ class ExperimentManager:
         self._ai_device_handler.scan()
         self._read_data_loop(do_save_data)
 
-        logging.info('Continuous AI finished!')
+        logging.info('Continuous AI finished.')
         
     def _read_data_loop(self, do_save_data: bool):
         try:

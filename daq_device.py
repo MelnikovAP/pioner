@@ -20,7 +20,7 @@ class DaqDeviceHandler:
         self._init_daq_device()
 
     def _init_daq_device(self):
-        devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
+        devices = ul.get_daq_device_inventory(self._params.interface_type, 1)  # we expect only one device for now
         if not devices:
             error_str = "No DAQ devices found."
             logging.error("ERROR. {}".format(error_str))
@@ -28,9 +28,6 @@ class DaqDeviceHandler:
 
         # by default connecting only to the first DAQBoard with index 0
         self._daq_device = ul.DaqDevice(devices[0])
-
-    def __bool__(self):
-        return self.is_connected()
 
     def __enter__(self):
         # self.try_connect()
