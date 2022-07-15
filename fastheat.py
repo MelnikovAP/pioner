@@ -29,7 +29,7 @@ class FastHeat:
         sample_rate = self._settings_parser.get_ao_params().sample_rate
         self._samples_per_channel = int(self._profile_time[-1] / 1000. * sample_rate)
         if self._profile_time[-1] % 1000. != 0:
-            error_str = "Input profile time cannot be packed into integer buffers."
+            error_str = "Input profile time cannot be packed into integer buffers."  # TODO: check
             logging.error(error_str)
             raise ValueError(error_str)
 
@@ -53,8 +53,7 @@ class FastHeat:
     def __exit__(self, exc_type, exc_value, exc_tb):
         if exc_value is not None:
             logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
-        self._daq_device_handler.quit()
-
+            self._daq_device_handler.quit()  # TODO: check is it needed
 
     def arm(self) -> Dict[str, np.array]:
         # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change

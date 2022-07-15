@@ -25,7 +25,7 @@ class NanoControl(Device):
             os.makedirs(RAW_DATA_FOLDER_REL_PATH)
 
         logging.basicConfig(filename=NANOCONTROL_LOG_FILE_REL_PATH, encoding='utf-8', level=logging.DEBUG,
-                            filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
+                            filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')  # TODO: remove from class
 
         self._calibration = Calibration()
         self.apply_default_calibration()

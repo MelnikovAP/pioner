@@ -16,7 +16,7 @@ RAW_DATA_FILE = "raw_data.h5"
 RAW_DATA_FILE_REL_PATH = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
 
 RAW_DATA_BUFFER_FILE_PREFIX = "raw_data_buffer_"
-RAW_DATA_BUFFER_FILE = "raw_data_buffer_{}.h5"
+RAW_DATA_BUFFER_FILE_FORMAT = "raw_data_buffer_{}.h5"
 
 # Logs constants
 # =================================================================================

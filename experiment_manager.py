@@ -3,7 +3,7 @@ from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
 from settings import SettingsParser
-from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE,
+from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
                        RAW_DATA_BUFFER_FILE_PREFIX)
 
 from typing import List
@@ -40,9 +40,11 @@ class ExperimentManager:
         df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', append=True, mode='a')
 
         # before starting, removing the previous generated files with data from separated buffers
-        files = glob.glob(RAW_DATA_FOLDER_REL_PATH + RAW_DATA_BUFFER_FILE_PREFIX + '*.h5', recursive=True)
-        files.append(RAW_DATA_FILE_REL_PATH)
-        for file in files:
+        h5_files_to_remove_regex = RAW_DATA_FOLDER_REL_PATH + '/' + RAW_DATA_BUFFER_FILE_PREFIX + "*.h5"
+
+        h5_files = glob.glob(h5_files_to_remove_regex, recursive=True)
+        h5_files.append(RAW_DATA_FILE_REL_PATH)
+        for file in h5_files:
             try:
                 os.remove(file)
             except:
@@ -133,7 +135,7 @@ class ExperimentManager:
                         # merging all the buffer files into one file raw_data.h5
                         fpath = RAW_DATA_FILE_REL_PATH
                         for i in list(range(buffers_num)):
-                            buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE.format(i))
+                            buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(i))
                             df = pd.DataFrame(pd.read_hdf(buf_path, key='dataset'))
                             df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
                         break  
@@ -143,7 +145,7 @@ class ExperimentManager:
                         logging.info('Reading low half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[:half_buffer_len])
                         if do_save_data:
-                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE.format(buffer_index))
+                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
                             df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
                         is_buffer_high_half = False
                     elif ai_index < half_buffer_len and not is_buffer_high_half:
@@ -151,7 +153,7 @@ class ExperimentManager:
                         logging.info('Reading high half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[half_buffer_len:])
                         if do_save_data:
-                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE.format(buffer_index))
+                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
                             df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
                         is_buffer_high_half = True
                         buffer_index += 1
