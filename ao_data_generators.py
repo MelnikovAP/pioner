@@ -7,7 +7,7 @@ import uldaq as ul
 
 class PulseDataGenerator:
     # This class generates the buffer from dictionary, some kind of 2D array
-    # like {'ch0': float, 'ch3': float}. Unused channels are being set to 0.
+    # like {0: float, 3: float}. Unused channels are being set to 0.
     # TODO: generate sin on reference channel
      
     def __init__(self, channel_voltages: dict, duration: int,
@@ -26,16 +26,15 @@ class PulseDataGenerator:
 
     def _fill_buffer(self):
         ch_list = list(range(self._low_channel, self._high_channel + 1))
-        ch_list = ['ch' + str(i) for i in ch_list]
+        ch_list = [i for i in ch_list]
 
         for i in ch_list:
             if i not in list(self._channel_voltages.keys()):
                 self._channel_voltages[i] = 0.
         
-        print(self._channel_voltages['ch' + str(1)])
         for i in range(self._buffer_size):
             for ch in range(self._low_channel, self._high_channel + 1):
-                self._buffer[i * self._channel_count + ch] = self._channel_voltages['ch' + str(ch)]
+                self._buffer[i * self._channel_count + ch] = self._channel_voltages[ch]
 
     def get_buffer(self) -> Array[float]:
         return self._buffer
@@ -47,7 +46,7 @@ class PulseDataGenerator:
 class ScanDataGenerator:
     # The buffer for AO device of daqboard should be linear.
     # This class generates the linear buffer from dictionary, some kind of 2D array
-    # like {'ch0': [.......], 'ch3': [........]}. Unused channels are being set to 0.
+    # like {0: [.......], 3: [........]}. Unused channels are being set to 0.
 
     def __init__(self, voltage_profiles: dict,
                  low_channel: int, high_channel: int):
@@ -74,7 +73,7 @@ class ScanDataGenerator:
             raise ValueError("Cannot load analog output buffer. "
                              "One of the channel profile has length, different from buffer size.")
         ch_list = list(range(self._low_channel, self._high_channel + 1))
-        ch_list = ['ch' + str(i) for i in ch_list]
+        ch_list = [i for i in ch_list]
         
         for i in ch_list:
             if i not in self._voltage_profiles.keys():
@@ -82,7 +81,7 @@ class ScanDataGenerator:
 
         for i in range(self._buffer_size):
             for ch in range(self._low_channel, self._high_channel + 1):
-                self._buffer[i * self._channel_count + ch] = self._voltage_profiles['ch' + str(ch)][i]
+                self._buffer[i * self._channel_count + ch] = self._voltage_profiles[ch][i]
 
     def get_buffer(self) -> Array[float]:
         return self._buffer
@@ -96,8 +95,8 @@ if __name__ == '__main__':
         from numpy import linspace
 
         local_voltage_profiles = {
-            'ch0': 2,
-            'ch2': 1
+            0: 2,
+            2: 1
         }
         ao_data_generator = PulseDataGenerator(local_voltage_profiles, 100, 0, 3)
         buffer = ao_data_generator.get_buffer()

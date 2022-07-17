@@ -55,18 +55,18 @@ class FastHeat:
             logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
             self._daq_device_handler.quit()  # TODO: check is it needed
 
-    def arm(self) -> Dict[str, np.array]:
+    def arm(self) -> Dict[int, np.ndarray]:
         # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change
-        self._voltage_profiles['ch0'] = self._get_channel0_voltage()
+        self._voltage_profiles[0] = self._get_channel0_voltage()
         # arm voltage profile to ch1
-        self._voltage_profiles['ch1'] = self._get_channel1_voltage()
+        self._voltage_profiles[1] = self._get_channel1_voltage()
         return self._voltage_profiles  # returns for debug. TODO: remove
 
     def is_armed(self) -> bool:
         return not not self._voltage_profiles
 
     def run(self):
-        # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}
+        # voltage data for each used AO channel like {0: [.......], 3: [........]}
         with ExperimentManager(self._daq_device_handler,
                                self._voltage_profiles,
                                self._settings_parser) as em:
@@ -110,7 +110,7 @@ class FastHeat:
 
         # Uref
         # ===================
-        # profile = pd.DataFrame(self.voltage_profiles['ch1'])
+        # profile = pd.DataFrame(self.voltage_profiles[1])
         # Uref = pd.concat(profile*(int(len(self.ai_data[0])/len(profile))), ignore_index=True) # generating repeated profiles
         # self.ai_data['Uref'] = profile
         

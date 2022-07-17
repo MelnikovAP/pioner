@@ -32,8 +32,8 @@ def main():
         # for debug, remove later
         #     import matplotlib.pyplot as plt
         #     fig, ax1 = plt.subplots()
-        #     ax1.plot(voltage_profiles['ch0'])
-        #     ax1.plot(voltage_profiles['ch1'])
+        #     ax1.plot(voltage_profiles[0])
+        #     ax1.plot(voltage_profiles[1])
         #     plt.show()
         # ----------------------------------------
 
