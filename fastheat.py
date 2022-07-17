@@ -75,10 +75,10 @@ class FastHeat:
             
         self._apply_calibration()
 
-    def _get_channel0_voltage(self) -> np.array:
+    def _get_channel0_voltage(self) -> np.ndarray:
         return np.ones(self._samples_per_channel) / 10.  # apply 0.1 voltage on channel 0
 
-    def _get_channel1_voltage(self) -> np.array:
+    def _get_channel1_voltage(self) -> np.ndarray:
         # construct voltage profile to ch1
         interpolation = interpolate.interp1d(x=self._profile_time, y=self._profile_temp, kind='linear')
         

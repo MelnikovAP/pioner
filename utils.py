@@ -24,7 +24,7 @@ def list_bitwise_or(ints: List[int]) -> int:
 
 # calorimeter utils
 # ====================================================
-def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.array:
+def voltage_to_temperature(voltage: np.ndarray, calibration: Calibration) -> np.ndarray:
     volt = voltage.copy()
     volt[volt < 0] = 0
     volt[volt > calibration.safe_voltage] = calibration.safe_voltage
@@ -33,7 +33,7 @@ def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.ar
 
 
 # TODO: think maybe to create a T-V (and vice versa) converter class
-def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.array:
+def temperature_to_voltage(temp: np.ndarray, calibration:  Calibration) -> np.ndarray:
     # generating temp-volt dependency in full calibration range
     resolution = 0.0001  # V
     volt_calib = np.linspace(0, calibration.safe_voltage, int(1 / resolution))
