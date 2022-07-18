@@ -87,19 +87,20 @@ class FastHeat:
         volt_program_points = temperature_to_voltage(temp_program_points, self._calibration)
         return VoltageProfile(volt_program_points)
 
+    # TODO: move all constants to another file
     def _apply_calibration(self):
         # Taux - mean for the whole buffer
-        Uaux = self._ai_data[3].mean()
-        Taux = 100. * Uaux
-        if Taux < -12.:  # correction for AD595 below -12 C
-            Taux = 2.6843 + 1.2709 * Taux + 0.0042867 * Taux * Taux + 3.4944e-05 * Taux * Taux * Taux
-        self._ai_data['Taux'] = Taux
+        u_aux = self._ai_data[3].mean()
+        t_aux = 100. * u_aux
+        if t_aux < -12.:  # correction for AD595 below -12 C
+            t_aux = 2.6843 + 1.2709 * t_aux + 0.0042867 * t_aux * t_aux + 3.4944e-05 * t_aux * t_aux * t_aux
+        self._ai_data['Taux'] = t_aux
         
         # Utpl or temp - temperature of the calibrated internal thermopile + Taux
         self._ai_data[4] *= (1000. / 11.)  # scaling to mV with the respect of amplification factor of 11
         ax = self._ai_data[4] + self._calibration.utpl0
         self._ai_data['temp'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
-        self._ai_data['temp'] += Taux
+        self._ai_data['temp'] += t_aux
 
         # temp-hr ??? add explanation Umod mV
         
@@ -109,20 +110,22 @@ class FastHeat:
 
         # Uref
         # ===================
-        # profile = pd.DataFrame(self.voltage_profiles[1])
-        # Uref = pd.concat(profile*(int(len(self.ai_data[0])/len(profile))), ignore_index=True) # generating repeated profiles
-        # self.ai_data['Uref'] = profile
+        # profile = pd.DataFrame(self._voltage_profiles[1])
+        # u_ref = pd.concat(profile * (int(len(self._ai_data[0]) / len(profile))),
+        #                  ignore_index=True) # generating repeated profiles
+        # self._ai_data['Uref'] = profile
         
         # Thtr
         self._ai_data[5] *= 1000.  # Uhtr mV
-        Rhtr = self._ai_data[5] * 0.
-        Ih = self._calibration.ihtr0 + self._ai_data[0] * self._calibration.ihtr1
-        Rhtr.loc[Ih!=0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
-        # Rhtr.loc[Ih==0] = 0
-        Thtr = self._calibration.thtr0 + \
-               self._calibration.thtr1 * (Rhtr + self._calibration.thtrcorr) + \
-               self._calibration.thtr2 * ((Rhtr + self._calibration.thtrcorr) ** 2)
-        self._ai_data['Thtr'] = Thtr
+        r_htr = self._ai_data[5] * 0.
+        i_h = self._calibration.ihtr0 + self._ai_data[0] * self._calibration.ihtr1
+        r_htr.loc[i_h != 0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * \
+                              self._calibration.uhtr1 / i_h
+        # r_htr.loc[i_h == 0] = 0
+        t_htr = self._calibration.thtr0 + \
+               self._calibration.thtr1 * (r_htr + self._calibration.thtrcorr) + \
+               self._calibration.thtr2 * ((r_htr + self._calibration.thtrcorr) ** 2)
+        self._ai_data['Thtr'] = t_htr
         self._ai_data['Uhtr'] = self._ai_data[5]
         
         self._ai_data.drop(self._ai_channels, axis=1, inplace=True)
