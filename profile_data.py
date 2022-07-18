@@ -1,79 +1,107 @@
 import numpy as np
 
 from enum import Enum
-# from typing import NamedTuple
 
 
 class DataType(Enum):
-    ANY = 0,
-    TIME = 1,
-    TEMPERATURE = 2,
-    VOLTAGE = 3
+    ANY = "Any",
+    TIME = "Time",
+    TEMPERATURE = "Temperature",
+    VOLTAGE = "Voltage"
 
 
-def data_type_to_str(data_type: DataType):
-    if data_type == DataType.TIME:
-        return "Time"
-    elif data_type == DataType.TEMPERATURE:
-        return "Temperature"
-    elif data_type == DataType.VOLTAGE:
-        return "Voltage"
-    else:
-        return "Any"
-
-
-class NamedData:
+class Profile1D:
     def __init__(self, type: DataType = DataType.ANY,
                  values: np.ndarray = np.array([])):
-        self.type = type
-        self.values = values
+        self.__type = type
+        self.__values = values
 
-    def __repr__(self):
-        return f"{data_type_to_str(self.type)} values: {self.values}"
+    def __repr__(self) -> str:
+        return f"{self.__type.value[0]} values: {self.__values}"
 
+    def __getitem__(self, index) -> float:
+        return self.__values[index]
 
-class ProfileData:
-    def __init__(self, x_type: DataType,
-                 y_type: DataType):
-        self.__x = NamedData(type=x_type)
-        self.__y = NamedData(type=y_type)
+    def get_type(self) -> DataType:
+        return self.__type
 
-    def set_x(self, values: np.ndarray):
-        self.__x.values = values
+    def set_type(self, type: DataType):
+        self.__type = type
 
-    def append_x(self, values: np.ndarray):
-        self.__x.values = np.append(self.__x.values, values)
+    def get(self) -> np.ndarray:
+        return self.__values.copy()
 
-    def set_y(self, values: np.ndarray):
-        self.__y.values = values
+    def set(self, values: np.ndarray):
+        self.__values = values
 
-    def append_y(self, values: np.ndarray):
-        self.__y.values = np.append(self.__y.values, values)
+    def append(self, values: np.ndarray):
+        self.__values = np.append(self.__values, values)
+
+    def first(self) -> float:
+        return self.__values[0]  # TODO: check
+
+    def last(self) -> float:
+        return self.__values[-1]  # TODO: check
+
+    def size(self) -> int:
+        return self.__values.size()
+
+    def is_empty(self) -> bool:
+        return not self.size()
 
     def is_valid(self) -> bool:
-        return len(self.__x.values) == len(self.__y.values)
+        return not self.is_empty()
+
+
+class TimeProfile(Profile1D):
+    def __init__(self, values: np.ndarray = np.array([])):
+        super().__init__(type=DataType.TIME, values=values)
+
+
+class TempProfile(Profile1D):
+    def __init__(self, values: np.ndarray = np.array([])):
+        super().__init__(type=DataType.TEMPERATURE, values=values)
+
+
+class VoltageProfile(Profile1D):
+    def __init__(self, values: np.ndarray = np.array([])):
+        super().__init__(type=DataType.VOLTAGE, values=values)
+
+
+class Profile2D:
+    def __init__(self, x: Profile1D, y: Profile1D):
+        self.x = x
+        self.y = y
 
     def __repr__(self):
-        return f"X: {self.__x}.\nY: {self.__y}."
+        return f"X: {self.x}\nY: {self.y}"
+
+    def is_valid(self) -> bool:
+        return self.x.is_valid() and \
+               self.y.is_valid() and \
+               self.x.size() == self.y.size()
 
 
-class TempTimeProfile(ProfileData):
+class TempTimeProfile(Profile2D):
     def __init__(self):
-        super().__init__(DataType.TIME, DataType.TEMPERATURE)
+        super().__init__(Profile1D(DataType.TIME),
+                         Profile1D(DataType.TEMPERATURE))
 
 
-class VoltageTimeProfile(ProfileData):
+class VoltageTimeProfile(Profile2D):
     def __init__(self):
-        super().__init__(DataType.TIME, DataType.VOLTAGE)
+        super().__init__(Profile1D(DataType.TIME),
+                         Profile1D(DataType.VOLTAGE))
 
 
-class VoltageTempProfile(ProfileData):
+class VoltageTempProfile(Profile2D):
     def __init__(self):
-        super().__init__(DataType.TEMPERATURE, DataType.VOLTAGE)
+        super().__init__(Profile1D(DataType.TEMPERATURE),
+                         Profile1D(DataType.VOLTAGE))
 
 
 if __name__ == "__main__":
-    profile = TempTimeProfile()
-    profile.set_x(np.array([1, 2, 3]))
-    profile.append_x(np.array([1, 2, 3]))
-    print(profile)
+    temp_time_profile = TempTimeProfile()
+    temp_time_profile.x.set(np.array([1, 2, 3]))
+    temp_time_profile.x.append(np.array([4, 5, 6]))
+    print(temp_time_profile)

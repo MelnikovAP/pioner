@@ -22,6 +22,7 @@ def list_bitwise_or(ints: List[int]) -> int:
         res |= i
     return res
 
+
 # calorimeter utils
 # ====================================================
 def voltage_to_temperature(voltage: np.ndarray, calibration: Calibration) -> np.ndarray:

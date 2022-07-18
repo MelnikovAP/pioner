@@ -1,20 +1,9 @@
+from analog_params import AoParams
+
 from typing import Tuple
 
 import uldaq as ul
 import logging
-
-
-class AoParams:
-    def __init__(self):
-        self.sample_rate = -1  # Hz
-        self.range_id = -1
-        self.low_channel = -1
-        self.high_channel = -1
-        self.scan_flags = ul.AOutScanFlag.DEFAULT  # 0
-        self.options = ul.ScanOption.CONTINUOUS  # 8
-
-    def __str__(self):
-        return str(vars(self))
 
 
 class AoDeviceHandler:

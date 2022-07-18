@@ -2,11 +2,12 @@ from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
-from settings import SettingsParser
+from profile_data import VoltageProfile
+from analog_params import AiParams, AoParams
 from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
                        RAW_DATA_BUFFER_FILE_PREFIX)
 
-from typing import List
+from typing import List, Dict
 from ctypes import Array
 import pandas as pd
 import uldaq as ul
@@ -23,12 +24,13 @@ class ExperimentManager:
     _ao_buffer: Array[float]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 voltage_profiles: dict,
-                 settings_parser: SettingsParser):
+                 voltage_profiles: Dict[int, VoltageProfile],
+                 ai_params: AiParams,
+                 ao_params: AoParams):
         self._daq_device_handler = daq_device_handler
         self._voltage_profiles = voltage_profiles
-        self._ai_params = settings_parser.get_ai_params()
-        self._ao_params = settings_parser.get_ao_params()
+        self._ai_params = ai_params
+        self._ao_params = ao_params
 
         ExperimentManager._do_smth_strange()  # TODO: check and try to avoid this action
 
@@ -80,7 +82,6 @@ class ExperimentManager:
         # need to stop AO before scan
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()
-
         self._ao_device_handler.scan(self._ao_buffer)
 
     # for setting voltage
@@ -104,10 +105,9 @@ class ExperimentManager:
         # need to stop acquisition before scan
         if self._ai_device_handler.status == ul.ScanStatus.RUNNING:
             self._ai_device_handler.stop()
-
         self._ai_device_handler.scan()
-        self._read_data_loop(do_save_data)
 
+        self._read_data_loop(do_save_data)
         logging.info('Continuous AI finished.')
         
     def _read_data_loop(self, do_save_data: bool):

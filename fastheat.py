@@ -3,6 +3,7 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import SettingsParser
 from calibration import Calibration
+from profile_data import TempTimeProfile, VoltageProfile
 
 from scipy import interpolate
 from typing import Dict
@@ -12,36 +13,30 @@ import logging
 
 
 class FastHeat:
+    _ai_data: pd.DataFrame
+    _voltage_profiles: Dict[int, VoltageProfile]
+
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings_parser: SettingsParser,
-                 time_temp_table: dict,
+                 temp_time_profile: TempTimeProfile,
                  calibration: Calibration):
 
-        self._daq_device_handler = daq_device_handler
-        self._settings_parser = settings_parser
+        self._set_temp_profile_data(temp_time_profile)
 
-        self._set_temp_profile_data(time_temp_table)
+        self._settings_parser = settings_parser
+        sample_rate = self._settings_parser.get_ao_params().sample_rate
+        self._samples_per_channel = int(temp_time_profile.x.last() / 1000. * sample_rate)
 
         self._calibration = calibration
+        self._daq_device_handler = daq_device_handler
+        self._ai_channels = [0, 1, 2, 3, 4, 5]  # TODO: get from somewhere
 
-        self._ai_channels = [0, 1, 2, 3, 4, 5]
-
-        sample_rate = self._settings_parser.get_ao_params().sample_rate
-        self._samples_per_channel = int(self._profile_time[-1] / 1000. * sample_rate)
-        if self._profile_time[-1] % 1000. != 0:
-            error_str = "Input profile time cannot be packed into integer buffers."  # TODO: check
-            logging.error(error_str)
-            raise ValueError(error_str)
-
-        self._voltage_profiles = dict()
-
-    def _set_temp_profile_data(self, time_temp_table):
-        if len(time_temp_table['time']) != len(time_temp_table['temperature']):
-            error_str = "Different input number of time and temperature points."
-            logging.error(error_str)
-            raise ValueError(error_str)
-        self._profile_time = time_temp_table['time']
-        self._profile_temp = time_temp_table['temperature']
+    def _set_temp_profile_data(self, temp_time_profile: TempTimeProfile):
+        if not temp_time_profile.is_valid():
+            raise ValueError("Invalid time-temperature profile defined.")
+        if temp_time_profile.x.last() % 1000. != 0:  # TODO: think about it
+            raise ValueError("Input profile time cannot be packed into integer buffers.")
+        self._temp_time_profile = temp_time_profile
 
     def get_ai_data(self) -> pd.DataFrame:
         """Provides explicit access to the already read AI data."""
@@ -55,38 +50,42 @@ class FastHeat:
             logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
             self._daq_device_handler.quit()  # TODO: check is it needed
 
-    def arm(self) -> Dict[int, np.ndarray]:
-        # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change
+    def arm(self) -> Dict[int, VoltageProfile]:
         self._voltage_profiles[0] = self._get_channel0_voltage()
-        # arm voltage profile to ch1
         self._voltage_profiles[1] = self._get_channel1_voltage()
-        return self._voltage_profiles  # returns for debug. TODO: remove
+        return self._voltage_profiles  # returns for debug
 
     def is_armed(self) -> bool:
-        return not not self._voltage_profiles
+        status = not not self._voltage_profiles
+        for profile in self._voltage_profiles.values():
+            status = status and profile.is_valid()
+        return status
 
     def run(self):
-        # voltage data for each used AO channel like {0: [.......], 3: [........]}
-        with ExperimentManager(self._daq_device_handler,
-                               self._voltage_profiles,
-                               self._settings_parser) as em:
-            em.run()
-            self._ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
-            
-        self._apply_calibration()
+        if self.is_armed():
+            with ExperimentManager(self._daq_device_handler,
+                                   self._voltage_profiles,
+                                   self._settings_parser.get_ai_params(),
+                                   self._settings_parser.get_ao_params()) as em:
+                em.run()
+                self._ai_data = em.get_ai_data(self._ai_channels)
 
-    def _get_channel0_voltage(self) -> np.ndarray:
-        return np.ones(self._samples_per_channel) / 10.  # apply 0.1 voltage on channel 0
+            self._apply_calibration()
+        else:
+            logging.warning("WARNING. Fast heating cannot be started, since it should be armed first.")
 
-    def _get_channel1_voltage(self) -> np.ndarray:
-        # construct voltage profile to ch1
-        interpolation = interpolate.interp1d(x=self._profile_time, y=self._profile_temp, kind='linear')
-        
-        time_program_points = np.linspace(self._profile_time[0], self._profile_time[-1], self._samples_per_channel)
+    def _get_channel0_voltage(self) -> VoltageProfile:
+        return VoltageProfile(0.1 * np.ones(self._samples_per_channel))
+
+    def _get_channel1_voltage(self) -> VoltageProfile:
+        time_values = self._temp_time_profile.x.get()
+        interpolation = interpolate.interp1d(x=time_values, y=self._temp_time_profile.y.get(),
+                                             kind='linear')
+        time_program_points = np.linspace(time_values[0], time_values[-1],
+                                          self._samples_per_channel)
         temp_program_points = interpolation(time_program_points)
-
         volt_program_points = temperature_to_voltage(temp_program_points, self._calibration)
-        return volt_program_points
+        return VoltageProfile(volt_program_points)
 
     def _apply_calibration(self):
         # Taux - mean for the whole buffer

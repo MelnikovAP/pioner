@@ -5,7 +5,11 @@ from calibration import Calibration
 from fastheat import FastHeat
 from settings import SettingsParser
 from daq_device import DaqDeviceHandler
+from profile_data import TempTimeProfile
 
+from typing import List
+
+import numpy as np
 import uldaq as ul
 import logging
 import os
@@ -24,12 +28,14 @@ class NanoControl(Device):
         if not (os.path.exists(RAW_DATA_FOLDER_REL_PATH)):
             os.makedirs(RAW_DATA_FOLDER_REL_PATH)
 
+        # TODO: remove from class?
         logging.basicConfig(filename=NANOCONTROL_LOG_FILE_REL_PATH, encoding='utf-8', level=logging.DEBUG,
-                            filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')  # TODO: remove from class
+                            filemode="w", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
 
         self._calibration = Calibration()
         self.apply_default_calibration()
-        self._time_temp_table = dict(time=[], temperature=[])
+
+        self._temp_time_profile = TempTimeProfile()
 
         self._settings_parser = SettingsParser(SETTINGS_PATH)
         daq_params = self._settings_parser.get_daq_params()
@@ -102,30 +108,27 @@ class NanoControl(Device):
     # Fast heating
 
     @command(dtype_in=[float])
-    def set_fh_time_profile(self, time_table):
-        self._time_temp_table['time'] = time_table
-        logging.info("Fast heating time profile was set to: [{}]".format('   '.join(map(str, time_table))))
+    def set_fh_time_profile(self, time_values: List[float]):
+        self._temp_time_profile.x.set(np.array(time_values))
+        logging.info("Fast heating time profile was set to: [{}]".format('   '.join(map(str, time_values))))
 
     @command(dtype_in=[float])
-    def set_fh_temp_profile(self, temp_table):
-        self._time_temp_table['temperature'] = temp_table
-        logging.info("Fast heating temperature profile was set to: [{}]".format('   '.join(map(str, temp_table))))
+    def set_fh_temp_profile(self, temp_values: List[float]):
+        self._temp_time_profile.y.set(np.array(temp_values))
+        logging.info("Fast heating temperature profile was set to: [{}]".format('   '.join(map(str, temp_values))))
 
     @command
     def arm_fast_heat(self):
         self._fh = FastHeat(self._daq_device_handler, self._settings_parser,
-                            self._time_temp_table, self._calibration)
+                            self._temp_time_profile, self._calibration)
         self._fh.arm()
         logging.info("Fast heating armed.")
 
     @command
     def run_fast_heat(self):
-        if self._fh.is_armed():
-            logging.info("Fast heating started.")
-            self._fh.run()
-            logging.info("Fast heating finished.")
-        else:
-            logging.warning("WARNING. Fast heating cannot be started, since it should be armed first.")
+        logging.info("Fast heating started.")
+        self._fh.run()
+        logging.info("Fast heating finished.")
 
 
 if __name__ == '__main__':
