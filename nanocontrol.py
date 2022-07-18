@@ -39,6 +39,7 @@ def main():
 
         fh.run()
         fh_data = fh.get_ai_data()
+        print(fh_data)
         # for debug, remove later
         #     import matplotlib.pyplot as plt
         #     fh_data.plot()

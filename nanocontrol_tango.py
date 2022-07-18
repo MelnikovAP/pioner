@@ -34,40 +34,45 @@ class NanoControl(Device):
         self._settings_parser = SettingsParser(SETTINGS_PATH)
         daq_params = self._settings_parser.get_daq_params()
         self._daq_device_handler = DaqDeviceHandler(daq_params)
-        logging.info('Initial setup done.')
+        logging.info('TANGO: Initial setup done.')
 
     @command
     def set_connection(self):
         try:
             self._daq_device_handler.try_connect()
-            logging.info('Successfully connected.')
+            logging.info('TANGO: Successfully connected.')
         except ul.ULException as e:
-            logging.error("ERROR. ULException while setting connection."
+            logging.error("TANGO: ERROR. ULException while setting connection."
                           "Code: {}, message: {}.".format(e.error_code, e.error_message))
+            self._daq_device_handler.quit()
         except TimeoutError as e:
-            logging.error("ERROR. Timeout exception while setting connection: {}".format(e))
-        finally:
+            logging.error("TANGO: ERROR. Timeout exception while setting connection: {}".format(e))
             self._daq_device_handler.quit()
 
     @command
     def reset_connection(self):
         self._daq_device_handler.reset()
-        logging.info('Connection has been reset.')
+        logging.info('TANGO: Connection has been reset.')
+
+    @command
+    def disconnect(self):
+        self._daq_device_handler.disconnect()
+        self._daq_device_handler.release()
 
     @command
     def log_device_info(self):
         try:
             descriptor = self._daq_device_handler.get_descriptor()
-            logging.info("Product info: {}".format(descriptor.dev_string))
-            logging.info("Interface type: {}".format(descriptor.dev_interface))
+            logging.info("TANGO: Product info: {}".format(descriptor.dev_string))
+            logging.info("TANGO: Interface type: {}".format(descriptor.dev_interface))
         except ul.ULException as e:
-            logging.error("ERROR. Exception while logging info."
+            logging.error("TANGO: ERROR. Exception while logging info."
                           "Code: {}, message: {}.".format(e.error_code, e.error_message))
 
     @pipe
     def info(self):
         return ('Information',
-                dict(developer='Alexey Melnikov',
+                dict(developer='Alexey Melnikov & Evgeny Komov',
                      contact='alexey0703@esrf.fr',
                      model='nanocal 2.0',
                      version_number=0.1
@@ -81,17 +86,17 @@ class NanoControl(Device):
     def apply_default_calibration(self):
         try:
             self._calibration.read(DEFAULT_CALIBRATION_PATH)
-            logging.info('Calibration was applied from {}'.format(DEFAULT_CALIBRATION_PATH))
+            logging.info('TANGO: Calibration was applied from {}'.format(DEFAULT_CALIBRATION_PATH))
         except Exception as e:
-            logging.error("Error while applying default calibration: {}.".format(e))
+            logging.error("TANGO: Error while applying default calibration: {}.".format(e))
 
     @command
     def apply_calibration(self):
         try:
             self._calibration.read(CALIBRATION_PATH)
-            logging.info('Calibration was applied from {}'.format(CALIBRATION_PATH))
+            logging.info('TANGO: Calibration was applied from {}'.format(CALIBRATION_PATH))
         except Exception as e:
-            logging.error("ERROR. Exception while applying calibration: {}.".format(e))
+            logging.error("TANGO: ERROR. Exception while applying calibration: {}.".format(e))
 
     @pipe
     def get_calibration(self):
@@ -104,28 +109,28 @@ class NanoControl(Device):
     @command(dtype_in=[float])
     def set_fh_time_profile(self, time_table):
         self._time_temp_table['time'] = time_table
-        logging.info("Fast heating time profile was set to: [{}]".format('   '.join(map(str, time_table))))
+        logging.info("TANGO: Fast heating time profile was set to: [{}]".format('   '.join(map(str, time_table))))
 
     @command(dtype_in=[float])
     def set_fh_temp_profile(self, temp_table):
         self._time_temp_table['temperature'] = temp_table
-        logging.info("Fast heating temperature profile was set to: [{}]".format('   '.join(map(str, temp_table))))
+        logging.info("TANGO: Fast heating temperature profile was set to: [{}]".format('   '.join(map(str, temp_table))))
 
     @command
     def arm_fast_heat(self):
         self._fh = FastHeat(self._daq_device_handler, self._settings_parser,
                             self._time_temp_table, self._calibration)
         self._fh.arm()
-        logging.info("Fast heating armed.")
+        logging.info("TANGO: Fast heating armed.")
 
     @command
     def run_fast_heat(self):
         if self._fh.is_armed():
-            logging.info("Fast heating started.")
+            logging.info("TANGO: Fast heating started.")
             self._fh.run()
-            logging.info("Fast heating finished.")
+            logging.info("TANGO: Fast heating finished.")
         else:
-            logging.warning("WARNING. Fast heating cannot be started, since it should be armed first.")
+            logging.warning("TANGO: WARNING. Fast heating cannot be started, since it should be armed first.")
 
 
 if __name__ == '__main__':
