@@ -9,6 +9,7 @@ from daq_device import DaqDeviceHandler
 import uldaq as ul
 import logging
 import os
+import json
 
 
 class NanoControl(Device):
@@ -57,7 +58,8 @@ class NanoControl(Device):
     @command
     def disconnect(self):
         self._daq_device_handler.disconnect()
-        self._daq_device_handler.release()
+        logging.info('TANGO: Successfully disconnected.')
+        # self._daq_device_handler.release()
 
     @command
     def log_device_info(self):
@@ -70,9 +72,9 @@ class NanoControl(Device):
                           "Code: {}, message: {}.".format(e.error_code, e.error_message))
 
     @pipe
-    def info(self):
+    def get_info(self):
         return ('Information',
-                dict(developer='Alexey Melnikov & Evgeny Komov',
+                dict(developer='Alexey Melnikov & Evgenii Komov',
                      contact='alexey0703@esrf.fr',
                      model='nanocal 2.0',
                      version_number=0.1
@@ -81,6 +83,12 @@ class NanoControl(Device):
 
     # ===================================
     # Calibration
+
+    @command(dtype_in=str)
+    def load_calibration(self, str_calib):
+        with open(CALIBRATION_PATH, 'w') as f:
+            json.dump(json.loads(str_calib), f, separators=(',', ': '), indent=4)
+            logging.info('TANGO: Calibration file {} was updated from external file.'.format(CALIBRATION_PATH))
 
     @command
     def apply_default_calibration(self):
@@ -99,9 +107,9 @@ class NanoControl(Device):
             logging.error("TANGO: ERROR. Exception while applying calibration: {}.".format(e))
 
     @pipe
-    def get_calibration(self):
+    def get_calibration_comment(self):
         return ('Calibration',
-                dict(comment=self._calibration.comment))
+                dict(comment=str(self._calibration)))
 
     # ===================================
     # Fast heating

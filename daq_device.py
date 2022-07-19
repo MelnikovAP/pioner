@@ -23,7 +23,7 @@ class DaqDeviceHandler:
         devices = ul.get_daq_device_inventory(self._params.interface_type, 1)  # we expect only one device for now
         if not devices:
             error_str = "No DAQ devices found."
-            logging.error("ERROR. {}".format(error_str))
+            logging.error("DAQ DEVICE: ERROR. {}".format(error_str))
             raise RuntimeError(error_str)
 
         # by default connecting only to the first DAQBoard with index 0
@@ -44,14 +44,14 @@ class DaqDeviceHandler:
 
     def connect(self):
         descriptor = self.get_descriptor()
-        logging.info("Connecting to {} - please wait...".format(descriptor.dev_string))
+        logging.info("DAQ DEVICE: Connecting to {} - please wait...".format(descriptor.dev_string))
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         self._daq_device.connect(connection_code=self._params.connection_code)
         if self._daq_device.is_connected():
-            logging.info("DAQ device has been successfully connected.")
+            logging.info("DAQ DEVICE: DAQ device has been successfully connected.")
         else:
-            logging.warning("WARNING. DAQ device hasn't been connected.")
+            logging.warning("DAQ DEVICE: WARNING. DAQ device hasn't been connected.")
 
     def try_connect(self, timeout: int = 60, sleep_time: int = 1):
         for _ in range(timeout):
@@ -60,24 +60,26 @@ class DaqDeviceHandler:
             time.sleep(sleep_time)
             if self.is_connected():
                 return
-        raise TimeoutError("Connection timed out.")
+        raise TimeoutError("DAQ DEVICE: Connection timed out.")
 
     def disconnect(self):
         self._daq_device.disconnect()
-        logging.info("DAQ device has been disconnected.")
+        logging.info("DAQ DEVICE: DAQ device has been disconnected.")
 
     def release(self):
         self._daq_device.release()
-        logging.info("DAQ device has been released.")
+        logging.info("DAQ DEVICE: DAQ device has been released.")
 
     def reset(self):
         self._daq_device.reset()
-        logging.info("DAQ device has been reset.")
+        logging.info("DAQ DEVICE: DAQ device has been reset.")
 
     def quit(self):
+        ## AM: doesn't seems to work..
         if self.is_connected():
             self.disconnect()
         self.release()
+        logging.info("DAQ DEVICE: DAQ device has been disconnected and released.")
 
     def get(self) -> ul.DaqDevice:
         return self._daq_device

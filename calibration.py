@@ -158,13 +158,16 @@ class Calibration:
                         self.theater1 * (self.safe_voltage ** 2) + \
                         self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
         self.min_temp = 0.
-
+    
+    def __str__(self):
+        return(self.comment)
 
 if __name__ == '__main__':
     try:
         calib = Calibration()
-        print(calib.max_temp)
-        calib.read('./calibration.json')
-        print(calib.max_temp)
+        print(str(calib))
+        # print(calib.max_temp)
+        # calib.read('./calibration.json')
+        # print(calib.max_temp)
     except BaseException as e:
         print(e)
