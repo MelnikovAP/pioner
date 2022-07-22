@@ -105,6 +105,7 @@ class Calibration:
         self.safe_voltage = float(self._json_calib[CALIBRATION_COEFFS_FIELD][HEATER_SAFE_VOLTAGE_FIELD])
         
         self._add_params()
+        delattr(self, '_json_calib')            # need in order to transfer calibration dict without it in tango pipe
 
     def write(self, path: str):
         # [Info]
@@ -159,13 +160,16 @@ class Calibration:
                         self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
         self.min_temp = 0.
     
-    def __str__(self):
-        return(self.comment)
+    def get_dict(self):
+        calib_str = str(self.__dict__)
+        calib_str = calib_str.replace("\'", "\"")               # need because json.loads does not recognie " ' "
+        return calib_str
 
 if __name__ == '__main__':
     try:
         calib = Calibration()
-        print(str(calib))
+        calib.read('./settings/calibration.json')
+        print(calib.get_dict())
         # print(calib.max_temp)
         # calib.read('./calibration.json')
         # print(calib.max_temp)

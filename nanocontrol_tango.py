@@ -106,10 +106,10 @@ class NanoControl(Device):
         except Exception as e:
             logging.error("TANGO: ERROR. Exception while applying calibration: {}.".format(e))
 
-    @pipe
-    def get_calibration_comment(self):
-        return ('Calibration',
-                dict(comment=str(self._calibration)))
+    @pipe(label="Current calibration")
+    def get_current_calibration(self):
+        self.__calib_dict = 'calib', dict(calib=self._calibration.get_dict())
+        return self.__calib_dict
 
     # ===================================
     # Fast heating
