@@ -194,18 +194,28 @@ class SettingsParser:
             invalid_fields_str = ", ".join(self._invalid_fields)
             raise ValueError("No fields found in the settings file: {}.".format(invalid_fields_str))
 
+    def get_str(self):
+        _daq_params = str(self.get_daq_params())
+        _ai_params = str(self.get_ai_params())
+        _ao_params = str(self.get_ao_params())
+        settings_dict = str({"DAQ":_daq_params, "AI":_ai_params, "AO":_ao_params})
+        settings_dict = settings_dict.replace("\'", "\"")               # need because json.loads does not recognie " ' "
+        
+        return settings_dict
 
 if __name__ == '__main__':
     try:
-        _path = "./settings.json"
+        _path = "./settings/settings.json"
         parser = SettingsParser(_path)
 
-        _daq_params = parser.get_daq_params()
-        print(_daq_params)
-        _ai_params = parser.get_ai_params()
-        print(_ai_params)
-        _ao_params = parser.get_ao_params()
-        print(_ao_params)
+        # _daq_params = parser.get_daq_params()
+        # print(_daq_params)
+        # _ai_params = parser.get_ai_params()
+        # print(_ai_params)
+        # _ao_params = parser.get_ao_params()
+        # print(_ao_params)
+
+        print(parser.get_str())
 
     except BaseException as e:
         print(e)

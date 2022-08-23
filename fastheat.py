@@ -3,11 +3,13 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import SettingsParser
 from calibration import Calibration
+from constants import RAW_DATA_FILE_REL_PATH
 
 from scipy import interpolate
 from typing import Dict
 import pandas as pd
 import numpy as np
+import h5py
 import logging
 
 
@@ -62,7 +64,7 @@ class FastHeat:
         self._voltage_profiles['ch1'] = self._get_channel1_voltage()
         # arm 4.5 V as trigger signal to ch2
         self._voltage_profiles['ch2'] = self._get_channel2_voltage()
-        
+
         return self._voltage_profiles  # returns for debug. TODO: remove
 
     def is_armed(self) -> bool:
@@ -77,6 +79,7 @@ class FastHeat:
             self._ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
             
         self._apply_calibration()
+        self._add_info_to_file()
 
     def _get_channel0_voltage(self) -> np.array:
         return np.ones(self._samples_per_channel) / 10.  # apply 0.1 voltage on channel 0
@@ -133,3 +136,11 @@ class FastHeat:
         self._ai_data['Uhtr'] = self._ai_data[5]
         
         self._ai_data.drop(self._ai_channels, axis=1, inplace=True)
+
+    def _add_info_to_file(self):
+        fpath = RAW_DATA_FILE_REL_PATH
+        logging.info(fpath)
+        with h5py.File(fpath, 'a') as f:
+            f.create_dataset('calibration', data=self._calibration.get_str())
+            f.create_dataset('settings', data=self._settings_parser.get_str())
+

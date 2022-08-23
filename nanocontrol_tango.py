@@ -108,8 +108,11 @@ class NanoControl(Device):
 
     @pipe(label="Current calibration")
     def get_current_calibration(self):
-        self.__calib_dict = 'calib', dict(calib=self._calibration.get_dict())
+        self.__calib_dict = 'calib', dict(calib=self._calibration.get_str())
         return self.__calib_dict
+
+    # ===================================
+    # Settings
 
     # ===================================
     # Fast heating

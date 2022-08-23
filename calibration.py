@@ -160,7 +160,7 @@ class Calibration:
                         self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
         self.min_temp = 0.
     
-    def get_dict(self):
+    def get_str(self):
         calib_str = str(self.__dict__)
         calib_str = calib_str.replace("\'", "\"")               # need because json.loads does not recognie " ' "
         return calib_str
@@ -169,7 +169,8 @@ if __name__ == '__main__':
     try:
         calib = Calibration()
         calib.read('./settings/calibration.json')
-        print(calib.get_dict())
+        print(calib.get_str())
+
         # print(calib.max_temp)
         # calib.read('./calibration.json')
         # print(calib.max_temp)
