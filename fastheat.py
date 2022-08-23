@@ -60,6 +60,9 @@ class FastHeat:
         self._voltage_profiles['ch0'] = self._get_channel0_voltage()
         # arm voltage profile to ch1
         self._voltage_profiles['ch1'] = self._get_channel1_voltage()
+        # arm 4.5 V as trigger signal to ch2
+        self._voltage_profiles['ch2'] = self._get_channel2_voltage()
+        
         return self._voltage_profiles  # returns for debug. TODO: remove
 
     def is_armed(self) -> bool:
@@ -87,6 +90,9 @@ class FastHeat:
 
         volt_program_points = temperature_to_voltage(temp_program_points, self._calibration)
         return volt_program_points
+
+    def _get_channel2_voltage(self) -> np.array:
+        return np.ones(self._samples_per_channel) * 4.5  # apply 4.5 voltage on channel 2 as trigger
 
     def _apply_calibration(self):
         # Taux - mean for the whole buffer
