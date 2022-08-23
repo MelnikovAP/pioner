@@ -1,7 +1,7 @@
 from experiment_manager import ExperimentManager
 from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
-from settings import SettingsParser
+from settings import Settings
 from calibration import Calibration
 from constants import RAW_DATA_FILE_REL_PATH
 
@@ -15,12 +15,12 @@ import logging
 
 class FastHeat:
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 settings_parser: SettingsParser,
+                 settings: Settings,
                  time_temp_table: dict,
                  calibration: Calibration):
 
         self._daq_device_handler = daq_device_handler
-        self._settings_parser = settings_parser
+        self._settings = settings
 
         self._set_temp_profile_data(time_temp_table)
 
@@ -28,7 +28,7 @@ class FastHeat:
 
         self._ai_channels = [0, 1, 2, 3, 4, 5]
 
-        sample_rate = self._settings_parser.get_ao_params().sample_rate
+        sample_rate = self._settings.ao_params().sample_rate
         self._samples_per_channel = int(self._profile_time[-1] / 1000. * sample_rate)
         if self._profile_time[-1] % 1000. != 0:
             error_str = "Input profile time cannot be packed into integer buffers."  # TODO: check
@@ -74,7 +74,7 @@ class FastHeat:
         # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}
         with ExperimentManager(self._daq_device_handler,
                                self._voltage_profiles,
-                               self._settings_parser) as em:
+                               self._settings) as em:
             em.run()
             self._ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
             
@@ -142,5 +142,5 @@ class FastHeat:
         logging.info(fpath)
         with h5py.File(fpath, 'a') as f:
             f.create_dataset('calibration', data=self._calibration.get_str())
-            f.create_dataset('settings', data=self._settings_parser.get_str())
+            f.create_dataset('settings', data=self._settings.get_str())
 

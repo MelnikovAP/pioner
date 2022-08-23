@@ -2,7 +2,7 @@ from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
-from settings import SettingsParser
+from settings import Settings
 from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
                        RAW_DATA_BUFFER_FILE_PREFIX)
 
@@ -24,11 +24,11 @@ class ExperimentManager:
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  voltage_profiles: dict,
-                 settings_parser: SettingsParser):
+                 settings: Settings):
         self._daq_device_handler = daq_device_handler
         self._voltage_profiles = voltage_profiles
-        self._ai_params = settings_parser.get_ai_params()
-        self._ao_params = settings_parser.get_ao_params()
+        self._ai_params = settings.ai_params()
+        self._ao_params = settings.ao_params()
 
         ExperimentManager._do_smth_strange()  # TODO: check and try to avoid this action
 

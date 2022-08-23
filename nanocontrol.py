@@ -1,7 +1,7 @@
 from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from fastheat import FastHeat
-from settings import SettingsParser
+from settings import Settings
 from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
 
 
@@ -12,7 +12,7 @@ def main():
     # calibration.read(DEFAULT_CALIBRATION_PATH)
 
     # do read settings
-    settings_parser = SettingsParser(SETTINGS_PATH)
+    settings = Settings(SETTINGS_PATH)
 
     # read temperature profile (from UI or from some experiment settings file)
     time_temp_table = {
@@ -21,11 +21,11 @@ def main():
     }
 
     # trying to connect to DaqDevice
-    daq_params = settings_parser.get_daq_params()
+    daq_params = settings.daq_params()
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
-    with FastHeat(daq_device_handler, settings_parser,
+    with FastHeat(daq_device_handler, settings,
                   time_temp_table, calibration) as fh:
 
         voltage_profiles = fh.arm()

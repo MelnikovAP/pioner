@@ -7,7 +7,7 @@ from utils import is_int_or_raise, list_bitwise_or
 from constants import *
 
 
-class Settings:
+class JsonReader:
     """Reads a JSON configuration file."""
 
     def __init__(self, path: str):
@@ -34,7 +34,7 @@ class Settings:
         return self._json
 
 
-class SettingsParser:
+class Settings:
     """Parses configuration file with all necessary acquisition parameters."""
 
     def __init__(self, path: str):
@@ -48,7 +48,7 @@ class SettingsParser:
         Raises:
             ValueError if any field doesn't exist.
         """
-        json_dict = Settings(path).json()
+        json_dict = JsonReader(path).json()
         if SETTINGS_FIELD not in json_dict:
             raise ValueError("No '{}' field found in the settings file.".format(SETTINGS_FIELD))
         else:
@@ -64,15 +64,15 @@ class SettingsParser:
         self._parse_ao_params()
         self._check_invalid_fields()
 
-    def get_daq_params(self) -> DaqParams:
+    def daq_params(self) -> DaqParams:
         """Provides explicit access to the read DaqParams."""
         return self._daq_params
 
-    def get_ai_params(self) -> AiParams:
+    def ai_params(self) -> AiParams:
         """Provides explicit access to the read AiParams."""
         return self._ai_params
 
-    def get_ao_params(self) -> AoParams:
+    def ao_params(self) -> AoParams:
         """Provides explicit access to the read AoParams."""
         return self._ao_params
 
@@ -195,9 +195,9 @@ class SettingsParser:
             raise ValueError("No fields found in the settings file: {}.".format(invalid_fields_str))
 
     def get_str(self):
-        _daq_params = str(self.get_daq_params())
-        _ai_params = str(self.get_ai_params())
-        _ao_params = str(self.get_ao_params())
+        _daq_params = str(self.daq_params())
+        _ai_params = str(self.ai_params())
+        _ao_params = str(self.ao_params())
         settings_dict = str({"DAQ":_daq_params, "AI":_ai_params, "AO":_ao_params})
         settings_dict = settings_dict.replace("\'", "\"")               # need because json.loads does not recognie " ' "
         
@@ -206,16 +206,16 @@ class SettingsParser:
 if __name__ == '__main__':
     try:
         _path = "./settings/settings.json"
-        parser = SettingsParser(_path)
+        settings = Settings(_path)
 
-        # _daq_params = parser.get_daq_params()
+        # _daq_params = settings.daq_params()
         # print(_daq_params)
-        # _ai_params = parser.get_ai_params()
+        # _ai_params = settings.ai_params()
         # print(_ai_params)
-        # _ao_params = parser.get_ao_params()
+        # _ao_params = settings.ao_params()
         # print(_ao_params)
 
-        print(parser.get_str())
+        print(settings.get_str())
 
     except BaseException as e:
         print(e)
