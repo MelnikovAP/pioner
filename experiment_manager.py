@@ -27,8 +27,8 @@ class ExperimentManager:
                  settings: Settings):
         self._daq_device_handler = daq_device_handler
         self._voltage_profiles = voltage_profiles
-        self._ai_params = settings.ai_params()
-        self._ao_params = settings.ao_params()
+        self._ai_params = settings.ai_params
+        self._ao_params = settings.ao_params
 
         ExperimentManager._do_smth_strange()  # TODO: check and try to avoid this action
 

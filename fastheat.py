@@ -28,7 +28,7 @@ class FastHeat:
 
         self._ai_channels = [0, 1, 2, 3, 4, 5]
 
-        sample_rate = self._settings.ao_params().sample_rate
+        sample_rate = self._settings.ao_params.sample_rate
         self._samples_per_channel = int(self._profile_time[-1] / 1000. * sample_rate)
         if self._profile_time[-1] % 1000. != 0:
             error_str = "Input profile time cannot be packed into integer buffers."  # TODO: check

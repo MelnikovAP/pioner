@@ -33,7 +33,7 @@ class NanoControl(Device):
         self._time_temp_table = dict(time=[], temperature=[])
 
         self._settings = Settings(SETTINGS_PATH)
-        daq_params = self._settings.daq_params()
+        daq_params = self._settings.daq_params
         self._daq_device_handler = DaqDeviceHandler(daq_params)
         logging.info('TANGO: Initial setup done.')
 

@@ -21,7 +21,7 @@ def main():
     }
 
     # trying to connect to DaqDevice
-    daq_params = settings.daq_params()
+    daq_params = settings.daq_params
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
