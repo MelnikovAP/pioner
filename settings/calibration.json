@@ -1,10 +1,5 @@
 {
     "Info": "test calibration for 39392 sensors from gui",
-    "Modulation params": {
-        "Amplitude": 0.05,
-        "Offset": 0.1,
-        "Frequency": 75.0
-    },
     "Calibration coeff": {
         "Utpl": {
             "0": 0.143

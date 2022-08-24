@@ -59,12 +59,12 @@ class Settings:
 
         self._invalid_fields = []
         # only in that order
-        self._parse_daq_params()
-        self._parse_ai_params()
-        self._parse_ao_params()
-        self._check_invalid_fields()
+        self.parse_daq_params()
+        self.parse_ai_params()
+        self.parse_ao_params()
+        self.check_invalid_fields()
 
-    def _parse_daq_params(self):
+    def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
         self.daq_params = DaqParams()
         daq_dict = self._settings_dict[DAQ_FIELD]
@@ -85,7 +85,7 @@ class Settings:
         else:
             self._invalid_fields.append(CONNECTION_CODE_FIELD)
 
-    def _parse_ai_params(self):
+    def parse_ai_params(self):
         """Parses all necessary analog-input parameters and fills AiParams instance."""
         self.ai_params = AiParams()
         ai_dict = self._settings_dict[AI_FIELD]
@@ -134,7 +134,7 @@ class Settings:
         else:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
-    def _parse_ao_params(self):
+    def parse_ao_params(self):
         """Parses all necessary analog-output parameters and fills AoParams instance."""
         self.ao_params = AoParams()
         ao_dict = self._settings_dict[AO_FIELD]
@@ -176,7 +176,7 @@ class Settings:
         else:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
-    def _check_invalid_fields(self):
+    def check_invalid_fields(self):
         """Raises ValueError if at least one required field is missing in the settings."""
         if self._invalid_fields:
             invalid_fields_str = ", ".join(self._invalid_fields)

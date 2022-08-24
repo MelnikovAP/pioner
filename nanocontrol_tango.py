@@ -113,6 +113,26 @@ class NanoControl(Device):
 
     # ===================================
     # Settings
+    @pipe(label="Current sample rate")
+    def get_sample_rate(self):
+        self.__sr = 'sr', dict(sr=self._settings.ai_params.sample_rate)
+        return self.__sr
+
+    @command(dtype_in=int)
+    def set_sample_scan_rate(self, scan_rate):
+        self._settings.ai_params.sample_rate = scan_rate
+        self._settings.ao_params.sample_rate = scan_rate
+    
+    @command
+    def reset_sample_scan_rate(self):
+        self._settings.parse_ai_params()
+        self._settings.parse_ao_params()
+    
+    # @command(dtype_in=[float])
+    # def set_modulation_parameters(self, params):
+    #     self._settings.modualtaion_frequency = params[0]
+    #     self._settings.modualtaion_amplitude = params[1]
+    #     self._settings.modualtaion_offset = params[2]
 
     # ===================================
     # Fast heating

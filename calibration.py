@@ -9,10 +9,6 @@ class Calibration:
     def __init__(self):
     # [Info]
         self.comment = 'no calibration'
-    # [Modulation params]
-        self.amplitude = 0.05
-        self.offset = 0.1
-        self.frequency = 75.
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = 0.
@@ -64,10 +60,6 @@ class Calibration:
 
     # [Info]
         self.comment = self._json_calib[INFO_FIELD]
-    # [Modulation params]
-        self.amplitude = float(self._json_calib[MODULATION_PARAMS_FIELD][AMPLITUDE_FIELD])
-        self.offset = float(self._json_calib[MODULATION_PARAMS_FIELD][OFFSET_FIELD])
-        self.frequency = float(self._json_calib[MODULATION_PARAMS_FIELD][FREQUENCY_FIELD])
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self.utpl0 = float(self._json_calib[CALIBRATION_COEFFS_FIELD][U_TPL_FIELD]['0'])
@@ -110,10 +102,6 @@ class Calibration:
     def write(self, path: str):
         # [Info]
         self._json_calib[INFO_FIELD] = self.comment
-    # [Modulation params]
-        self._json_calib[MODULATION_PARAMS_FIELD][AMPLITUDE_FIELD] = self.amplitude
-        self._json_calib[MODULATION_PARAMS_FIELD][OFFSET_FIELD] = self.offset
-        self._json_calib[MODULATION_PARAMS_FIELD][FREQUENCY_FIELD] = self.frequency
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
         self._json_calib[CALIBRATION_COEFFS_FIELD][U_TPL_FIELD]['0'] = self.utpl0

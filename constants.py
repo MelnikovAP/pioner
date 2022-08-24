@@ -57,11 +57,6 @@ DEFAULT_CALIBRATION_PATH = "./settings/default_calibration.json"
 
 INFO_FIELD = "Info"
 
-MODULATION_PARAMS_FIELD = "Modulation params"
-AMPLITUDE_FIELD = "Amplitude"
-OFFSET_FIELD = "Offset"
-FREQUENCY_FIELD = "Frequency"
-
 CALIBRATION_COEFFS_FIELD = "Calibration coeff"
 U_TPL_FIELD = "Utpl"
 T_TPL_FIELD = "Ttpl"
