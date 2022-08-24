@@ -3,7 +3,7 @@ from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_R
                        NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_PATH)
 from calibration import Calibration
 from fastheat import FastHeat
-from settings import SettingsParser
+from settings import Settings
 from daq_device import DaqDeviceHandler
 
 import uldaq as ul
@@ -32,8 +32,8 @@ class NanoControl(Device):
         self.apply_default_calibration()
         self._time_temp_table = dict(time=[], temperature=[])
 
-        self._settings_parser = SettingsParser(SETTINGS_PATH)
-        daq_params = self._settings_parser.get_daq_params()
+        self._settings = Settings(SETTINGS_PATH)
+        daq_params = self._settings.daq_params
         self._daq_device_handler = DaqDeviceHandler(daq_params)
         logging.info('TANGO: Initial setup done.')
 
@@ -129,7 +129,7 @@ class NanoControl(Device):
 
     @command
     def arm_fast_heat(self):
-        self._fh = FastHeat(self._daq_device_handler, self._settings_parser,
+        self._fh = FastHeat(self._daq_device_handler, self._settings,
                             self._time_temp_table, self._calibration)
         self._fh.arm()
         logging.info("TANGO: Fast heating armed.")
