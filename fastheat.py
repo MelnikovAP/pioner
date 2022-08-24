@@ -79,6 +79,7 @@ class FastHeat:
             self._ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
             
         self._apply_calibration()
+        self._save_data()
         self._add_info_to_file()
 
     def _get_channel0_voltage(self) -> np.array:
@@ -136,6 +137,16 @@ class FastHeat:
         self._ai_data['Uhtr'] = self._ai_data[5]
         
         self._ai_data.drop(self._ai_channels, axis=1, inplace=True)
+
+    def _save_data(self):
+        fpath = './data/exp_data.h5'
+        with h5py.File(fpath, 'w') as f:
+            data = f.create_group('data')
+            data.create_dataset('Taux', data=self._ai_data['Taux'])
+            data.create_dataset('Thtr', data=self._ai_data['Thtr'])
+            data.create_dataset('Uhtr', data=self._ai_data['Uhtr'])
+            data.create_dataset('temp', data=self._ai_data['temp'])
+            data.create_dataset('temp-hr', data=self._ai_data['temp-hr'])
 
     def _add_info_to_file(self):
         fpath = RAW_DATA_FILE_REL_PATH
