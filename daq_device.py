@@ -7,7 +7,8 @@ import time
 
 class DaqParams:
     def __init__(self):
-        self.interface_type = ul.InterfaceType.ANY  # 7
+        # init class with default daq settings
+        self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
         self.connection_code = -1
 
     def __str__(self):
@@ -20,7 +21,9 @@ class DaqDeviceHandler:
         self._init_daq_device()
 
     def _init_daq_device(self):
-        devices = ul.get_daq_device_inventory(self._params.interface_type, 1)  # we expect only one device for now
+        # Looking for connected devices. We expect only one device for now
+        # If no devices connected, raise an error
+        devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
         if not devices:
             error_str = "No DAQ devices found."
             logging.error("DAQ DEVICE: ERROR. {}".format(error_str))

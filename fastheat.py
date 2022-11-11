@@ -96,7 +96,35 @@ class FastHeat:
         return volt_program_points
 
     def _get_channel2_voltage(self) -> np.array:
-        return np.ones(self._samples_per_channel) * 4.5  # apply 4.5 voltage on channel 2 as trigger
+        # profile = np.zeros(self._samples_per_channel)
+        # pulse_duration = 39 # ms
+        # pulse_points = int(pulse_duration * (self._settings.ao_params.sample_rate/1000))
+        # profile[:pulse_points] = 5
+        # logging.info(profile)
+
+        profile = np.ones(self._samples_per_channel) * 5  # apply 5 voltage on channel 2 as trigger
+        profile[0] = 0
+        profile[1] = 0.5
+        profile[2] = 1.0
+        profile[3] = 1.5
+        profile[4] = 2.0
+        profile[5] = 2.5
+        profile[6] = 3.0
+        profile[7] = 3.5
+        profile[8] = 4.0
+        profile[9] = 4.5
+        
+        profile[-10] = 4.5 
+        profile[-9] = 4.0 
+        profile[-8] = 3.5 
+        profile[-7] = 3.0 
+        profile[-6] = 2.5    
+        profile[-5] = 2.0
+        profile[-4] = 1.5
+        profile[-3] = 1.0
+        profile[-2] = 0.5
+        profile[-1] = 0         # to zero voltage after heating 
+        return profile
 
     def _apply_calibration(self):
         # Taux - mean for the whole buffer

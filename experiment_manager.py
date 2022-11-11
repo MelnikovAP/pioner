@@ -62,7 +62,7 @@ class ExperimentManager:
         df = df[ai_channels]
         return df
     
-    def run(self):
+    def run(self): # TODO: add differnt modes (scan, set, infinite etc.)
         self._ao_scan()
         self._ai_continuous(do_save_data=True)
 
