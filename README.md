@@ -44,19 +44,19 @@ The **uldaq** package contains programming libraries and components for developi
  
   - All Linux distributions
   ```
-     $ wget -N https://github.com/mccdaq/uldaq/releases/download/v1.2.0/libuldaq-1.2.0.tar.bz2
+     $ wget -N https://github.com/mccdaq/uldaq/releases/download/v1.2.1/libuldaq-1.2.1.tar.bz2
   ```
   - macOS (Version 10.11 or later recommended)
   
   ```
-     $ curl -L -O https://github.com/mccdaq/uldaq/releases/download/v1.2.0/libuldaq-1.2.0.tar.bz2
+     $ curl -L -O https://github.com/mccdaq/uldaq/releases/download/v1.2.1/libuldaq-1.2.1.tar.bz2
   ```
   
   - All Linux distributions and macOS:
 
   ```
-     $ tar -xvjf libuldaq-1.2.0.tar.bz2
-     $ cd libuldaq-1.2.0
+     $ tar -xvjf libuldaq-1.2.1.tar.bz2
+     $ cd libuldaq-1.2.1
      $ ./configure && make
      $ sudo make install
   ```
