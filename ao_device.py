@@ -65,3 +65,10 @@ class AoDeviceHandler:
                                           analog_range, samples_per_channel,
                                           self._params.sample_rate, self._params.options, 
                                           self._params.scan_flags, ao_buffer)
+    # set voltage profile to selected channel
+    def set_mode(self, ao_chan, ch_voltage) -> float:
+        analog_range = ul.Range(self._params.range_id)
+        return self._ao_device.a_out(ao_chan,
+                                    analog_range,
+                                     self._params.scan_flags, 
+                                     ch_voltage)
