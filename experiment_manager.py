@@ -24,9 +24,11 @@ class ExperimentManager:
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  voltage_profiles: dict,
+                 ai_channels: list[int],
                  settings: Settings):
         self._daq_device_handler = daq_device_handler
         self._voltage_profiles = voltage_profiles
+        self._ai_channels = ai_channels
         self._ai_params = settings.ai_params
         self._ao_params = settings.ao_params
 
@@ -50,16 +52,18 @@ class ExperimentManager:
             except:
                 pass
 
-    def get_ai_data(self, ai_channels: List[int]) -> pd.DataFrame:
+    def get_ai_data(self) -> pd.DataFrame:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
+        return df
 
+    def _transform_ai_data(self, df) -> pd.DataFrame:
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
         multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(channels_num))])
         df.index = multi_index
         df = df.unstack()
         df.columns = df.columns.droplevel()
-        df = df[ai_channels]
+        df = df[self._ai_channels]
         return df
     
     def run(self): # TODO: add differnt modes (scan, set, infinite etc.)
@@ -68,7 +72,7 @@ class ExperimentManager:
 
     # for limited scans (one AO buffer will be applied)
     def _ao_scan(self):
-        logging.info("AO SCAN mode. Wait until scan is finished.\n")
+        logging.info("EXPERIMENT_MANAGER: AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
         
         self._ao_buffer = ScanDataGenerator(self._voltage_profiles,
@@ -85,7 +89,7 @@ class ExperimentManager:
 
     # for setting voltage
     def ao_set(self, channel_voltages: dict, duration: int):
-        logging.info("AO PULSE mode.\n")
+        logging.info("EXPERIMENT_MANAGER: AO PULSE mode.\n")
         # TODO: set specified voltage on selected channels + sine on reference channel
         pass
 
@@ -107,8 +111,12 @@ class ExperimentManager:
 
         self._ai_device_handler.scan()
         self._read_data_loop(do_save_data)
+        
+        df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
+        df = self._transform_ai_data(df)
+        df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', mode='w')
 
-        logging.info('Continuous AI finished.')
+        logging.info('EXPERIMENT_MANAGER: Continuous AI finished.')
         
     def _read_data_loop(self, do_save_data: bool):
         try:
@@ -137,12 +145,12 @@ class ExperimentManager:
                         for i in list(range(buffers_num)):
                             buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(i))
                             df = pd.DataFrame(pd.read_hdf(buf_path, key='dataset'))
-                            df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
+                            df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', append=True, mode='a')
                         break  
 
                     if ai_index > half_buffer_len and is_buffer_high_half:
                         # reading low half 
-                        logging.info('Reading low half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
+                        logging.info('EXPERIMENT_MANAGER: Reading low half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[:half_buffer_len])
                         if do_save_data:
                             fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
@@ -150,7 +158,7 @@ class ExperimentManager:
                         is_buffer_high_half = False
                     elif ai_index < half_buffer_len and not is_buffer_high_half:
                         # reading high half
-                        logging.info('Reading high half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
+                        logging.info('EXPERIMENT_MANAGER: Reading high half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[half_buffer_len:])
                         if do_save_data:
                             fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
@@ -159,8 +167,9 @@ class ExperimentManager:
                         buffer_index += 1
                 except (ValueError, NameError, SyntaxError):
                     break
+
         except KeyboardInterrupt:
-            logging.warning('WARNING. Acquisition aborted.')
+            logging.warning('EXPERIMENT_MANAGER: WARNING. Acquisition aborted.')
             pass
 
     def __enter__(self):
@@ -168,12 +177,13 @@ class ExperimentManager:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         if exc_value is not None:
-            logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
+            logging.error("EXPERIMENT_MANAGER: ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
         if self._daq_device_handler:
-            if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
-                self._ai_device_handler.stop()
-            if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
-                self._ao_device_handler.stop()
+            if self._ai_device_handler:
+                if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
+                    self._ai_device_handler.stop()
+                if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
+                    self._ao_device_handler.stop()
             # self._daq_device_handler.quit()
         # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable

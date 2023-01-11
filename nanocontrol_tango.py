@@ -137,20 +137,13 @@ class NanoControl(Device):
     # ===================================
     # Fast heating
 
-    @command(dtype_in=[float])
-    def set_fh_time_profile(self, time_table):
-        self._time_temp_table['time'] = time_table
-        logging.info("TANGO: Fast heating time profile was set to: [{}]".format('   '.join(map(str, time_table))))
-
-    @command(dtype_in=[float])
-    def set_fh_temp_profile(self, temp_table):
-        self._time_temp_table['temperature'] = temp_table
-        logging.info("TANGO: Fast heating temperature profile was set to: [{}]".format('   '.join(map(str, temp_table))))
-
-    @command
-    def arm_fast_heat(self):
+    @command(dtype_in=str)
+    def arm_fast_heat(self, time_temp_volt_tables_str):
+        self._time_temp_volt_tables = json.loads(time_temp_volt_tables_str)
         self._fh = FastHeat(self._daq_device_handler, self._settings,
-                            self._time_temp_table, self._calibration)
+                            self._time_temp_volt_tables, self._calibration,
+                            ai_channels = [0,1,3,4,5],
+                            FAST_HEAT_CUSTOM_FLAG=False)
         self._fh.arm()
         logging.info("TANGO: Fast heating armed.")
 

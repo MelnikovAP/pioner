@@ -3,7 +3,7 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import Settings
 from calibration import Calibration
-from constants import RAW_DATA_FILE_REL_PATH
+from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
 
 from scipy import interpolate
 from typing import Dict
@@ -12,119 +12,108 @@ import numpy as np
 import h5py
 import logging
 
-
 class FastHeat:
+    # receives time_temp_volt_tables as dict :
+    # {"ch0": {"time":[list], "temp":list}, 
+    # "ch1": {"time":[list], "temp":list},
+    # "ch2": {"time":[list], "temp":list}, 
+    # "ch3": {"time":[list], "temp":list}, }
+    # voltage can be used instead of temperature ("volt" instead of "temp")
+    # if "volt" - no calibration applied
+    # if "temp" - calibration applied
+    # raw_ai_data transfroms to exp_ai_data with respect to calibration
+    # raw_ai_data without calibration transformation can be accessed from RAW_DATA_FILE_REL_PATH
+    # only data from specified ai_channels will be saved. For normal fast heating it is [0,1,3,4,5]
+
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: Settings,
-                 time_temp_table: dict,
-                 calibration: Calibration):
+                 time_temp_volt_tables: dict,
+                 calibration: Calibration,
+                 ai_channels: list[int],
+                 FAST_HEAT_CUSTOM_FLAG=False):
 
         self._daq_device_handler = daq_device_handler
         self._settings = settings
-
-        self._set_temp_profile_data(time_temp_table)
-
+        self._time_temp_volt_tables = time_temp_volt_tables
         self._calibration = calibration
-
-        self._ai_channels = [0, 1, 2, 3, 4, 5]
-
-        sample_rate = self._settings.ao_params.sample_rate
-        self._samples_per_channel = int(self._profile_time[-1] / 1000. * sample_rate)
-        if self._profile_time[-1] % 1000. != 0:
-            error_str = "Input profile time cannot be packed into integer buffers."  # TODO: check
-            logging.error(error_str)
-            raise ValueError(error_str)
+        self._ai_channels = ai_channels
+        self._FAST_HEAT_CUSTOM_FLAG = FAST_HEAT_CUSTOM_FLAG
 
         self._voltage_profiles = dict()
+        [self._profile_time, self._samples_per_channel] = self._check_time_temp_volt_tables(self._time_temp_volt_tables)
 
-    def _set_temp_profile_data(self, time_temp_table):
-        if len(time_temp_table['time']) != len(time_temp_table['temperature']):
-            error_str = "Different input number of time and temperature points."
-            logging.error(error_str)
-            raise ValueError(error_str)
-        self._profile_time = time_temp_table['time']
-        self._profile_temp = time_temp_table['temperature']
 
-    def get_ai_data(self) -> pd.DataFrame:
-        """Provides explicit access to the already read AI data."""
-        return self._ai_data
-    
-    def __enter__(self):
-        return self
+    def arm(self):
+        for chan, table in self._time_temp_volt_tables.items():
+            key = list(table.keys())
+            key.remove('time')
+            key = key[0]
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if exc_value is not None:
-            logging.error("ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
-            self._daq_device_handler.quit()  # TODO: check is it needed
-
-    def arm(self) -> Dict[str, np.array]:
-        # arm 0.1 to 0 channel (Uref). 0.1 - value of the offset. TODO: change
-        self._voltage_profiles['ch0'] = self._get_channel0_voltage()
-        # arm voltage profile to ch1
-        self._voltage_profiles['ch1'] = self._get_channel1_voltage()
-        # arm 4.5 V as trigger signal to ch2
-        self._voltage_profiles['ch2'] = self._get_channel2_voltage()
-
-        return self._voltage_profiles  # returns for debug. TODO: remove
+            self._voltage_profiles[chan] = self._interpolate_profile(table['time'], table[key])
+            if key=='temp':
+                self._voltage_profiles[chan] = temperature_to_voltage(self._voltage_profiles[chan], self._calibration)
 
     def is_armed(self) -> bool:
-        return not not self._voltage_profiles
+        return bool(self._voltage_profiles)
 
     def run(self):
-        # voltage data for each used AO channel like {'ch0': [.......], 'ch3': [........]}
         with ExperimentManager(self._daq_device_handler,
                                self._voltage_profiles,
+                               self._ai_channels,
                                self._settings) as em:
             em.run()
-            self._ai_data = em.get_ai_data(self._ai_channels)  # TODO: check warning
-            
-        self._apply_calibration()
+            self._ai_data = em.get_ai_data()  # TODO: check warning
+
+        if not self._FAST_HEAT_CUSTOM_FLAG:
+            self._apply_calibration()
         self._save_data()
         self._add_info_to_file()
 
-    def _get_channel0_voltage(self) -> np.array:
-        return np.ones(self._samples_per_channel) / 10.  # apply 0.1 voltage on channel 0
+    def _check_time_temp_volt_tables(self, time_temp_volt_tables):
+        # 1) checks if all the channels profiles have the same duration
+        # 2) for each channel checks if time and corresponding temp/volt 
+        # profile have the same length
+        # 3) checks if specified time profile can be packed into 1 s buffers
 
-    def _get_channel1_voltage(self) -> np.array:
-        # construct voltage profile to ch1
-        interpolation = interpolate.interp1d(x=self._profile_time, y=self._profile_temp, kind='linear')
+        time_lengths = []
+        max_len = 0
+        for chan, table in time_temp_volt_tables.items():
+            key = list(table.keys())
+            key.remove('time')
+            key = key[0]
+            
+            if len(table['time']) != len(table[key]):
+                error_str = "Different input number of points for time and temperature/voltage at channel " + chan
+                logging.error('FAST_HEAT: ', error_str)
+                raise ValueError(error_str)
+            
+            time_lengths.append(table['time'][-1])
+            time_lengths = list(set(time_lengths))
         
-        time_program_points = np.linspace(self._profile_time[0], self._profile_time[-1], self._samples_per_channel)
-        temp_program_points = interpolation(time_program_points)
+        if len(time_lengths)>1:
+            error_str = "Different duration for channels profiles"
+            logging.error('FAST_HEAT: ', error_str)
+            raise ValueError(error_str)
 
-        volt_program_points = temperature_to_voltage(temp_program_points, self._calibration)
-        return volt_program_points
+        if time_lengths[-1] % 1000. != 0:
+            error_str = "Input profile time cannot be packed into integer buffers (1000 ms)."  # TODO: check
+            logging.error('FAST_HEAT: ', error_str)
+            raise ValueError(error_str)
+        else:
+            sample_rate = self._settings.ao_params.sample_rate
+            samples_per_channel = int(time_lengths[-1] / 1000. * sample_rate)
+        # if tests are fine, returns the duration of profile, the same for each channel
+        # + amount of samples (buffer length in points) for each profile
+        return time_lengths[0], samples_per_channel
 
-    def _get_channel2_voltage(self) -> np.array:
-        # profile = np.zeros(self._samples_per_channel)
-        # pulse_duration = 39 # ms
-        # pulse_points = int(pulse_duration * (self._settings.ao_params.sample_rate/1000))
-        # profile[:pulse_points] = 5
-        # logging.info(profile)
-
-        profile = np.ones(self._samples_per_channel) * 5  # apply 5 voltage on channel 2 as trigger
-        profile[0] = 0
-        profile[1] = 0.5
-        profile[2] = 1.0
-        profile[3] = 1.5
-        profile[4] = 2.0
-        profile[5] = 2.5
-        profile[6] = 3.0
-        profile[7] = 3.5
-        profile[8] = 4.0
-        profile[9] = 4.5
+    def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.array:
+        # profile interpolation with respect to time column in table
+        interpolation = interpolate.interp1d(x=profile_time, y=profile_temp_or_volt, kind='linear')
         
-        profile[-10] = 4.5 
-        profile[-9] = 4.0 
-        profile[-8] = 3.5 
-        profile[-7] = 3.0 
-        profile[-6] = 2.5    
-        profile[-5] = 2.0
-        profile[-4] = 1.5
-        profile[-3] = 1.0
-        profile[-2] = 0.5
-        profile[-1] = 0         # to zero voltage after heating 
-        return profile
+        time_program_points = np.linspace(profile_time[0], profile_time[-1], self._samples_per_channel)
+        temp_or_volt_program_points = interpolation(time_program_points)
+
+        return temp_or_volt_program_points
 
     def _apply_calibration(self):
         # Taux - mean for the whole buffer
@@ -167,7 +156,7 @@ class FastHeat:
         self._ai_data.drop(self._ai_channels, axis=1, inplace=True)
 
     def _save_data(self):
-        fpath = './data/exp_data.h5'
+        fpath = EXP_DATA_FILE_REL_PATH
         with h5py.File(fpath, 'w') as f:
             data = f.create_group('data')
             data.create_dataset('Taux', data=self._ai_data['Taux'])
@@ -177,9 +166,27 @@ class FastHeat:
             data.create_dataset('temp-hr', data=self._ai_data['temp-hr'])
 
     def _add_info_to_file(self):
-        fpath = RAW_DATA_FILE_REL_PATH
-        logging.info(fpath)
+        fpath = EXP_DATA_FILE_REL_PATH
         with h5py.File(fpath, 'a') as f:
             f.create_dataset('calibration', data=self._calibration.get_str())
             f.create_dataset('settings', data=self._settings.get_str())
 
+if __name__ == '__main__':
+    
+    settings = Settings(SETTINGS_PATH)
+    time_temp_volt_tables = {'ch0':{'time':[0, 3000], 'volt':[1,1]},
+                            'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 5, 5, 0, 0]},
+                            'ch2':{'time':[0, 3000], 'volt':[5,5]},
+                            # 'ch3':{'time':[0,2000,2000], 'volt':[0,0,0]}
+                            }
+    calibration = Calibration()
+    ai_channels = [0, 1, 3, 4, 5]
+
+    daq_params = settings.daq_params
+    daq_device_handler = DaqDeviceHandler(daq_params)
+    daq_device_handler.try_connect()
+
+    fh = FastHeat(daq_device_handler, settings, time_temp_volt_tables, calibration, ai_channels)
+    fh.arm()
+
+    daq_device_handler.disconnect()

@@ -43,6 +43,7 @@ def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.arra
     temp_calib[temp_calib >= calibration.max_temp] = calibration.max_temp
 
     voltage = np.zeros(len(temp))
+
     for i, t in np.ndenumerate(temp):
         idx = bisect_left(temp_calib, t)
         voltage[i] = volt_calib[idx]
