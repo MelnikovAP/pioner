@@ -58,10 +58,9 @@ class FastHeat:
 
     def run(self):
         with ExperimentManager(self._daq_device_handler,
-                               self._voltage_profiles,
-                               self._ai_channels,
                                self._settings) as em:
-            em.run()
+            em.ao_scan(self._voltage_profiles)
+            em.ai_continuous(self._ai_channels, do_save_data=True)
             self._ai_data = em.get_ai_data()  # TODO: check warning
 
         if not self._FAST_HEAT_CUSTOM_FLAG:
@@ -188,5 +187,6 @@ if __name__ == '__main__':
 
     fh = FastHeat(daq_device_handler, settings, time_temp_volt_tables, calibration, ai_channels)
     fh.arm()
+    fh.run()
 
     daq_device_handler.disconnect()

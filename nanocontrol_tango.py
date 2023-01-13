@@ -3,6 +3,7 @@ from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_R
                        NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_PATH)
 from calibration import Calibration
 from fastheat import FastHeat
+from iso_mode import IsoMode
 from settings import Settings
 from daq_device import DaqDeviceHandler
 
@@ -152,10 +153,30 @@ class NanoControl(Device):
         if self._fh.is_armed():
             logging.info("TANGO: Fast heating started.")
             self._fh.run()
+            
             logging.info("TANGO: Fast heating finished.")
         else:
             logging.warning("TANGO: WARNING. Fast heating cannot be started, since it should be armed first.")
 
+
+    # ===================================
+    # Iso (set) mode
+    
+    @command(dtype_in=str)
+    def arm_iso_mode(self, chan_temp_volt_str):
+        self._chan_temp_volt = json.loads(chan_temp_volt_str)
+        self._im = IsoMode(self._daq_device_handler, self._settings,
+                            self._chan_temp_volt, self._calibration)
+        channel, voltage = self._im.arm()
+        logging.info("TANGO: Static (iso) mode armed at channel {} with {} V.".format(channel, voltage))
+
+    @command
+    def run_iso_mode(self):
+        if self._im.is_armed():
+            self._im.run()
+            logging.info("TANGO: Static (iso) voltage was applied.")
+        else:
+            logging.warning("TANGO: WARNING. Static (iso) mode cannot be started, since it should be armed first.")
 
 if __name__ == '__main__':
     NanoControl.run_server()

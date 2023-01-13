@@ -23,12 +23,8 @@ class ExperimentManager:
     _ao_buffer: Array[float]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 voltage_profiles: dict,
-                 ai_channels: list[int],
                  settings: Settings):
         self._daq_device_handler = daq_device_handler
-        self._voltage_profiles = voltage_profiles
-        self._ai_channels = ai_channels
         self._ai_params = settings.ai_params
         self._ao_params = settings.ao_params
 
@@ -56,26 +52,22 @@ class ExperimentManager:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
-    def _transform_ai_data(self, df) -> pd.DataFrame:
+    def _transform_ai_data(self, ai_channels: list[int], df) -> pd.DataFrame:
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
         multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(channels_num))])
         df.index = multi_index
         df = df.unstack()
         df.columns = df.columns.droplevel()
-        df = df[self._ai_channels]
+        df = df[ai_channels]
         return df
-    
-    def run(self): # TODO: add differnt modes (scan, set, infinite etc.)
-        self._ao_scan()
-        self._ai_continuous(do_save_data=True)
 
     # for limited scans (one AO buffer will be applied)
-    def _ao_scan(self):
+    def ao_scan(self, voltage_profiles):
         logging.info("EXPERIMENT_MANAGER: AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
         
-        self._ao_buffer = ScanDataGenerator(self._voltage_profiles,
+        self._ao_buffer = ScanDataGenerator(voltage_profiles,
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).get_buffer()
 
@@ -88,18 +80,19 @@ class ExperimentManager:
         self._ao_device_handler.scan(self._ao_buffer)
 
     # for setting voltage
-    def ao_set(self, channel_voltages: dict, duration: int):
-        logging.info("EXPERIMENT_MANAGER: AO PULSE mode.\n")
-        # TODO: set specified voltage on selected channels + sine on reference channel
-        pass
+    def ao_set(self, ao_channel, voltage):
+        logging.info("EXPERIMENT_MANAGER: AO STATIC (SET) mode.\n")
+        self._ao_params.options = ul.ScanOption.DEFAULTIO  # 0
+        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
+                                                  self._ao_params)
+        # # need to stop AO before scan
+        if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
+            self._ao_device_handler.stop()
+        
+        self._ao_device_handler.iso_mode(ao_channel, voltage)
 
-    # for continuous scans (ao buffer will be repeated)
-    def ao_continuous(self, voltage_profiles: dict):
-        self._ao_params.options = ul.ScanOption.CONTINUOUS  # 8
-        # TODO: think about difference with ao_set, maybe leave just one of them
-        pass
 
-    def _ai_continuous(self, do_save_data: bool):
+    def ai_continuous(self, ai_channels: list[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
@@ -113,7 +106,7 @@ class ExperimentManager:
         self._read_data_loop(do_save_data)
         
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
-        df = self._transform_ai_data(df)
+        df = self._transform_ai_data(ai_channels, df)
         df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', mode='w')
 
         logging.info('EXPERIMENT_MANAGER: Continuous AI finished.')
@@ -179,11 +172,11 @@ class ExperimentManager:
         if exc_value is not None:
             logging.error("EXPERIMENT_MANAGER: ERROR. Exception {} of type {}. Traceback: {}".format(exc_value, exc_type, exc_tb))
 
-        if self._daq_device_handler:
-            if self._ai_device_handler:
-                if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
-                    self._ai_device_handler.stop()
-                if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
-                    self._ao_device_handler.stop()
+        # if self._daq_device_handler:
+        #     if self._ai_device_handler:
+        #         if self._ai_device_handler.status() == ul.ScanStatus.RUNNING:
+        #             self._ai_device_handler.stop()
+        #         if self._ao_device_handler.status() == ul.ScanStatus.RUNNING:
+        #             self._ao_device_handler.stop()
             # self._daq_device_handler.quit()
         # TODO: maybe add here dumping into h5 file??  # @EK: seems quite reasonable
