@@ -40,6 +40,7 @@
             "3": 0.0
         },
         "R heater": 1700.0,
+        "R guard": 2300.0,
         "Heater safe voltage": 9.0
     }
 }

@@ -70,6 +70,7 @@ I_HTR_FIELD = "Ihtr"
 T_HEATER_FIELD = "Theater"
 AMPLITUDE_CORRECTION_FIELD = "Amplitude correction"
 R_HEATER_FIELD = "R heater"
+R_GUARD_FIELD = "R guard"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
 # =================================================================================

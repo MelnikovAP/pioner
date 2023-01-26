@@ -42,6 +42,7 @@ class Calibration:
         self.ac3 = 0.
         # [R heater]
         self.rhtr = 1700.  # TODO: check units
+        self.rghtr = 2300.  # TODO: check units
         # [Heater safe voltage]
         self.safe_voltage = 9.  # V
 
@@ -91,8 +92,9 @@ class Calibration:
         self.ac1 = float(self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['1'])
         self.ac2 = float(self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['2'])
         self.ac3 = float(self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['3'])
-        # [R heater]
+        # [R heaters]
         self.rhtr = float(self._json_calib[CALIBRATION_COEFFS_FIELD][R_HEATER_FIELD])
+        self.rghtr = float(self._json_calib[CALIBRATION_COEFFS_FIELD][R_GUARD_FIELD])
         # [Heater safe voltage]
         self.safe_voltage = float(self._json_calib[CALIBRATION_COEFFS_FIELD][HEATER_SAFE_VOLTAGE_FIELD])
         
@@ -133,8 +135,9 @@ class Calibration:
         self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['1'] = self.ac1
         self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['2'] = self.ac2
         self._json_calib[CALIBRATION_COEFFS_FIELD][AMPLITUDE_CORRECTION_FIELD]['3'] = self.ac3
-        # [R heater]
+        # [R heaters]
         self._json_calib[CALIBRATION_COEFFS_FIELD][R_HEATER_FIELD] = self.rhtr
+        self._json_calib[CALIBRATION_COEFFS_FIELD][R_GUARD_FIELD] = self.rghtr
         # [Heater safe voltage]
         self._json_calib[CALIBRATION_COEFFS_FIELD][HEATER_SAFE_VOLTAGE_FIELD] = self.safe_voltage
 

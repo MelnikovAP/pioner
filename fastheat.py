@@ -115,6 +115,12 @@ class FastHeat:
         return temp_or_volt_program_points
 
     def _apply_calibration(self):
+
+        # add timescale in ms
+        end_time_ms = 1000*len(self._ai_data)/self._settings.ao_params.sample_rate
+        step = 1000/self._settings.ao_params.sample_rate
+        self._ai_data['time'] = np.arange(0, end_time_ms, step)
+
         # Taux - mean for the whole buffer
         Uaux = self._ai_data[3].mean()
         Taux = 100. * Uaux
@@ -158,6 +164,7 @@ class FastHeat:
         fpath = EXP_DATA_FILE_REL_PATH
         with h5py.File(fpath, 'w') as f:
             data = f.create_group('data')
+            data.create_dataset('time', data=self._ai_data['time'])
             data.create_dataset('Taux', data=self._ai_data['Taux'])
             data.create_dataset('Thtr', data=self._ai_data['Thtr'])
             data.create_dataset('Uhtr', data=self._ai_data['Uhtr'])
