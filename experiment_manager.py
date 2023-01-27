@@ -52,7 +52,7 @@ class ExperimentManager:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
-    def _transform_ai_data(self, ai_channels: list[int], df) -> pd.DataFrame:
+    def _transform_ai_data(self, ai_channels: List[int], df) -> pd.DataFrame:
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
         multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(channels_num))])
@@ -66,7 +66,7 @@ class ExperimentManager:
     def ao_scan(self, voltage_profiles):
         logging.info("EXPERIMENT_MANAGER: AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
-        
+
         self._ao_buffer = ScanDataGenerator(voltage_profiles,
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).get_buffer()
@@ -92,7 +92,7 @@ class ExperimentManager:
         self._ao_device_handler.iso_mode(ao_channel, voltage)
 
 
-    def ai_continuous(self, ai_channels: list[int], do_save_data: bool):
+    def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),

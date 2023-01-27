@@ -1,6 +1,6 @@
 from daq_device import DaqDeviceHandler
 from calibration import Calibration
-from fastheat import FastHeat
+from fastheat import FastMode
 from settings import Settings
 from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
 import matplotlib.pyplot as plt
@@ -30,8 +30,8 @@ def test_fast_heat(calibration, settings, daq_device_handler):
         'temperature': [0, 0, 1, 1, 0, 0]
     }
 
-    fh = FastHeat(daq_device_handler, settings,
-                time_temp_table, calibration)
+    fh = FastMode(daq_device_handler, settings,
+                  time_temp_table, calibration)
     voltage_profiles = fh.arm()
     print("LOG: Fast heating armed.")
 
@@ -68,7 +68,7 @@ def main():
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
-    with FastHeat(daq_device_handler, settings,
+    with FastMode(daq_device_handler, settings,
                   time_temp_table, calibration) as fh:
 
         voltage_profiles = fh.arm()

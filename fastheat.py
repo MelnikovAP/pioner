@@ -6,13 +6,14 @@ from calibration import Calibration
 from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
 
 from scipy import interpolate
-from typing import Dict
+from typing import Dict, List
 import pandas as pd
 import numpy as np
 import h5py
 import logging
 
-class FastHeat:
+
+class FastMode:
     # receives time_temp_volt_tables as dict :
     # {"ch0": {"time":[list], "temp":list}, 
     # "ch1": {"time":[list], "temp":list},
@@ -21,15 +22,15 @@ class FastHeat:
     # voltage can be used instead of temperature ("volt" instead of "temp")
     # if "volt" - no calibration applied
     # if "temp" - calibration applied
-    # raw_ai_data transfroms to exp_ai_data with respect to calibration
+    # raw_ai_data transforms to exp_ai_data with respect to calibration
     # raw_ai_data without calibration transformation can be accessed from RAW_DATA_FILE_REL_PATH
     # only data from specified ai_channels will be saved. For normal fast heating it is [0,1,3,4,5]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: Settings,
-                 time_temp_volt_tables: dict,
                  calibration: Calibration,
-                 ai_channels: list[int],
+                 time_temp_volt_tables: dict,
+                 ai_channels: List[int],
                  FAST_HEAT_CUSTOM_FLAG=False):
 
         self._daq_device_handler = daq_device_handler
@@ -40,8 +41,7 @@ class FastHeat:
         self._FAST_HEAT_CUSTOM_FLAG = FAST_HEAT_CUSTOM_FLAG
 
         self._voltage_profiles = dict()
-        [self._profile_time, self._samples_per_channel] = self._check_time_temp_volt_tables(self._time_temp_volt_tables)
-
+        self._profile_time, self._samples_per_channel = self._check_time_temp_volt_tables(self._time_temp_volt_tables)
 
     def arm(self):
         for chan, table in self._time_temp_volt_tables.items():
@@ -61,7 +61,7 @@ class FastHeat:
                                self._settings) as em:
             em.ao_scan(self._voltage_profiles)
             em.ai_continuous(self._ai_channels, do_save_data=True)
-            self._ai_data = em.get_ai_data()  # TODO: check warning
+            self._ai_data = em.get_ai_data()
 
         if not self._FAST_HEAT_CUSTOM_FLAG:
             self._apply_calibration()
@@ -177,6 +177,7 @@ class FastHeat:
             f.create_dataset('calibration', data=self._calibration.get_str())
             f.create_dataset('settings', data=self._settings.get_str())
 
+
 if __name__ == '__main__':
     
     settings = Settings(SETTINGS_PATH)
@@ -185,6 +186,7 @@ if __name__ == '__main__':
                             'ch2':{'time':[0, 3000], 'volt':[5,5]},
                             # 'ch3':{'time':[0,2000,2000], 'volt':[0,0,0]}
                             }
+
     calibration = Calibration()
     ai_channels = [0, 1, 3, 4, 5]
 
@@ -192,7 +194,7 @@ if __name__ == '__main__':
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
-    fh = FastHeat(daq_device_handler, settings, time_temp_volt_tables, calibration, ai_channels)
+    fh = FastMode(daq_device_handler, settings, calibration, time_temp_volt_tables, ai_channels)
     fh.arm()
     fh.run()
 

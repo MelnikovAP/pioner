@@ -7,6 +7,7 @@ from constants import SETTINGS_PATH
 
 import logging
 
+
 class IsoMode:
     # receives chan_temp_volt as dict :
     # {"ch0": {"temp":float} }
@@ -16,12 +17,13 @@ class IsoMode:
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: Settings,
-                 chan_temp_volt: dict,
-                 calibration: Calibration):
+                 calibration: Calibration,
+                 chan_temp_volt: dict):
         self._daq_device_handler = daq_device_handler
         self._settings = settings
-        self._chan_temp_volt = chan_temp_volt
         self._calibration = calibration
+
+        self._chan_temp_volt = chan_temp_volt
 
         self._channel = None
         self._voltage = None
@@ -35,7 +37,7 @@ class IsoMode:
         return self._channel, self._voltage
 
     def is_armed(self) -> bool:
-        return bool(self._channel is not None and self._voltage is not None)
+        return (self._channel is not None) and (self._voltage is not None)
 
     def run(self):
         with ExperimentManager(self._daq_device_handler,
@@ -43,19 +45,17 @@ class IsoMode:
             em.ao_set(self._channel, self._voltage)
 
 
-
 if __name__ == '__main__':
 
     settings = Settings(SETTINGS_PATH)
-    chan_temp_volt = {'ch2':{'volt':0},
-                        }
+    chan_temp_volt = {'ch2':{'volt':0}}
     calibration = Calibration()
 
     daq_params = settings.daq_params
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
-    sm = IsoMode(daq_device_handler, settings, chan_temp_volt, calibration)
+    sm = IsoMode(daq_device_handler, settings, calibration, chan_temp_volt)
     sm.is_armed()
     sm.arm()
     sm.run()
