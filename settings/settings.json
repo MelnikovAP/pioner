@@ -18,6 +18,11 @@
 			"LowChannel": 0,
 			"HighChannel": 3,
 			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
+		},
+		"Modulation": {
+			"Amplitude": 0.1,
+			"Frequency": 37.5,
+			"Offset": 0.1
 		}
 	}
 }
