@@ -11,11 +11,11 @@ H5_EXTENSION = "h5"
 # =================================================================================
 SETTINGS_FOLDER = "settings"
 SETTINGS_FOLDER_REL_PATH = os.path.join(".", SETTINGS_FOLDER)
-SETTINGS_FILE = ".settings.json"
-SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)  # TODO: use
+SETTINGS_FILE = "settings.json"
+SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
 
 # JSON fields
-SETTINGS_FIELD = "Settings"
+SETTINGS_FIELD = "Frontend settings"
 
 TANGO_FIELD = "TANGO"
 TANGO_HOST_FIELD = "TANGO_HOST"
@@ -38,6 +38,8 @@ OFFSET_FIELD = "OFFSET"
 
 # Calibration constants
 # =================================================================================
+CALIBRATION_PATH = "./settings/calibration.json"
+DEFAULT_CALIBRATION_PATH = "./settings/default_calibration.json"
 
 INFO_FIELD = "Info"
 

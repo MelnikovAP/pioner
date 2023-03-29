@@ -3,7 +3,7 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import Settings
 from calibration import Calibration
-from constants import SETTINGS_PATH
+from constants import SETTINGS_FILE_REL_PATH
 
 import logging
 
@@ -50,7 +50,7 @@ class IsoMode:
 
 if __name__ == '__main__':
 
-    settings = Settings(SETTINGS_PATH)
+    settings = Settings(SETTINGS_FILE_REL_PATH)
     chan_temp_volt = {'ch2':{'volt':0},
                         }
     calibration = Calibration()

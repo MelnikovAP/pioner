@@ -1,23 +1,50 @@
 {
-	"Settings": {
-		"DAQ": {
-			"InterfaceType": [1], "help": "USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType",
-			"ConnectionCode": 0
-		},
-		"AI": {
-			"SampleRate": 20000,
-			"RangeId": 5, "help": "BIP10VOLTS = 5",
-			"LowChannel": 0,
-			"HighChannel": 5,
-			"InputMode": 2, "help": "DIFFERENTIAL = 1, SINGLE_ENDED = 2, PSEUDO_DIFFERENTIAL = 3 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html?highlight=input%20mode#uldaq.AiInputMode",
-			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
-		},
-		"AO": {
-			"SampleRate": 20000,
-			"RangeId": 5, "help": "BIP10VOLTS = 5",
-			"LowChannel": 0,
-			"HighChannel": 3,
-			"ScanFlags": [0], "help": "from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.AInScanFlag"
-		}
-	}
+    "Backend settings": {
+        "DAQ": {
+            "InterfaceType": [
+                1
+            ],
+            "ConnectionCode": 0
+        },
+        "AI": {
+            "SampleRate": 20000,
+            "RangeId": 5,
+            "LowChannel": 0,
+            "HighChannel": 5,
+            "InputMode": 2,
+            "ScanFlags": [
+                0
+            ]
+        },
+        "AO": {
+            "SampleRate": 20000,
+            "RangeId": 5,
+            "LowChannel": 0,
+            "HighChannel": 3,
+            "ScanFlags": [
+                0
+            ]
+        }
+    },
+    "Frontend settings": {
+        "TANGO": {
+            "TANGO_HOST": "lid13ctrl1.esrf.fr:20000",
+            "DEVICE_PROXY": "NanoControl/NanoControl/1"
+        },
+        "HTTP": {
+            "HTTP_HOST": "http://nanocal.esrf.fr:8000/"
+        },
+        "PATHS": {
+            "CALIB_PATH": "./settings/default_calibration.json",
+            "DATA_PATH": "/home/pi/nanocal_pi/data/"
+        },
+        "SCAN": {
+            "SAMPLE_RATE": 20000
+        },
+        "MODULATION": {
+            "FREQUENCY": 37.5,
+            "AMPLITUDE": 0.1,
+            "OFFSET": 0.3
+        }
+    }
 }

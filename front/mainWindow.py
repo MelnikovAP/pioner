@@ -65,7 +65,7 @@ class mainWindow(mainWindowUi):
                 self.device.set_timeout_millis(10000000)
                 self.device.set_connection()
             
-                if self.settings.calib_path == 'default calibration':
+                if self.settings.calib_path == DEFAULT_CALIBRATION_PATH:
                     self.apply_default_calib()
                 else: 
                     self.apply_calib()
@@ -93,9 +93,9 @@ class mainWindow(mainWindowUi):
         dpath = qt.QFileDialog.getExistingDirectory(self, "Choose folder to save experiment files", \
                                                     None, qt.QFileDialog.ShowDirsOnly)
         if dpath: 
+            dpath += '/'
             self.sysDataPathInput.setText(os.path.abspath(dpath))
             self.settings.data_path = dpath
-            print(self.sysDataPathInput.text())
         self.sysDataPathInput.setCursorPosition(0)
 
     def show_help(self):
@@ -129,7 +129,7 @@ class mainWindow(mainWindowUi):
     def apply_default_calib(self):
         self.device.apply_default_calibration()
         self.get_calib_from_device()
-        self.calibPathInput.setText('default calibration')
+        self.calibPathInput.setText(DEFAULT_CALIBRATION_PATH)
 
     def get_calib_from_device(self):
         calib_str = self.device.get_current_calibration[1][0]['value']
@@ -162,8 +162,8 @@ class mainWindow(mainWindowUi):
         else:
             error_text = "Incorrect calibration file specified.\nIt will be set to default calibration."
             ErrorWindow(error_text)
-            self.calibPathInput.setText('default calibration')
-            self.settings.calib_path = 'default calibration'   
+            self.calibPathInput.setText(DEFAULT_CALIBRATION_PATH)
+            self.settings.calib_path = DEFAULT_CALIBRATION_PATH   
 
         self.scanSampleRateInput.setText(str(self.settings.sample_rate))
 
@@ -316,8 +316,13 @@ class mainWindow(mainWindowUi):
         else:
             fpath = qt.QFileDialog.getSaveFileName(self, "Select file and path to save settings:", None, "*.json")[0]
         if fpath:
+            with open(fpath, 'r') as f:
+                file_settings = json.load(f)
+
+            file_settings[SETTINGS_FIELD] = self.settings.get_dict()[SETTINGS_FIELD]
+
             with open(fpath, 'w') as f:
-                json.dump(self.settings.get_dict(), f, separators=(',', ': '), indent=4)
+                json.dump(file_settings, f, separators=(',', ': '), indent=4)
 
     def load_settings_from_file(self, fpath=False):
         # function is used to load default settings or to load special config from file if specified
@@ -340,7 +345,7 @@ class mainWindow(mainWindowUi):
         self.disconnect()
 
     def closeEvent(self, event):
-        # dumping current settings to ./settings/.settings.json and closing all the windows
+        # dumping current settings to ./settings/settings.json and closing all the windows
         self.save_settings_to_file()
         for window in qt.QApplication.topLevelWidgets():
             window.close()
@@ -355,3 +360,4 @@ class Dict2Class(object):
         self.my_dict = my_dict
     def get_dict(self):
         return self.my_dict
+
