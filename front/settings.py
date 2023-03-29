@@ -5,9 +5,9 @@ from constants import *
 class mainParams:
     def __init__(self):
         self.tango_host = "lid13ctrl1.esrf.fr:20000"
-        self.device_proxy = "ID13/NanoControl/1"
+        self.device_proxy = "NanoControl/NanoControl/1"
 
-        self.http_host = "http://id13tmp0:8000/"
+        self.http_host = "http://nanocal.esrf.fr:8000/"
 
         self.calib_path = "./settings/calibration.json"
         self.data_path = "./data/"
@@ -151,6 +151,10 @@ class Settings(mainParams):
 
 
 if __name__ == '__main__':
-    _path = "./settings/.settings.json"
-    settings = Settings(_path)
-    print(settings.sample_rate)
+    try:
+        _path = "./settings/settings.json"
+        settings = Settings(_path)
+        print(settings._invalid_fields)
+
+    except BaseException as e:
+        print(e)

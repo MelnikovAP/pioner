@@ -2,13 +2,13 @@ from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from fastheat import FastHeat
 from settings import Settings
-from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
+from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_FILE_REL_PATH)
 import matplotlib.pyplot as plt
 
 def initial_setup():
     calibration = Calibration()
     calibration.read(DEFAULT_CALIBRATION_PATH)
-    settings = Settings(SETTINGS_PATH)
+    settings = Settings(SETTINGS_FILE_REL_PATH)
     daq_device_handler = DaqDeviceHandler(settings.daq_params)
     print("DAQ settings: ", settings.daq_params)
     print("AI settings: ", settings.ai_params)

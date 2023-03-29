@@ -1,6 +1,6 @@
 from tango.server import Device, attribute, pipe, command, AttrWriteType
 from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_REL_PATH, RAW_DATA_FOLDER_REL_PATH,
-                       NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_PATH)
+                       NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_FILE_REL_PATH)
 from calibration import Calibration
 from fastheat import FastHeat
 from iso_mode import IsoMode
@@ -33,7 +33,7 @@ class NanoControl(Device):
         self.apply_default_calibration()
         self._time_temp_table = dict(time=[], temperature=[])
 
-        self._settings = Settings(SETTINGS_PATH)
+        self._settings = Settings(SETTINGS_FILE_REL_PATH)
         daq_params = self._settings.daq_params
         self._daq_device_handler = DaqDeviceHandler(daq_params)
         logging.info('TANGO: Initial setup done.')

@@ -196,13 +196,6 @@ if __name__ == '__main__':
         _path = "./settings/settings.json"
         settings = Settings(_path)
 
-        # _daq_params = settings.daq_params
-        # print(_daq_params)
-        # _ai_params = settings.ai_params
-        # print(_ai_params)
-        # _ao_params = settings.ao_params
-        # print(_ao_params)
-
         print(settings.get_str())
 
     except BaseException as e:
