@@ -105,7 +105,8 @@ class FastMode:
         # + amount of samples (buffer length in points) for each profile
         return time_lengths[0], samples_per_channel
 
-    def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.array:
+    # TODO: remove from class
+    def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.ndarray:
         # profile interpolation with respect to time column in table
         interpolation = interpolate.interp1d(x=profile_time, y=profile_temp_or_volt, kind='linear')
         
@@ -114,8 +115,8 @@ class FastMode:
 
         return temp_or_volt_program_points
 
+    # TODO: remove from class
     def _apply_calibration(self):
-
         # add timescale in ms
         end_time_ms = 1000*len(self._ai_data)/self._settings.ao_params.sample_rate
         step = 1000/self._settings.ao_params.sample_rate
@@ -179,7 +180,6 @@ class FastMode:
 
 
 if __name__ == '__main__':
-    
     settings = Settings(SETTINGS_PATH)
     time_temp_volt_tables = {'ch0':{'time':[0, 3000], 'volt':[1,1]},
                             'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 5, 5, 0, 0]},
@@ -188,7 +188,7 @@ if __name__ == '__main__':
                             }
 
     calibration = Calibration()
-    ai_channels = [0, 1, 3, 4, 5]
+    ai_channels = [0, 1, 3, 4, 5]  # can be obtained from UI
 
     daq_params = settings.daq_params
     daq_device_handler = DaqDeviceHandler(daq_params)

@@ -16,3 +16,5 @@ setuptools==44.1.1
 six==1.16.0
 tables==3.7.0
 uldaq==1.2.3
+h5py==3.7.0
+sortedcontainers==2.4.0

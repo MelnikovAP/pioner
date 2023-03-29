@@ -42,6 +42,7 @@ SETTINGS_FIELD = "Settings"
 DAQ_FIELD = "DAQ"
 AI_FIELD = "AI"
 AO_FIELD = "AO"
+MODULATION_FIELD = "Modulation"
 
 INTERFACE_TYPE_FIELD = "InterfaceType"
 CONNECTION_CODE_FIELD = "ConnectionCode"
@@ -52,6 +53,11 @@ LOW_CHANNEL_FIELD = "LowChannel"
 HIGH_CHANNEL_FIELD = "HighChannel"
 INPUT_MODE_FIELD = "InputMode"
 SCAN_FLAGS_FIELD = "ScanFlags"
+
+AMPLITUDE_FIELD = "Amplitude"
+FREQUENCY_FIELD = "Frequency"
+OFFSET_FIELD = "Offset"
+TIME_BUFFER_FIELD = "TimeBuffer"
 
 # Calibration constants
 # =================================================================================
@@ -73,4 +79,5 @@ R_HEATER_FIELD = "R heater"
 R_GUARD_FIELD = "R guard"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
+
 # =================================================================================

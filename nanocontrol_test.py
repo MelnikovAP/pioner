@@ -46,7 +46,6 @@ def test_fast_heat(calibration, settings, daq_device_handler):
         print("LOG: Fast heating finished.")
 
 
-
 def main():
     # do read calibration
     calibration = Calibration()
@@ -61,7 +60,8 @@ def main():
         'time': [0, 100, 1000, 1500, 2000, 3000],
         'temperature': [0, 0, 1, 1, 0, 0]
     }
-        
+
+    # TODO: check maybe apply calibration right here ???
 
     # trying to connect to DaqDevice
     daq_params = settings.daq_params

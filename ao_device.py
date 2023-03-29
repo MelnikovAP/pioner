@@ -1,20 +1,9 @@
 from typing import Tuple
 
+from ao_params import AoParams
+
 import uldaq as ul
 import logging
-
-
-class AoParams:
-    def __init__(self):
-        self.sample_rate = -1  # Hz
-        self.range_id = -1
-        self.low_channel = -1
-        self.high_channel = -1
-        self.scan_flags = ul.AOutScanFlag.DEFAULT  # 0
-        self.options = ul.ScanOption.CONTINUOUS  # 8
-
-    def __str__(self):
-        return str(vars(self))
 
 
 class AoDeviceHandler:
@@ -65,6 +54,16 @@ class AoDeviceHandler:
                                           analog_range, samples_per_channel,
                                           self._params.sample_rate, self._params.options, 
                                           self._params.scan_flags, ao_buffer)
+
+    # returns actual output scan rate
+    def scan_by_chunks(self, ao_buffer) -> float:
+        analog_range = ul.Range(self._params.range_id)
+        samples_per_channel = int((len(ao_buffer) / (self._params.high_channel - self._params.low_channel + 1)))
+        return self._ao_device.a_out_scan(self._params.low_channel, self._params.high_channel,
+                                          analog_range, samples_per_channel,
+                                          self._params.sample_rate, self._params.options,
+                                          self._params.scan_flags, ao_buffer)
+
     # set voltage profile to selected channel
     def iso_mode(self, ao_channel, voltage):
         analog_range = ul.Range(self._params.range_id)

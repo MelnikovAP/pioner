@@ -1,5 +1,4 @@
-
-from nanocal_utils import temperature_to_voltage
+from temp_volt_converters import temperature_to_voltage
 from calibration import Calibration
 from scipy import interpolate
 import numpy as np
@@ -9,7 +8,7 @@ import sys
 if __name__ == "__main__":
 
     time_temp_table = {
-        'time'.TIME: [0, 50, 450, 550, 950, 1000],
+        'time': [0, 50, 450, 550, 950, 1000],
         'temperature': [0, 0, 5, 5, 0, 0]
     }
 

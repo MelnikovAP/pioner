@@ -3,7 +3,8 @@ import json
 from daq_device import DaqParams
 from ai_device import AiParams
 from ao_device import AoParams
-from utils import is_int_or_raise, list_bitwise_or
+from modulation_params import ModulationParams
+from utils import is_int_or_raise, is_float_or_raise, list_bitwise_or
 from constants import *
 
 
@@ -57,14 +58,43 @@ class Settings:
                 if field not in self._settings_dict:
                     raise ValueError("No '{}' field found in the settings file.".format(field))
 
+        self._parse_params_and_check()
+
+    def _parse_params_and_check(self):
         self._invalid_fields = []
         # only in that order
-        self.parse_daq_params()
-        self.parse_ai_params()
-        self.parse_ao_params()
-        self.check_invalid_fields()
+        self._parse_modulation_params()
+        self._parse_daq_params()
+        self._parse_ai_params()
+        self._parse_ao_params()
+        self._check_invalid_fields()
 
-    def parse_daq_params(self):
+    def _parse_modulation_params(self):
+        self.modulation_params = ModulationParams()
+        modulation_dict = self._settings_dict[MODULATION_FIELD]
+
+        if AMPLITUDE_FIELD in modulation_dict:
+            amplitude = modulation_dict[AMPLITUDE_FIELD]
+            if is_float_or_raise(amplitude):
+                self.modulation_params.amplitude = float(amplitude)
+        else:
+            self._invalid_fields.append(AMPLITUDE_FIELD)
+
+        if FREQUENCY_FIELD in modulation_dict:
+            frequency = modulation_dict[FREQUENCY_FIELD]
+            if is_float_or_raise(frequency):
+                self.modulation_params.frequency = float(frequency)
+        else:
+            self._invalid_fields.append(FREQUENCY_FIELD)
+
+        if OFFSET_FIELD in modulation_dict:
+            offset = modulation_dict[OFFSET_FIELD]
+            if is_float_or_raise(offset):
+                self.modulation_params.offset = float(offset)
+        else:
+            self._invalid_fields.append(OFFSET_FIELD)
+
+    def _parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
         self.daq_params = DaqParams()
         daq_dict = self._settings_dict[DAQ_FIELD]
@@ -85,7 +115,7 @@ class Settings:
         else:
             self._invalid_fields.append(CONNECTION_CODE_FIELD)
 
-    def parse_ai_params(self):
+    def _parse_ai_params(self):
         """Parses all necessary analog-input parameters and fills AiParams instance."""
         self.ai_params = AiParams()
         ai_dict = self._settings_dict[AI_FIELD]
@@ -134,7 +164,7 @@ class Settings:
         else:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
-    def parse_ao_params(self):
+    def _parse_ao_params(self):
         """Parses all necessary analog-output parameters and fills AoParams instance."""
         self.ao_params = AoParams()
         ao_dict = self._settings_dict[AO_FIELD]
@@ -176,7 +206,14 @@ class Settings:
         else:
             self._invalid_fields.append(SCAN_FLAGS_FIELD)
 
-    def check_invalid_fields(self):
+        if TIME_BUFFER_FIELD in ao_dict:
+            time_buffer = ao_dict[TIME_BUFFER_FIELD]
+            if is_float_or_raise(time_buffer):
+                self.ao_params.time_buffer = float(time_buffer)
+        else:
+            self._invalid_fields.append(TIME_BUFFER_FIELD)
+
+    def _check_invalid_fields(self):
         """Raises ValueError if at least one required field is missing in the settings."""
         if self._invalid_fields:
             invalid_fields_str = ", ".join(self._invalid_fields)
@@ -186,10 +223,11 @@ class Settings:
         _daq_params = str(self.daq_params)
         _ai_params = str(self.ai_params)
         _ao_params = str(self.ao_params)
-        settings_dict = str({"DAQ":_daq_params, "AI":_ai_params, "AO":_ao_params})
-        settings_dict = settings_dict.replace("\'", "\"")               # need because json.loads does not recognie " ' "
+        settings_dict = str({"DAQ": _daq_params, "AI": _ai_params, "AO": _ao_params})
+        settings_dict = settings_dict.replace("\'", "\"")  # is needed since json.loads does not recognize " ' "
         
         return settings_dict
+
 
 if __name__ == '__main__':
     try:
