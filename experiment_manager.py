@@ -1,10 +1,10 @@
+from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
+                       RAW_DATA_BUFFER_FILE_PREFIX)
 from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
 from settings import Settings
-from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
-                       RAW_DATA_BUFFER_FILE_PREFIX)
 
 from typing import List
 from ctypes import Array
@@ -49,7 +49,9 @@ class ExperimentManager:
             except:
                 pass
 
-    def get_ai_data(self) -> pd.DataFrame:
+    # TODO: think about it
+    @staticmethod
+    def get_ai_data() -> pd.DataFrame:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
@@ -92,7 +94,7 @@ class ExperimentManager:
         self._ao_device_handler.iso_mode(ao_channel, voltage)
 
     # for modulation/iso modes only !!
-    def ao_continuous(self, voltage_profiles):
+    def ao_continuous(self):
         self._ao_params.options = ul.ScanOption.CONTINUOUS  # TODO: check
         # self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(), self._ao_params)
 
@@ -105,7 +107,6 @@ class ExperimentManager:
         #                                     self._ao_params.high_channel).get_buffer()
         #
         # self._ao_device_handler.iso_mode(ao_channel, voltage)
-
 
     def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
@@ -149,7 +150,7 @@ class ExperimentManager:
                     if buffer_index >= buffers_num:
                         self._ai_device_handler.stop()
                         # merging all the buffer files into one file raw_data.h5
-                        fpath = RAW_DATA_FILE_REL_PATH
+                        # fpath = RAW_DATA_FILE_REL_PATH
                         for i in list(range(buffers_num)):
                             buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(i))
                             df = pd.DataFrame(pd.read_hdf(buf_path, key='dataset'))

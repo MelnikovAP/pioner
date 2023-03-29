@@ -1,21 +1,19 @@
+from constants import EXP_DATA_FILE_REL_PATH
+from temp_volt_converters import temperature_to_voltage
 from experiment_manager import ExperimentManager
 from daq_device import DaqDeviceHandler
-from utils import temperature_to_voltage
-from settings import Settings
 from calibration import Calibration
-from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
+from settings import Settings
+from utils import square_poly, cubic_poly
 
 from scipy import interpolate
-from typing import Dict, List
-import pandas as pd
+from typing import List
 import numpy as np
 import h5py
 import logging
 
 
 class SlowMode:
-    """"""
-
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: Settings,
                  calibration: Calibration,
@@ -38,15 +36,14 @@ class SlowMode:
             key = key[0]
 
             self._voltage_profiles[chan] = self._interpolate_profile(table['time'], table[key])
-            if key=='temp':
+            if key == 'temp':
                 self._voltage_profiles[chan] = temperature_to_voltage(self._voltage_profiles[chan], self._calibration)
 
     def is_armed(self) -> bool:
         return bool(self._voltage_profiles)
 
     def run(self):
-        with ExperimentManager(self._daq_device_handler,
-                               self._settings) as em:
+        with ExperimentManager(self._daq_device_handler, self._settings) as em:
             em.ao_scan(self._voltage_profiles)
             em.ai_continuous(self._ai_channels, do_save_data=True)
             self._ai_data = em.get_ai_data()
@@ -62,7 +59,6 @@ class SlowMode:
         # 3) checks if specified time profile can be packed into 1 s buffers
 
         time_lengths = []
-        max_len = 0
         for chan, table in time_temp_volt_tables.items():
             key = list(table.keys())
             key.remove('time')
@@ -124,15 +120,16 @@ class SlowMode:
         # Uref
         # ===================
         # profile = pd.DataFrame(self.voltage_profiles['ch1'])
-        # Uref = pd.concat(profile*(int(len(self.ai_data[0])/len(profile))), ignore_index=True) # generating repeated profiles
+        # generating repeated profiles
+        # Uref = pd.concat(profile*(int(len(self.ai_data[0])/len(profile))), ignore_index=True)
         # self.ai_data['Uref'] = profile
 
         # Thtr
         self._ai_data[5] *= 1000.  # Uhtr mV
         Rhtr = self._ai_data[5] * 0.
         Ih = self._calibration.ihtr0 + self._ai_data[0] * self._calibration.ihtr1
-        Rhtr.loc[Ih != 0] = (self._ai_data[5] - self._ai_data[
-            0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+        Rhtr.loc[Ih != 0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * \
+                            self._calibration.uhtr1 / Ih
         # Rhtr.loc[Ih==0] = 0
         Thtr = square_poly((Rhtr + self._calibration.thtrcorr), self._calibration.thtr0,
                            self._calibration.thtr1, self._calibration.thtr2)

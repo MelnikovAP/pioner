@@ -1,17 +1,16 @@
+from constants import EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
+from temp_volt_converters import temperature_to_voltage
 from experiment_manager import ExperimentManager
-from daq_device import DaqDeviceHandler
-from utils import temperature_to_voltage
-from settings import Settings
-from calibration import Calibration
-from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
 from utils import square_poly, cubic_poly
+from daq_device import DaqDeviceHandler
+from calibration import Calibration
+from settings import Settings
 
 from scipy import interpolate
-from typing import Dict, List
-import pandas as pd
+from typing import List
 import numpy as np
-import h5py
 import logging
+import h5py
 
 
 class FastMode:
@@ -51,15 +50,14 @@ class FastMode:
             key = key[0]
 
             self._voltage_profiles[chan] = self._interpolate_profile(table['time'], table[key])
-            if key=='temp':
+            if key == 'temp':
                 self._voltage_profiles[chan] = temperature_to_voltage(self._voltage_profiles[chan], self._calibration)
 
     def is_armed(self) -> bool:
         return bool(self._voltage_profiles)
 
     def run(self):
-        with ExperimentManager(self._daq_device_handler,
-                               self._settings) as em:
+        with ExperimentManager(self._daq_device_handler, self._settings) as em:
             em.ao_scan(self._voltage_profiles)
             em.ai_continuous(self._ai_channels, do_save_data=True)
             self._ai_data = em.get_ai_data()
@@ -119,8 +117,8 @@ class FastMode:
     # TODO: remove from class
     def _apply_calibration(self):
         # add timescale in ms
-        end_time_ms = 1000*len(self._ai_data)/self._settings.ao_params.sample_rate
-        step = 1000/self._settings.ao_params.sample_rate
+        end_time_ms = 1000 * len(self._ai_data) / self._settings.ao_params.sample_rate
+        step = 1000 / self._settings.ao_params.sample_rate
         self._ai_data['time'] = np.arange(0, end_time_ms, step)
 
         # Taux - mean for the whole buffer
@@ -152,7 +150,8 @@ class FastMode:
         self._ai_data[5] *= 1000.  # Uhtr mV
         Rhtr = self._ai_data[5] * 0.
         Ih = self._calibration.ihtr0 + self._ai_data[0] * self._calibration.ihtr1
-        Rhtr.loc[Ih!=0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+        Rhtr.loc[Ih != 0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+
         # Rhtr.loc[Ih==0] = 0
 
         Thtr = square_poly((Rhtr + self._calibration.thtrcorr), self._calibration.thtr0,
