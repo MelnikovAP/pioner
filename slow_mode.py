@@ -106,20 +106,20 @@ class SlowMode:
         Uaux = self._ai_data[3].mean()
         Taux = 100. * Uaux
         if Taux < -12.:  # correction for AD595 below -12 C
-            Taux = 2.6843 + 1.2709 * Taux + 0.0042867 * Taux * Taux + 3.4944e-05 * Taux * Taux * Taux
+            Taux = cubic_poly(Taux, 2.6843, 1.2709, 0.0042867, 3.4944e-05)
         self._ai_data['Taux'] = Taux
 
         # Utpl or temp - temperature of the calibrated internal thermopile + Taux
         self._ai_data[4] *= (1000. / 11.)  # scaling to mV with the respect of amplification factor of 11
         ax = self._ai_data[4] + self._calibration.utpl0
-        self._ai_data['temp'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
+        self._ai_data['temp'] = square_poly(ax, 0., self._calibration.ttpl0, self._calibration.ttpl1)
         self._ai_data['temp'] += Taux
 
         # temp-hr ??? add explanation Umod mV
 
         self._ai_data[1] *= (1000. / 121.)  # scaling to mV; why 121?? amplifier cascade??
         ax = self._ai_data[1] + self._calibration.utpl0
-        self._ai_data['temp-hr'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
+        self._ai_data['temp-hr'] = square_poly(ax, 0., self._calibration.ttpl0, self._calibration.ttpl1)
 
         # Uref
         # ===================
@@ -134,9 +134,8 @@ class SlowMode:
         Rhtr.loc[Ih != 0] = (self._ai_data[5] - self._ai_data[
             0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
         # Rhtr.loc[Ih==0] = 0
-        Thtr = self._calibration.thtr0 + \
-               self._calibration.thtr1 * (Rhtr + self._calibration.thtrcorr) + \
-               self._calibration.thtr2 * ((Rhtr + self._calibration.thtrcorr) ** 2)
+        Thtr = square_poly((Rhtr + self._calibration.thtrcorr), self._calibration.thtr0,
+                           self._calibration.thtr1, self._calibration.thtr2)
         self._ai_data['Thtr'] = Thtr
         self._ai_data['Uhtr'] = self._ai_data[5]
 

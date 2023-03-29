@@ -172,7 +172,7 @@ class Calibration:
     def _add_params(self):
         # parameters that are not in calibration file but need to use later
         self.min_temp = 0.
-        self.max_temp = cubic_poly(self.safe_voltage, self.theater0, self.theater1, self.theater2)
+        self.max_temp = cubic_poly(self.safe_voltage, 0., self.theater0, self.theater1, self.theater2)
 
     def get_str(self):
         calib_str = str(self.__dict__)

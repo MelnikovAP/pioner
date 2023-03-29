@@ -2,6 +2,8 @@ from calibration import Calibration
 from bisect import bisect_left
 import numpy as np
 
+from utils import cubic_poly_array
+
 # TODO: think maybe to create a T-V (and vice versa) converter class
 
 
@@ -9,7 +11,8 @@ def voltage_to_temperature(voltage: np.ndarray, calibration: Calibration) -> np.
     volt = voltage.copy()
     volt[volt < 0] = 0
     volt[volt > calibration.safe_voltage] = calibration.safe_voltage
-    temp = calibration.theater0 * volt + calibration.theater1 * (volt ** 2) + calibration.theater2 * (volt ** 3)
+
+    temp = cubic_poly_array(volt, 0., calibration.theater0, calibration.theater1, calibration.theater2)
     return temp
 
 
