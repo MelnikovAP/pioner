@@ -8,7 +8,7 @@ import math
 
 from temp_volt_converters import temperature_to_voltage
 from interpolation import linear_segment_interpolation
-from segment_data import IsoSegment, RampSegment, SineSegment
+from segment_data import IsoSegment, RampSegment, SineSegment, SegmentStyle
 from sine_generator import SineGenerator
 from profile_data import ProfileData
 from calibration import Calibration
@@ -106,7 +106,7 @@ class BufferGenerator:
             for channel, profile in profile_chunk.items():
                 segment = profile.segments[0]  # TODO: consider more segments than one
                 interpolated_data = np.array([])
-                if segment.is_linear():
+                if segment.style() == SegmentStyle.LINEAR:
                     interpolated_data = linear_segment_interpolation(segment, sample_rate)
                 elif isinstance(segment, SineSegment):
                     sine_generator = SineGenerator(segment.duration(), sample_rate,

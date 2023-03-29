@@ -10,6 +10,12 @@ class SegmentType(Enum):
     # RECTANGLE = 5
 
 
+class SegmentStyle(Enum):
+    NONE = 0,
+    LINEAR = 1,
+    PERIODIC = 2
+
+
 # TODO: make abstract
 class SegmentData:
     def __init__(self,
@@ -24,7 +30,7 @@ class SegmentData:
         self.start_value = start_value  # Volts or °C
         self.end_value = end_value  # Volts or °C
 
-    def is_linear(self) -> bool:
+    def style(self) -> SegmentStyle:
         ...
 
     def duration(self) -> float:
@@ -38,8 +44,8 @@ class IsoSegment(SegmentData):
                  start_value: float):
         super().__init__(SegmentType.ISO, start_time, end_time, start_value, start_value)
 
-    def is_linear(self) -> bool:
-        return True
+    def style(self) -> SegmentStyle:
+        return SegmentStyle.LINEAR
 
 
 class RampSegment(SegmentData):
@@ -50,8 +56,9 @@ class RampSegment(SegmentData):
                  end_value: float):
         super().__init__(SegmentType.RAMP, start_time, end_time, start_value, end_value)
 
-    def is_linear(self) -> bool:
-        return True
+    def style(self) -> SegmentStyle:
+        return SegmentStyle.LINEAR
+
 
     # Volts or °C per second
     def rate(self) -> float:
@@ -73,5 +80,5 @@ class SineSegment(SegmentData):
         self.frequency = frequency
         self.offset = offset
 
-    def is_linear(self) -> bool:
-        return False
+    def style(self) -> SegmentStyle:
+        return SegmentStyle.PERIODIC

@@ -1,7 +1,7 @@
 from scipy.interpolate import interp1d
 import numpy as np
 
-from segment_data import SegmentData, IsoSegment, RampSegment
+from segment_data import SegmentData, SegmentStyle
 
 
 def linear_interpolation(start_time: float, end_time: float, start_value: float,
@@ -16,7 +16,7 @@ def linear_interpolation(start_time: float, end_time: float, start_value: float,
 
 # TODO: remove from here
 def linear_segment_interpolation(segment: SegmentData, sample_rate: int) -> np.ndarray:
-    if segment.is_linear():
+    if segment.style() == SegmentStyle.LINEAR:
         return linear_interpolation(segment.start_time, segment.end_time,
                                     segment.start_value, segment.end_value, sample_rate)
     else:
