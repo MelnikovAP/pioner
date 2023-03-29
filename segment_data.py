@@ -59,7 +59,6 @@ class RampSegment(SegmentData):
     def style(self) -> SegmentStyle:
         return SegmentStyle.LINEAR
 
-
     # Volts or °C per second
     def rate(self) -> float:
         return (self.end_value - self.start_value) / self.duration()
