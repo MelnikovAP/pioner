@@ -1,10 +1,10 @@
+from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
+                       RAW_DATA_BUFFER_FILE_PREFIX)
 from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from ao_data_generators import ScanDataGenerator
 from settings import Settings
-from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
-                       RAW_DATA_BUFFER_FILE_PREFIX, BUFFER_DUMMY_1, BUFFER_DUMMY_2)
 
 from typing import List
 from ctypes import Array
@@ -22,7 +22,8 @@ class ExperimentManager:
     _ao_device_handler: AoDeviceHandler
     _ao_buffer: Array[float]
 
-    def __init__(self, daq_device_handler: DaqDeviceHandler,
+    def __init__(self,
+                 daq_device_handler: DaqDeviceHandler,
                  settings: Settings):
         self._daq_device_handler = daq_device_handler
         self._ai_params = settings.ai_params
@@ -48,11 +49,13 @@ class ExperimentManager:
             except:
                 pass
 
-    def get_ai_data(self) -> pd.DataFrame:
+    # TODO: think about it
+    @staticmethod
+    def get_ai_data() -> pd.DataFrame:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
-    def _transform_ai_data(self, ai_channels: list[int], df) -> pd.DataFrame:
+    def _transform_ai_data(self, ai_channels: List[int], df) -> pd.DataFrame:
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
         multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(channels_num))])
@@ -65,14 +68,13 @@ class ExperimentManager:
     # for limited scans (one AO buffer will be applied)
     def ao_scan(self, voltage_profiles):
         logging.info("EXPERIMENT_MANAGER: AO SCAN mode. Wait until scan is finished.\n")
-        self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
-        
+        self._ao_params.options = ul.ScanOption.BLOCKIO  # 2  # TODO: check why not BURSTIO
+
         self._ao_buffer = ScanDataGenerator(voltage_profiles,
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).get_buffer()
 
-        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
-                                                  self._ao_params)
+        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(), self._ao_params)
         # need to stop AO before scan
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()
@@ -88,16 +90,29 @@ class ExperimentManager:
     def ao_set(self, ao_channel, voltage):
         logging.info("EXPERIMENT_MANAGER: AO STATIC (SET) mode.\n")
         self._ao_params.options = ul.ScanOption.DEFAULTIO  # 0
-        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
-                                                  self._ao_params)
-        # # need to stop AO before scan
+        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(), self._ao_params)
+        # need to stop AO before scan
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()
         
         self._ao_device_handler.iso_mode(ao_channel, voltage)
 
+    # for modulation/iso modes only !!
+    def ao_continuous(self):
+        self._ao_params.options = ul.ScanOption.CONTINUOUS  # TODO: check
+        # self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(), self._ao_params)
 
-    def ai_continuous(self, ai_channels: list[int], do_save_data: bool):
+        # # need to stop AO before scan
+        # if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
+        #     self._ao_device_handler.stop()
+        #
+        # self._ao_buffer = ScanDataGenerator(voltage_profiles,
+        #                                     self._ao_params.low_channel,
+        #                                     self._ao_params.high_channel).get_buffer()
+        #
+        # self._ao_device_handler.iso_mode(ao_channel, voltage)
+
+    def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
         # else: dump into dummy buffer file (for endless ai scan)

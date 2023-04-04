@@ -2,7 +2,7 @@ from tango.server import Device, attribute, pipe, command, AttrWriteType
 from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_REL_PATH, RAW_DATA_FOLDER_REL_PATH,
                        NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_PATH)
 from calibration import Calibration
-from fastheat import FastHeat
+from fastheat import FastMode
 from iso_mode import IsoMode
 from settings import Settings
 from daq_device import DaqDeviceHandler
@@ -14,7 +14,7 @@ import json
 
 
 class NanoControl(Device):
-    _fh: FastHeat
+    _fh: FastMode
 
     def init_device(self):
         Device.init_device(self)
@@ -142,7 +142,7 @@ class NanoControl(Device):
     @command(dtype_in=str)
     def arm_fast_heat(self, time_temp_volt_tables_str):
         self._time_temp_volt_tables = json.loads(time_temp_volt_tables_str)
-        self._fh = FastHeat(self._daq_device_handler, self._settings,
+        self._fh = FastMode(self._daq_device_handler, self._settings,
                             self._time_temp_volt_tables, self._calibration,
                             ai_channels = [0,1,3,4,5],
                             FAST_HEAT_CUSTOM_FLAG=False)

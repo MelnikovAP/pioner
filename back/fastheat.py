@@ -1,18 +1,19 @@
+from constants import EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
+from temp_volt_converters import temperature_to_voltage
 from experiment_manager import ExperimentManager
+from utils import square_poly, cubic_poly
 from daq_device import DaqDeviceHandler
-from utils import temperature_to_voltage
-from settings import Settings
 from calibration import Calibration
-from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
+from settings import Settings
 
 from scipy import interpolate
-from typing import Dict
-import pandas as pd
+from typing import List
 import numpy as np
-import h5py
 import logging
+import h5py
 
-class FastHeat:
+
+class FastMode:
     # receives time_temp_volt_tables as dict :
     # {"ch0": {"time":[list], "temp":list}, 
     # "ch1": {"time":[list], "temp":list},
@@ -21,15 +22,15 @@ class FastHeat:
     # voltage can be used instead of temperature ("volt" instead of "temp")
     # if "volt" - no calibration applied
     # if "temp" - calibration applied
-    # raw_ai_data transfroms to exp_ai_data with respect to calibration
+    # raw_ai_data transforms to exp_ai_data with respect to calibration
     # raw_ai_data without calibration transformation can be accessed from RAW_DATA_FILE_REL_PATH
     # only data from specified ai_channels will be saved. For normal fast heating it is [0,1,3,4,5]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: Settings,
-                 time_temp_volt_tables: dict,
                  calibration: Calibration,
-                 ai_channels: list[int],
+                 time_temp_volt_tables: dict,
+                 ai_channels: List[int],
                  FAST_HEAT_CUSTOM_FLAG=False):
 
         self._daq_device_handler = daq_device_handler
@@ -40,8 +41,7 @@ class FastHeat:
         self._FAST_HEAT_CUSTOM_FLAG = FAST_HEAT_CUSTOM_FLAG
 
         self._voltage_profiles = dict()
-        [self._profile_time, self._samples_per_channel] = self._check_time_temp_volt_tables(self._time_temp_volt_tables)
-
+        self._profile_time, self._samples_per_channel = self._check_time_temp_volt_tables(self._time_temp_volt_tables)
 
     def arm(self):
         for chan, table in self._time_temp_volt_tables.items():
@@ -50,18 +50,17 @@ class FastHeat:
             key = key[0]
 
             self._voltage_profiles[chan] = self._interpolate_profile(table['time'], table[key])
-            if key=='temp':
+            if key == 'temp':
                 self._voltage_profiles[chan] = temperature_to_voltage(self._voltage_profiles[chan], self._calibration)
 
     def is_armed(self) -> bool:
         return bool(self._voltage_profiles)
 
     def run(self):
-        with ExperimentManager(self._daq_device_handler,
-                               self._settings) as em:
+        with ExperimentManager(self._daq_device_handler, self._settings) as em:
             em.ao_scan(self._voltage_profiles)
             em.ai_continuous(self._ai_channels, do_save_data=True)
-            self._ai_data = em.get_ai_data()  # TODO: check warning
+            self._ai_data = em.get_ai_data()
 
         if not self._FAST_HEAT_CUSTOM_FLAG:
             self._apply_calibration()
@@ -105,7 +104,8 @@ class FastHeat:
         # + amount of samples (buffer length in points) for each profile
         return time_lengths[0], samples_per_channel
 
-    def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.array:
+    # TODO: remove from class
+    def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.ndarray:
         # profile interpolation with respect to time column in table
         interpolation = interpolate.interp1d(x=profile_time, y=profile_temp_or_volt, kind='linear')
         
@@ -114,31 +114,31 @@ class FastHeat:
 
         return temp_or_volt_program_points
 
+    # TODO: remove from class
     def _apply_calibration(self):
-
         # add timescale in ms
-        end_time_ms = 1000*len(self._ai_data)/self._settings.ao_params.sample_rate
-        step = 1000/self._settings.ao_params.sample_rate
+        end_time_ms = 1000 * len(self._ai_data) / self._settings.ao_params.sample_rate
+        step = 1000 / self._settings.ao_params.sample_rate
         self._ai_data['time'] = np.arange(0, end_time_ms, step)
 
         # Taux - mean for the whole buffer
         Uaux = self._ai_data[3].mean()
         Taux = 100. * Uaux
         if Taux < -12.:  # correction for AD595 below -12 C
-            Taux = 2.6843 + 1.2709 * Taux + 0.0042867 * Taux * Taux + 3.4944e-05 * Taux * Taux * Taux
+            Taux = cubic_poly(Taux, 2.6843, 1.2709, 0.0042867, 3.4944e-05)
         self._ai_data['Taux'] = Taux
         
         # Utpl or temp - temperature of the calibrated internal thermopile + Taux
         self._ai_data[4] *= (1000. / 11.)  # scaling to mV with the respect of amplification factor of 11
         ax = self._ai_data[4] + self._calibration.utpl0
-        self._ai_data['temp'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
+        self._ai_data['temp'] = square_poly(ax, 0., self._calibration.ttpl0, self._calibration.ttpl1)
         self._ai_data['temp'] += Taux
 
         # temp-hr ??? add explanation Umod mV
         
         self._ai_data[1] *= (1000. / 121.)  # scaling to mV; why 121?? amplifier cascade??
         ax = self._ai_data[1] + self._calibration.utpl0
-        self._ai_data['temp-hr'] = self._calibration.ttpl0 * ax + self._calibration.ttpl1 * (ax ** 2)
+        self._ai_data['temp-hr'] = square_poly(ax, 0., self._calibration.ttpl0, self._calibration.ttpl1)
 
         # Uref
         # ===================
@@ -150,11 +150,12 @@ class FastHeat:
         self._ai_data[5] *= 1000.  # Uhtr mV
         Rhtr = self._ai_data[5] * 0.
         Ih = self._calibration.ihtr0 + self._ai_data[0] * self._calibration.ihtr1
-        Rhtr.loc[Ih!=0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+        Rhtr.loc[Ih != 0] = (self._ai_data[5] - self._ai_data[0] * 1000. + self._calibration.uhtr0) * self._calibration.uhtr1 / Ih
+
         # Rhtr.loc[Ih==0] = 0
-        Thtr = self._calibration.thtr0 + \
-               self._calibration.thtr1 * (Rhtr + self._calibration.thtrcorr) + \
-               self._calibration.thtr2 * ((Rhtr + self._calibration.thtrcorr) ** 2)
+
+        Thtr = square_poly((Rhtr + self._calibration.thtrcorr), self._calibration.thtr0,
+                           self._calibration.thtr1, self._calibration.thtr2)
         self._ai_data['Thtr'] = Thtr
         self._ai_data['Uref'] = self._voltage_profiles['ch1']   # Uref equals to the voltage sent on guard heaters
         
@@ -177,22 +178,23 @@ class FastHeat:
             f.create_dataset('calibration', data=self._calibration.get_str())
             f.create_dataset('settings', data=self._settings.get_str())
 
+
 if __name__ == '__main__':
-    
     settings = Settings(SETTINGS_PATH)
     time_temp_volt_tables = {'ch0':{'time':[0, 3000], 'volt':[1,1]},
                             'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 5, 5, 0, 0]},
                             'ch2':{'time':[0, 3000], 'volt':[5,5]},
                             # 'ch3':{'time':[0,2000,2000], 'volt':[0,0,0]}
                             }
+
     calibration = Calibration()
-    ai_channels = [0, 1, 3, 4, 5]
+    ai_channels = [0, 1, 3, 4, 5]  # can be obtained from UI
 
     daq_params = settings.daq_params
     daq_device_handler = DaqDeviceHandler(daq_params)
     daq_device_handler.try_connect()
 
-    fh = FastHeat(daq_device_handler, settings, time_temp_volt_tables, calibration, ai_channels)
+    fh = FastMode(daq_device_handler, settings, calibration, time_temp_volt_tables, ai_channels)
     fh.arm()
     fh.run()
 

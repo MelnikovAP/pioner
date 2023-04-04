@@ -8,8 +8,7 @@ import uldaq as ul
 class PulseDataGenerator:
     # This class generates the buffer from dictionary, some kind of 2D array
     # like {'ch0': float, 'ch3': float}. Unused channels are being set to 0.
-    # TODO: generate sin on reference channel
-     
+
     def __init__(self, channel_voltages: dict, duration: int,
                  low_channel: int, high_channel: int):
         self._channel_voltages = channel_voltages

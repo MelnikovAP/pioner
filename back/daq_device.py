@@ -2,20 +2,14 @@ import uldaq as ul
 import logging
 import time
 
-# TODO: add an abstract class for device + add a mock device for testing
+from daq_params import DaqParams
 
-
-class DaqParams:
-    def __init__(self):
-        # init class with default daq settings
-        self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
-        self.connection_code = -1
-
-    def __str__(self):
-        return str(vars(self))
+# TODO: add an abstract class for device + add a mock device for testing ??
 
 
 class DaqDeviceHandler:
+    _daq_device: ul.DaqDevice
+
     def __init__(self, params: DaqParams):
         self._params = params
         self._init_daq_device()
@@ -78,7 +72,7 @@ class DaqDeviceHandler:
         logging.info("DAQ DEVICE: DAQ device has been reset.")
 
     def quit(self):
-        ## AM: doesn't seems to work..
+        # AM: doesn't seem to work.  # TODO: check
         if self.is_connected():
             self.disconnect()
         self.release()
