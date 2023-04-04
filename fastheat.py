@@ -157,7 +157,7 @@ class FastMode:
         Thtr = square_poly((Rhtr + self._calibration.thtrcorr), self._calibration.thtr0,
                            self._calibration.thtr1, self._calibration.thtr2)
         self._ai_data['Thtr'] = Thtr
-        self._ai_data['Uhtr'] = self._ai_data[5]
+        self._ai_data['Uref'] = self._voltage_profiles['ch1']   # Uref equals to the voltage sent on guard heaters
         
         self._ai_data.drop(self._ai_channels, axis=1, inplace=True)
 
@@ -168,7 +168,7 @@ class FastMode:
             data.create_dataset('time', data=self._ai_data['time'])
             data.create_dataset('Taux', data=self._ai_data['Taux'])
             data.create_dataset('Thtr', data=self._ai_data['Thtr'])
-            data.create_dataset('Uhtr', data=self._ai_data['Uhtr'])
+            data.create_dataset('Uref', data=self._ai_data['Uref'])
             data.create_dataset('temp', data=self._ai_data['temp'])
             data.create_dataset('temp-hr', data=self._ai_data['temp-hr'])
 
