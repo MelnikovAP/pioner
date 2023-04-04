@@ -17,6 +17,8 @@ RAW_DATA_FILE_REL_PATH = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
 
 RAW_DATA_BUFFER_FILE_PREFIX = "raw_data_buffer_"
 RAW_DATA_BUFFER_FILE_FORMAT = "raw_data_buffer_{}.h5"
+BUFFER_DUMMY_1 = "raw_data_dummy_1.h5"
+BUFFER_DUMMY_2 = "raw_data_dummy_2.h5"
 
 EXP_DATA_FILE = "exp_data.h5"
 EXP_DATA_FILE_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, EXP_DATA_FILE)

@@ -79,6 +79,11 @@ class ExperimentManager:
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()
 
+        # TODO: only for testing of digital triggering. 
+        # put later in separate class
+
+        ##################################################################
+
         self._ao_device_handler.scan(self._ao_buffer)
 
     # for setting voltage
@@ -109,6 +114,9 @@ class ExperimentManager:
 
     def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
+        # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
+        # else: dump into dummy buffer file (for endless ai scan)
+        
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
                                                   self._ai_params)
@@ -120,13 +128,19 @@ class ExperimentManager:
         self._ai_device_handler.scan()
         self._read_data_loop(do_save_data)
         
-        df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
-        df = self._transform_ai_data(ai_channels, df)
-        df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', mode='w')
+        if do_save_data:
+            df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
+            df = self._transform_ai_data(ai_channels, df)
+            df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', mode='w')
 
         logging.info('EXPERIMENT_MANAGER: Continuous AI finished.')
+
+    def ai_continuous_stop(self):
+        self._ai_device_handler.stop()
         
     def _read_data_loop(self, do_save_data: bool):
+        # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
+        # else: dump into dummy buffer file (for endless ai scan)
         try:
             tmp_ai_data = self._ai_device_handler.get_buffer()
 
@@ -135,7 +149,14 @@ class ExperimentManager:
             buffer_index = 0
 
             channels_num = self._ao_params.high_channel - self._ao_params.low_channel + 1
-            buffers_num = int(len(self._ao_buffer) / (self._ao_params.sample_rate * channels_num))
+            if do_save_data:
+                buffers_num = int(len(self._ao_buffer) / (self._ao_params.sample_rate * channels_num))
+                logging.info('EXPERIMENT_MANAGER: Finite ai scan with data saving started.')
+            else:
+                buffers_num = 1 # just big number for quazi-infinite loop 
+                # TODO: change later to separate thread process in order to be able stop the scan
+                # with tango command
+                logging.info('EXPERIMENT_MANAGER: Infinite ai scan with data overwriting started.')
 
             if not os.path.exists(RAW_DATA_FOLDER_REL_PATH):
                 os.makedirs(RAW_DATA_FOLDER_REL_PATH)
@@ -143,34 +164,43 @@ class ExperimentManager:
             while True:
                 try:
                     # Get AI operation status and index
-                    _, ai_transfer_status = self._ai_device_handler.status()
+                    ai_status, ai_transfer_status = self._ai_device_handler.status()
                     ai_index = ai_transfer_status.current_index
 
                     if buffer_index >= buffers_num:
                         self._ai_device_handler.stop()
-                        # merging all the buffer files into one file raw_data.h5
-                        # fpath = RAW_DATA_FILE_REL_PATH
-                        for i in list(range(buffers_num)):
-                            buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(i))
-                            df = pd.DataFrame(pd.read_hdf(buf_path, key='dataset'))
-                            df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', append=True, mode='a')
+                        if do_save_data:
+                            # merging all the buffer files into one file raw_data.h5
+                            fpath = RAW_DATA_FILE_REL_PATH
+                            for i in list(range(buffers_num)):
+                                buf_path = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(i))
+                                df = pd.DataFrame(pd.read_hdf(buf_path, key='dataset'))
+                                df.to_hdf(RAW_DATA_FILE_REL_PATH, key='dataset', format='table', append=True, mode='a')
                         break  
 
-                    if ai_index > half_buffer_len and is_buffer_high_half:
+                    if ai_index > half_buffer_len and is_buffer_high_half and ai_status==1:
                         # reading low half 
-                        logging.info('EXPERIMENT_MANAGER: Reading low half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[:half_buffer_len])
                         if do_save_data:
+                            logging.info('EXPERIMENT_MANAGER: Reading low half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                             fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
                             df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
+                        else:
+                            logging.info('EXPERIMENT_MANAGER: read')
+                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, BUFFER_DUMMY_1)
+                            df.to_hdf(fpath, key='dataset', format='table', append=False, mode='a')
                         is_buffer_high_half = False
-                    elif ai_index < half_buffer_len and not is_buffer_high_half:
+                    elif ai_index < half_buffer_len and not is_buffer_high_half and ai_status==1:
                         # reading high half
-                        logging.info('EXPERIMENT_MANAGER: Reading high half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                         df = pd.DataFrame(tmp_ai_data[half_buffer_len:])
                         if do_save_data:
+                            logging.info('EXPERIMENT_MANAGER: Reading high half. Index = {}. Buffer index = {}'.format(ai_index, buffer_index))
                             fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT.format(buffer_index))
                             df.to_hdf(fpath, key='dataset', format='table', append=True, mode='a')
+                        else:
+                            logging.info('EXPERIMENT_MANAGER: read')
+                            fpath = os.path.join(RAW_DATA_FOLDER_REL_PATH, BUFFER_DUMMY_2)
+                            df.to_hdf(fpath, key='dataset', format='table', append=False, mode='a')
                         is_buffer_high_half = True
                         buffer_index += 1
                 except (ValueError, NameError, SyntaxError):
@@ -179,6 +209,8 @@ class ExperimentManager:
         except KeyboardInterrupt:
             logging.warning('EXPERIMENT_MANAGER: WARNING. Acquisition aborted.')
             pass
+
+
 
     def __enter__(self):
         return self

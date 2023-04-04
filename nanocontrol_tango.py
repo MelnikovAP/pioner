@@ -123,6 +123,7 @@ class NanoControl(Device):
     def set_sample_scan_rate(self, scan_rate):
         self._settings.ai_params.sample_rate = scan_rate
         self._settings.ao_params.sample_rate = scan_rate
+        logging.info("TANGO: Sample scan rate changed to: {}".format(scan_rate))
     
     @command
     def reset_sample_scan_rate(self):
@@ -173,10 +174,17 @@ class NanoControl(Device):
     @command
     def run_iso_mode(self):
         if self._im.is_armed():
-            self._im.run()
-            logging.info("TANGO: Static (iso) voltage was applied.")
+            self._im.run(do_ai=True)
         else:
             logging.warning("TANGO: WARNING. Static (iso) mode cannot be started, since it should be armed first.")
+        
+
+    @command 
+    def stop_ai(self):
+        # self._im.ai_stop()
+        logging.info("TANGO: test")
+        # self._daq_device_handler.get_ai_device.scan_stop()
+        
 
 if __name__ == '__main__':
     NanoControl.run_server()

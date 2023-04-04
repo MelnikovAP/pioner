@@ -33,9 +33,15 @@ class IsoMode:
     def is_armed(self) -> bool:
         return (self._channel is not None) and (self._voltage is not None)
 
-    def run(self):
-        with ExperimentManager(self._daq_device_handler, self._settings) as em:
-            em.ao_set(self._channel, self._voltage)
+    def run(self, do_ai:bool):
+        with ExperimentManager(self._daq_device_handler,
+                               self._settings) as self.em:
+            self.em.ao_set(self._channel, self._voltage)
+            if do_ai:
+                self.em.ai_continuous([0,1,2,3,4,5], do_save_data=False)
+
+    def ai_stop(self):
+        self.em.ai_continuous_stop()
 
 
 if __name__ == '__main__':
@@ -51,6 +57,6 @@ if __name__ == '__main__':
     sm = IsoMode(_daq_device_handler, _settings, _calibration, _chan_temp_volt)
     sm.is_armed()
     sm.arm()
-    sm.run()
+    sm.run(do_ai=True)
 
     _daq_device_handler.disconnect()
