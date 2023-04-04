@@ -25,13 +25,13 @@ class BufferGenerator:
     def __init__(self,
                  init_profiles_data: Dict[int, ProfileData],
                  calibration: Calibration,
-                 settings: Settings,
-                 chunk_duration: float):  # in seconds
+                 settings: Settings):
         self._init_profiles_data = init_profiles_data
         self._calibration = calibration
         self._settings = settings
 
-        self._chunk_duration = chunk_duration  # to divide initial profiles data into a list of profiles data chunks
+        # to divide initial profiles data into a list of profiles data chunks
+        self._chunk_duration = settings.ao_params.time_buffer
 
         self._experiment_time = self._calc_experiment_time()
         self._chunks_count = math.ceil(self._experiment_time / self._chunk_duration)  # TODO: check, be careful
@@ -39,6 +39,10 @@ class BufferGenerator:
 
         # self._create_buffer(channel_count, chan_buffer_size)
         # self._fill_buffer()
+
+    # TODO: should be Python generator
+    def get(self) -> Array[float]:
+        pass
 
     # returns max channel duration, in seconds
     def _calc_experiment_time(self) -> float:
@@ -95,7 +99,6 @@ class BufferGenerator:
             profile_chunks.append(chunk_data)
         return profile_chunks
 
-    # TODO: create a Python generator
     def _create_buffers(self) -> List[Array[float]]:
         sample_rate = self._settings.ao_params.sample_rate
         mod_params = self._settings.modulation_params

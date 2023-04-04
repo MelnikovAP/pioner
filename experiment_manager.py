@@ -74,8 +74,7 @@ class ExperimentManager:
                                             self._ao_params.low_channel,
                                             self._ao_params.high_channel).get_buffer()
 
-        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
-                                                  self._ao_params)
+        self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(), self._ao_params)
         # need to stop AO before scan
         if self._ao_device_handler.status == ul.ScanStatus.RUNNING:
             self._ao_device_handler.stop()

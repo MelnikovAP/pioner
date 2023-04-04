@@ -5,7 +5,6 @@ from segment_data import SegmentType
 from data_types import DataType
 
 
-# TODO: use OrderedDict
 # TODO: use other types instead of inner dicts
 profiles_table = {
     0: {
@@ -23,8 +22,6 @@ profiles_table = {
         }
     }
 }
-
-# TODO: think about profiles of different duration
 
 
 class ProfileTableConverter:
