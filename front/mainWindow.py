@@ -1,10 +1,11 @@
 from silx.gui import qt
-from silx.gui.plot import Plot1D
 
-from mainWindowUi import mainWindowUi
-from messageWindows import *
-from configWindow import *
-from calibWindow import *
+from MainWindowUi import MainWindowUi
+from messageWindows import ErrorWindow
+
+# TODO: avoid so many asterisks
+from ConfigWindow import *
+from CalibWindow import *
 from settings import *
 from utils.constants import *
 
@@ -15,21 +16,23 @@ import json
 import os
 import h5py
 
+# TODO: fix warnings
 
-class mainWindow(mainWindowUi):
+
+class MainWindow(MainWindowUi):
     def __init__(self, parent=None):
-        super(mainWindow, self).__init__(parent)
+        super().__init__(parent)
 
-        self.device = None          # patch for disconnect method. to be changed later
+        self.device = None  # patch for disconnect method. to be changed later
         self.preload_settings()
 
-        self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
+        self.sysOnButton.clicked.connect(self.sys_on_button_pressed)
         self.sysOffButton.clicked.connect(self.disconnect)
         self.sysDataPathButton.clicked.connect(self.select_data_path)
         self.sysSetupButton.clicked.connect(self.show_help)
 
         self.calibPathButton.clicked.connect(self.select_calibration_file)
-        self.calibViewButton.clicked.connect(self.view_calibraton_info)
+        self.calibViewButton.clicked.connect(self.view_calibration_info)
         self.calibApplyButton.clicked.connect(self.apply_calib)
 
         self.applyScanSampleRateButton.clicked.connect(self.apply_sample_rate)
@@ -41,22 +44,20 @@ class mainWindow(mainWindowUi):
         self.setTempVoltButton.clicked.connect(self.set_temp_volt)
         self.unsetTempVoltButton.clicked.connect(self.unset_temp_volt)
 
-# for debugging
+        # for debugging
         self.terror0Button.clicked.connect(self.print_debug)
 
     def print_debug(self):
         print(self.settings.sample_rate)
         print(self.calibration.comment)
-# end for debugging
-    
-    def sysOnButtonPressed(self):
+
+    def sys_on_button_pressed(self):
         self.set_connection()
-        # TODO: add continious aquisition after modulation starts to check signals
+        # TODO: add continuous acquisition after modulation starts to check signals
 
     def set_connection(self):
-        
-        if self.sysNoHardware.isChecked() != True:
-            # AM: cannot install TANGO on MAC OS. so I've added importing tango here
+        if not self.sysNoHardware.isChecked():
+            # AM: cannot install TANGO on MAC OS. so I've added importing tango here  # TODO: check
             # in order to include feature with no-hardware mode 
             try:
                 import tango
@@ -74,24 +75,23 @@ class mainWindow(mainWindowUi):
                 self.device.set_sample_scan_rate(self.settings.sample_rate)
 
             except:
-                ## No-hardware mode for data processing
-                error_text = "No connection to the device or\nTANGO module not found!\nOnly no-hardware mode is possible."
+                # No-hardware mode for data processing
+                error_text = "No connection to the device or\nTANGO module not found!\n" \
+                             "Only no-hardware mode is possible."
                 ErrorWindow(error_text)
-                self.run_no_harware()
+                self.run_no_hardware()
         else:
-            self.run_no_harware()
+            self.run_no_hardware()
 
-
-    
     def disconnect(self):
         if self.device:
-           self.device.disconnect()
+            self.device.disconnect()
         [item.setEnabled(False) for item in [self.experimentBox, self.controlTab]]
         self.sysNoHardware.setEnabled(True)
     
     def select_data_path(self):
-        dpath = qt.QFileDialog.getExistingDirectory(self, "Choose folder to save experiment files", \
-                                                    None, qt.QFileDialog.ShowDirsOnly)
+        dpath = qt.QFileDialog.getExistingDirectory(self, "Choose folder to save experiment files",
+                                                    None, qt.QFileDialog.ShowDirsOnly)  # TODO: fix warning
         if dpath: 
             self.sysDataPathInput.setText(os.path.abspath(dpath))
             self.settings.data_path = dpath
@@ -99,10 +99,10 @@ class mainWindow(mainWindowUi):
         self.sysDataPathInput.setCursorPosition(0)
 
     def show_help(self):
-        self.configWindow = configWindow(parent=self)
-        self.configWindow.show()
+        self.config_window = ConfigWindow(parent=self)
+        self.config_window.show()
 
-    def run_no_harware(self):
+    def run_no_hardware(self):
         self.sysNoHardware.setChecked(True)
         self.controlTabsWidget.setCurrentIndex(1) 
         self.mainTabWidget.setCurrentIndex(1) 
@@ -110,10 +110,11 @@ class mainWindow(mainWindowUi):
     # Calibration   
 
     def select_calibration_file(self):
-        fname = qt.QFileDialog.getOpenFileName(self, "Choose calibration file", None, "*.json")[0]
-        if fname: 
-            self.calibPathInput.setText(os.path.abspath(fname))
-            self.settings.calib_path = fname
+        file_name = qt.QFileDialog.getOpenFileName(self, "Choose calibration file",
+                                                   None, "*.json")[0]  # TODO: fix warning
+        if file_name:
+            self.calibPathInput.setText(os.path.abspath(file_name))
+            self.settings.calib_path = file_name
         self.calibPathInput.setCursorPosition(0)
 
     def apply_calib(self):
@@ -136,8 +137,8 @@ class mainWindow(mainWindowUi):
         calib_dict = json.loads(calib_str)
         self.calibration = Dict2Class(calib_dict)
 
-    def view_calibraton_info(self):
-        self.calibWindow = calibWindow(parent=self)
+    def view_calibration_info(self):
+        self.calibWindow = CalibWindow(parent=self)
         self.calibWindow.show()
     
     # ===================================
@@ -182,7 +183,6 @@ class mainWindow(mainWindowUi):
 
     def get_sample_rate_from_device(self):    
         return self.device.get_sample_rate[1][0]['value']
-
 
     # ===================================
     # Fast heating
@@ -240,15 +240,15 @@ class mainWindow(mainWindowUi):
             f.write(response.content)
     
     def _fh_download_exp_data(self):
-        URL = self.settings.http_host+"data/exp_data.h5"
-        response = requests.get(URL, verify=False)
-        fname = qt.QFileDialog.getSaveFileName(self, "Save data to file", 
-                                                self.settings.data_path+'exp_data.h5', 
-                                                "*.h5")[0]
-        if fname:
-            with open(fname, 'wb') as f:
+        url = self.settings.http_host + "data/exp_data.h5"
+        response = requests.get(url, verify=False)
+        file_name = qt.QFileDialog.getSaveFileName(self, "Save data to file",
+                                                   self.settings.data_path+'exp_data.h5',
+                                                   "*.h5")[0]  # TODO: fix warning
+        if file_name:
+            with open(file_name, 'wb') as f:
                 f.write(response.content)
-        self.currentExpFilePath = fname
+        self.currentExpFilePath = file_name
 
     def _fh_transform_exp_data(self):
         self.exp_data = pd.DataFrame({})
@@ -270,11 +270,10 @@ class mainWindow(mainWindowUi):
                                                 legend = key,
                                                 color=color)
             for curve in self.resultsDataWidget.resultPlot.getItems():
-                if curve.getName()!="temp":
+                if curve.getName() != "temp":
                     curve.setVisible(False)
             self.mainTabWidget.setCurrentIndex(1) 
         self.resultsDataWidget.resultPlot.resetZoom()
-        
 
     def fh_run(self):
         self.device.run_fast_heat()
@@ -289,24 +288,22 @@ class mainWindow(mainWindowUi):
         value = float(self.setInput.text())
         print(value)
         key = str(self.setComboBox.currentText())
-        if key=="Temperature":
-            key="temp"
-        if key=="Voltage":
-            key="volt"
+        if key == "Temperature":
+            key = "temp"
+        if key == "Voltage":
+            key = "volt"
         print(key)
-        chan_temp_volt = {"ch2": {key:value} }
+        chan_temp_volt = {"ch2": {key: value}}
         
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.device.arm_iso_mode(self.chan_temp_volt_str)
         self.device.run_iso_mode()
     
     def unset_temp_volt(self):
-        chan_temp_volt = {"ch1": {"volt":0} }
+        chan_temp_volt = {"ch1": {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.device.arm_iso_mode(self.chan_temp_volt_str)
         self.device.run_iso_mode()
-
-
 
     # ===================================
     def save_settings_to_file(self, fpath=False):
@@ -324,27 +321,27 @@ class mainWindow(mainWindowUi):
         if not fpath:
             fpath = os.path.abspath(SETTINGS_FILE_REL_PATH)
         else:
-            fpath = qt.QFileDialog.getOpenFileName(self, "Choose file with settings:", None, "*.json")[0]
+            fpath = qt.QFileDialog.getOpenFileName(self, "Choose file with settings:",
+                                                   None, "*.json")[0]  # TODO: fix warning
         try:
             self.settings = Settings(fpath)
             self.disconnect()
         except:
             error_text = "Settings file is missing or corrupted! Settings will be reset to default."
             ErrorWindow(error_text)
-            self.settings = mainParams()
+            self.settings = MainParams()
 
     def reset_settings(self):
         # reset config params; used default attributes from Params class
-        self.settings = mainParams()
+        self.settings = MainParams()
         self.save_settings_to_file()
         self.disconnect()
 
     def closeEvent(self, event):
         # dumping current settings to ./settings/.settings.json and closing all the windows
         self.save_settings_to_file()
-        for window in qt.QApplication.topLevelWidgets():
+        for window in qt.QApplication.topLevelWidgets():  # TODO: fix warning
             window.close()
-
 
 
 # Turns a dictionary into a class
@@ -353,5 +350,6 @@ class Dict2Class(object):
         for key in my_dict:
             setattr(self, key, my_dict[key])
         self.my_dict = my_dict
+
     def get_dict(self):
         return self.my_dict

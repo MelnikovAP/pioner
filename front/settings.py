@@ -2,8 +2,10 @@ import json
 from utils.constants import *
 
 
-class mainParams:
+# TODO: check and refactor
+class MainParams:
     def __init__(self):
+        # TODO: check maybe move these values to utils/constants
         self.tango_host = "lid13ctrl1.esrf.fr:20000"
         self.device_proxy = "ID13/NanoControl/1"
 
@@ -12,8 +14,8 @@ class mainParams:
         self.calib_path = "./settings/calibration.json"
         self.data_path = "./data/"
 
+        # TODO: remove from here
         self.sample_rate = 20000
-
         self.modulation_frequency = 37.5
         self.modulation_amplitude = 0.1
         self.modulation_offset = 0.3
@@ -22,8 +24,9 @@ class mainParams:
         return str(vars(self))
 
     def get_dict(self):
-        params_dict = {}
-        params_dict[SETTINGS_FIELD] = {}
+        params_dict = dict()
+        params_dict[SETTINGS_FIELD] = dict()
+
         params_dict[SETTINGS_FIELD][TANGO_FIELD] = {
             TANGO_HOST_FIELD: self.tango_host,
             DEVICE_PROXY_FIELD: self.device_proxy
@@ -38,7 +41,7 @@ class mainParams:
         params_dict[SETTINGS_FIELD][SCAN_FIELD] = {
             SAMPLE_RATE_FIELD: self.sample_rate
             }
-        params_dict[SETTINGS_FIELD][MODULATION_FIELD] ={
+        params_dict[SETTINGS_FIELD][MODULATION_FIELD] = {
             FREQUENCY_FIELD: self.modulation_frequency,
             AMPLITUDE_FIELD: self.modulation_amplitude,
             OFFSET_FIELD: self.modulation_offset
@@ -74,10 +77,10 @@ class JsonReader:
         return self._json
 
 
-class Settings(mainParams):
+class Settings(MainParams):
     """Parses configuration file with all necessary acquisition parameters."""
-
     def __init__(self, path: str):
+        super().__init__()  # TODO: check
         """Initializes dictionary and checks that all needed fields exist.
 
         After correct parsing it is possible to obtain ???? AM: add description.
@@ -105,30 +108,29 @@ class Settings(mainParams):
         """Parses all necessary parameters and fills instance."""
 
         for field in [TANGO_HOST_FIELD, DEVICE_PROXY_FIELD]:
-            if field not in self._settings_dict[TANGO_FIELD] or \
-                not isinstance(self._settings_dict[TANGO_FIELD][field], str):
+            if field not in self._settings_dict[TANGO_FIELD] or not \
+                    isinstance(self._settings_dict[TANGO_FIELD][field], str):
                 self._invalid_fields.append(field)
 
         for field in [HTTP_HOST]:
-            if field not in self._settings_dict[HTTP_FIELD] or \
-                not isinstance(self._settings_dict[HTTP_FIELD][field], str):
+            if field not in self._settings_dict[HTTP_FIELD] or not \
+                    isinstance(self._settings_dict[HTTP_FIELD][field], str):
                 self._invalid_fields.append(field)
 
         for field in [CALIB_PATH_FIELD, DATA_PATH_FIELD]:
-            if field not in self._settings_dict[PATHS_FIELD] or \
-                not isinstance(self._settings_dict[PATHS_FIELD][field], str):
+            if field not in self._settings_dict[PATHS_FIELD] or not \
+                    isinstance(self._settings_dict[PATHS_FIELD][field], str):
                 self._invalid_fields.append(field)
 
         for field in [SAMPLE_RATE_FIELD]:
-            if field not in self._settings_dict[SCAN_FIELD] or \
-                not isinstance(self._settings_dict[SCAN_FIELD][field], int):
+            if field not in self._settings_dict[SCAN_FIELD] or not \
+                    isinstance(self._settings_dict[SCAN_FIELD][field], int):
                 self._invalid_fields.append(field)
         
         for field in [FREQUENCY_FIELD, AMPLITUDE_FIELD, OFFSET_FIELD]:
-            if field not in self._settings_dict[MODULATION_FIELD] or \
-                not isinstance(self._settings_dict[MODULATION_FIELD][field], float):
+            if field not in self._settings_dict[MODULATION_FIELD] or not \
+                    isinstance(self._settings_dict[MODULATION_FIELD][field], float):
                 self._invalid_fields.append(field)
-            
 
         self.tango_host = self._settings_dict[TANGO_FIELD][TANGO_HOST_FIELD]
         self.device_proxy = self._settings_dict[TANGO_FIELD][DEVICE_PROXY_FIELD]

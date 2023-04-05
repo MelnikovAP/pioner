@@ -5,16 +5,17 @@ from silx.math.fit import filters
 import h5py
 from shutil import copy
 
-from calibWindow import *
-from resultsDataWidget import resultsDataWidget
+from CalibWindow import *
+from ResultsDataWidget import ResultsDataWidget
+from messageWindows import ErrorWindow, MessageWindow, YesCancelWindow
 
 
-class procFastHeatWidget(qt.QWidget):
+class ProcFastHeatWidget(qt.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
 
-        # ####### UI setup
-        # ########################################
+        # UI setup
+        #########################################
         short_line_input_width = 60
 
         main_lout = qt.QHBoxLayout()
@@ -84,7 +85,7 @@ class procFastHeatWidget(qt.QWidget):
         lout_0.addWidget(self.plotButton)
 
         # Graph space
-        self.procFastHeatGraph = resultsDataWidget(parent=self)
+        self.procFastHeatGraph = ResultsDataWidget(parent=self)
         self.procFastHeatGraph.curveLegendsWidgetDock.setHidden(True)
         self.graphRoiManager = self.procFastHeatGraph.roiManager
         right_lout.addWidget(self.procFastHeatGraph, 1)
@@ -218,30 +219,29 @@ class procFastHeatWidget(qt.QWidget):
             item.setAlignment(qt.Qt.AlignCenter)
             item.setCursorPosition(0)
             item.setValidator(float_validator)
-        
 
         # Signals and slots
         self.addButtonExpFilesTable.clicked.connect(self.add_files_to_table)
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonExpFilesTable.setEnabled(True))
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonExpFilesTable.setEnabled(False)
-                                                                    if (len(self.expFilesTable.selectedIndexes())==0) else None)
+                                                                    if (len(self.expFilesTable.selectedIndexes()) == 0) else None)
         self.removeButtonExpFilesTable.clicked.connect(self.remove_files_from_table)
         self.averageButtonExpFilesTable.clicked.connect(self.average_exp_data)
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.averageButtonExpFilesTable.setEnabled(True)
-                                                                    if (len(self.expFilesTable.selectedIndexes())>1) else None)
+                                                                    if (len(self.expFilesTable.selectedIndexes()) > 1) else None)
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.averageButtonExpFilesTable.setEnabled(False)
-                                                                    if (len(self.expFilesTable.selectedIndexes())==0) else None)
+                                                                    if (len(self.expFilesTable.selectedIndexes()) == 0) else None)
 
         self.addButtonEmptyFilesTable.clicked.connect(self.add_files_to_table)
         self.emptyFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonEmptyFilesTable.setEnabled(True))
         self.emptyFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonEmptyFilesTable.setEnabled(False)
-                                                                    if (len(self.emptyFilesTable.selectedIndexes())==0) else None)
+                                                                    if (len(self.emptyFilesTable.selectedIndexes()) == 0) else None)
         self.removeButtonEmptyFilesTable.clicked.connect(self.remove_files_from_table)
         self.averageButtonEmptyFilesTable.clicked.connect(self.average_empty_data)
         self.emptyFilesTable.itemSelectionChanged.connect(lambda: self.averageButtonEmptyFilesTable.setEnabled(True)
-                                                                    if (len(self.emptyFilesTable.selectedIndexes())>1) else None)
+                                                                    if (len(self.emptyFilesTable.selectedIndexes()) > 1) else None)
         self.emptyFilesTable.itemSelectionChanged.connect(lambda: self.averageButtonEmptyFilesTable.setEnabled(False)
-                                                                    if (len(self.emptyFilesTable.selectedIndexes())==0) else None)
+                                                                    if (len(self.emptyFilesTable.selectedIndexes()) == 0) else None)
 
         self.displayRateButton.clicked.connect(self.display_rate_button_pressed)
         self.calculateManualButton.clicked.connect(self.calculate_manual_button_pressed)
@@ -249,7 +249,7 @@ class procFastHeatWidget(qt.QWidget):
         self.procFastHeatGraph.resultPlot.sigPlotSignal.connect(self.update_iso_inputs)
         self.isoEndInput.valueChanged.connect(self.update_graph_roi_max)
         self.isoBeginInput.valueChanged.connect(self.update_graph_roi_min)
-        self.isoAutoFindButton.setEnabled(False) # TODO: remove later after finishing self.find_iso
+        self.isoAutoFindButton.setEnabled(False)  # TODO: remove later after finishing self.find_iso
         self.isoAutoFindButton.clicked.connect(self.find_iso)
 
         self.calculateAutoButton.clicked.connect(self.calculate_auto_button_pressed)
@@ -352,36 +352,37 @@ class procFastHeatWidget(qt.QWidget):
     def load_initial_data(self):
         empty_data = open(self.emptyFilesTable.item(0).text()+"::/data")
         self.empty_data = {'time': np.array(empty_data['time']),
-                            'temp': np.array(empty_data['temp']),
-                            'Uref': np.array(empty_data['Uref']),
-                            'Thtr': np.array(empty_data['Thtr'])}
+                           'temp': np.array(empty_data['temp']),
+                           'Uref': np.array(empty_data['Uref']),
+                           'Thtr': np.array(empty_data['Thtr'])}
         empty_data.close()
 
         exp_data = open(self.expFilesTable.item(0).text()+"::/data")
         self.exp_data = {'time': np.array(exp_data['time']),
-                            'temp': np.array(exp_data['temp']),
-                            'Uref': np.array(exp_data['Uref']),
-                            'Thtr': np.array(exp_data['Thtr'])}
+                         'temp': np.array(exp_data['temp']),
+                         'Uref': np.array(exp_data['Uref']),
+                         'Thtr': np.array(exp_data['Thtr'])}
         exp_data.close()
 
-    def check_files_before_averaging(self, source_fnames:list):
+    def check_files_before_averaging(self, source_fnames: list):
         with h5py.File(source_fnames[0], 'r') as first_file:
             first_file_keys = list(first_file['data'].keys())
             first_file_data_length = len(first_file['data'][first_file_keys[0]][:])
             for fname in source_fnames[1:]:
                 with h5py.File(fname, 'r') as file:
                     if list(file['data'].keys()) != first_file_keys:
-                        ErrorWindow("Unable to average. Files have different structure. Probably one of them contains processed/transformed data.")
+                        ErrorWindow("Unable to average. Files have different structure."
+                                    "Probably one of them contains processed/transformed data.")
                         return
+
                     if len(file['data'][list(file['data'].keys())[0]][:]) != first_file_data_length:
                         ErrorWindow("Unable to average. Data in files have different length.")
                         return
         return True
 
     def get_average_data_fname(self, datatype:str):               
-        fname = qt.QFileDialog().getSaveFileName(self, "Save average "+datatype+" as...", 
-                                        "./averaged_"+datatype+".h5", 
-                                        "*h5 files (*.h5)")[0]
+        fname = qt.QFileDialog().getSaveFileName(self, "Save average " + datatype + " as...",
+                                                 "./averaged_"+datatype+".h5", "*h5 files (*.h5)")[0]
         return fname
 
     def averag_data(self, source_fnames:list, dest_fname:str):  
@@ -435,17 +436,17 @@ class procFastHeatWidget(qt.QWidget):
                 return
         
         self.load_initial_data()
-        self.exp_data['rate'] = self.calculate_temp_gradient(self.exp_data['temp'], 
-                                                    self.exp_data['time'], 
-                                                    smooth_factor)
-        self.empty_data['rate'] = self.calculate_temp_gradient(self.empty_data['temp'], 
-                                                    self.empty_data['time'], 
-                                                    smooth_factor)
+        self.exp_data['rate'] = self.calculate_temp_gradient(self.exp_data['temp'],
+                                                             self.exp_data['time'],
+                                                             smooth_factor)
+        self.empty_data['rate'] = self.calculate_temp_gradient(self.empty_data['temp'],
+                                                               self.empty_data['time'],
+                                                               smooth_factor)
         self.update_plot_after_display_rate()
         
     def find_iso(self):
         pass
-        # TODO: make a proper algorythm to find isotherms. Probably use the 2nd or 3rd derivative
+        # TODO: make a proper algorithm to find isotherms. Probably use the 2nd or 3rd derivative
 
         # smooth_factor = int(self.smoothInput.text())
         # firstTempGradient = self.calculate_temp_gradient(self.empty_data['temp'], 
@@ -542,17 +543,15 @@ class procFastHeatWidget(qt.QWidget):
                     del dest_data[array_name]
                 dest_data.create_dataset(array_name, data = array)
 
-    # functions to calculate heat exhange coefficient, power, dT, etc. 
+    # functions to calculate heat exchange coefficient, power, dT, etc.
     def calculate_temp_gradient(self, temp_array, time_array, smooth_factor):
         temp_smooth = filters.savitsky_golay(temp_array, smooth_factor)
         dt = time_array[1]-time_array[0]
         return np.gradient(temp_smooth, dt)
 
     def calculate_heat_exch_coeff(self, calib_coeff_1, calib_coeff_2, calib_coeff_3,
-                                    Uhtr, Thtr, temp, rate, 
-                                    end_heating, start_cooling):
-        empty_P = self.calculate_empty_P(calib_coeff_1, calib_coeff_2, calib_coeff_3, 
-                                        Uhtr, Thtr)
+                                  Uhtr, Thtr, temp, rate, end_heating, start_cooling):
+        empty_P = self.calculate_empty_P(calib_coeff_1, calib_coeff_2, calib_coeff_3, Uhtr, Thtr)
         empty_G = np.array([None for i in range(end_heating)], dtype=np.float32)
         empty_GdT = np.array([None for i in range(end_heating)], dtype=np.float32)
         empty_G_temp = np.linspace(temp[0], temp[end_heating], end_heating)
@@ -573,7 +572,7 @@ class procFastHeatWidget(qt.QWidget):
         return empty_P, empty_G, empty_G_temp, empty_GdT
         
     def calculate_empty_P(self, calib_coeff_1, calib_coeff_2, calib_coeff_3, 
-                            empty_Uhtr, empty_Thtr):
+                          empty_Uhtr, empty_Thtr):
         empty_Rg = -0.5*calib_coeff_2/calib_coeff_3 - \
                     np.sqrt((calib_coeff_2**2-4*calib_coeff_3*(calib_coeff_1-empty_Thtr))/4/calib_coeff_3**2)
         empty_P = empty_Uhtr**2/empty_Rg
@@ -597,17 +596,17 @@ class procFastHeatWidget(qt.QWidget):
         if empty_paths:
             for path in empty_paths:
                 data = open(path+"::/data")
-                self.procFastHeatGraph.addCurve(data['time'], data['temp'], 
+                self.procFastHeatGraph.addCurve(data['time'], data['temp'],
                                                             legend=path.split('/')[-1].split('.')[0],
-                                                            color = self.procFastHeatGraph.curveColors['gray'])
+                                                            color=self.procFastHeatGraph.curveColors['gray'])
                 data.close()
         exp_paths = [self.expFilesTable.item(x).text() for x in range(self.expFilesTable.count())]
         if exp_paths:
             for path in exp_paths:
                 data = open(path+"::/data")
-                self.procFastHeatGraph.addCurve(data['time'], data['temp'], 
+                self.procFastHeatGraph.addCurve(data['time'], data['temp'],
                                                             legend=path.split('/')[-1].split('.')[0],
-                                                            color = self.procFastHeatGraph.curveColors['red'])
+                                                            color=self.procFastHeatGraph.curveColors['red'])
                 data.close()
     
     def update_calib_fields_after_add_remove(self):
@@ -624,43 +623,41 @@ class procFastHeatWidget(qt.QWidget):
 
     def update_plot_after_display_rate(self):
         self.procFastHeatGraph.clear()
-        self.procFastHeatGraph.addCurve(self.empty_data['time'], self.empty_data['rate'], 
-                                                    legend='',
-                                                    color = self.procFastHeatGraph.curveColors['red'])
+        self.procFastHeatGraph.addCurve(self.empty_data['time'], self.empty_data['rate'], legend='',
+                                        color=self.procFastHeatGraph.curveColors['red'])
 
         # TODO: add roi after auto-guess or to the center of graph
-        self.procFastHeatGraph.setRoi(400, 600)
+        self.procFastHeatGraph.set_roi(400, 600)
         self.isoBeginInput.setValue(400)
         self.isoEndInput.setValue(600)
 
     def update_plot_after_calc_button_pressed(self):
         self.procFastHeatGraph.clear()
         # need to remove roi after selection of isotherm to use new roi for baseline subtraction
-        self.procFastHeatGraph.removeRoi()
+        self.procFastHeatGraph.remove_roi()
 
-        #TODO: change middle point after introducing saving of temp program to file.
-        # make proper segments devide to get only heating and only cooling
-        middle = int(len(self.empty_data['temp'])/2)
+        # TODO: change middle point after introducing saving of temp program to file.
+        # make proper segments divide to get only heating and only cooling
+        middle = int(len(self.empty_data['temp']) / 2)
 
-        self.procFastHeatGraph.addCurve(self.empty_data['temp'][:middle], 
-                                        self.exp_data['exp_P'][:middle], 
+        self.procFastHeatGraph.addCurve(self.empty_data['temp'][:middle],
+                                        self.exp_data['exp_P'][:middle],
                                         legend='empty power heating',
-                                        color = self.procFastHeatGraph.curveColors['lightred'])
+                                        color=self.procFastHeatGraph.curveColors['lightred'])
         self.procFastHeatGraph.addCurve(self.exp_data['temp'][:middle],
-                                        self.exp_data['exp_P'][:middle], 
+                                        self.exp_data['exp_P'][:middle],
                                         legend='exp power heating',
-                                        color = self.procFastHeatGraph.curveColors['red'])
+                                        color=self.procFastHeatGraph.curveColors['red'])
         self.procFastHeatGraph.addCurve(self.empty_data['temp'][middle:],
-                                        self.exp_data['exp_P'][middle:], 
+                                        self.exp_data['exp_P'][middle:],
                                         legend='empty power cooling',
-                                        color = self.procFastHeatGraph.curveColors['lightblue'])
+                                        color=self.procFastHeatGraph.curveColors['lightblue'])
         self.procFastHeatGraph.addCurve(self.exp_data['temp'][middle:],
-                                        self.exp_data['exp_P'][middle:], 
+                                        self.exp_data['exp_P'][middle:],
                                         legend='exp power cooling',
-                                        color = self.procFastHeatGraph.curveColors['blue'])
+                                        color=self.procFastHeatGraph.curveColors['blue'])
 
-
-    # functions to connect roi selection with selectboxes for iso
+    # functions to connect roi selection with select-boxes for iso
     def update_graph_roi_min(self):
         cursor = self.isoBeginInput.value()
         self.isoEndInput.setMinimum(cursor)
@@ -681,22 +678,27 @@ class procFastHeatWidget(qt.QWidget):
 
 class GroupBoxesState(qt.QThread):
     state = qt.pyqtSignal(bool)
+
     def __init__(self, mainWindow):
         super().__init__()
         self.mainWindow = mainWindow
+
     def run(self):
         if self.mainWindow.expFilesTable.count()>0 and self.mainWindow.emptyFilesTable.count()>0:
             self.state.emit(True)
         else:
             self.state.emit(False)
 
+
 class HeatExchFieldsState(qt.QThread):
     state = qt.pyqtSignal(bool)
+
     def __init__(self, mainWindow):
         super().__init__()
         self.mainWindow = mainWindow
+
     def run(self):
-        if self.mainWindow.autoOption2Selector.currentText()=="heat exchange constant value":
+        if self.mainWindow.autoOption2Selector.currentText() == "heat exchange constant value":
             self.state.emit(True)
         else:
             self.state.emit(False)
@@ -707,6 +709,6 @@ if __name__ == "__main__":
     app = qt.QApplication(sys.argv)
     sys.excepthook = qt.exceptionHandler
     app.setStyle('Fusion')
-    example = procFastHeatWidget()
+    example = ProcFastHeatWidget()
     example.show()
     sys.exit(app.exec())

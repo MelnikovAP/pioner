@@ -1,15 +1,16 @@
 import sys
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore    import *
+from PyQt5.QtCore import *
 import numpy as np
 import json
 from enum import Enum
 from typing import List
 
+
 class SetProg(QWidget):
     def __init__(self, parent=None):
-        super(SetProg, self).__init__(parent)
+        super().__init__(parent)
         self.tab1 = ProfileWidget("Channel 0")
         self.tab1.setObjectName("Tab 0")
         self.tab2 = ProfileWidget("Channel 1")
@@ -54,7 +55,7 @@ class SetProg(QWidget):
 
 class ProfileWidget(QWidget):
     def __init__(self, name:str, parent=None):
-        super(ProfileWidget, self).__init__(parent=parent)
+        super().__init__(parent=parent)
         self.name = name
         
         # Create the layout for the table and buttons

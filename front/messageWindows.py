@@ -1,31 +1,41 @@
-from silx.gui import qt
+from silx.gui.qt import QMessageBox
 
 
-class ErrorWindow(qt.QMessageBox):
+# TODO: use this class as a base one for all classes below
+class MessageBox(QMessageBox):
+    def __init__(self,
+                 title: str,
+                 text: str,
+                 parent=None):
+        super().__init__(parent)
+        # self.text = text
+
+
+class ErrorWindow(QMessageBox):
     def __init__(self, error_text: str, parent=None):
-        super(ErrorWindow, self).__init__(parent)
+        super().__init__(parent)
         self.setText(error_text)
         self.setWindowTitle("Error")
-        self.setIcon(qt.QMessageBox.Critical)
-        self.addButton(qt.QMessageBox.Ok)
+        self.setIcon(QMessageBox.Critical)
+        self.addButton(QMessageBox.Ok)
         self.exec()
 
 
-class MessageWindow(qt.QMessageBox):
+class MessageWindow(QMessageBox):
     def __init__(self, message_text: str, parent=None):
-        super(MessageWindow, self).__init__(parent)
+        super().__init__(parent)
         self.setText(message_text)
         self.setWindowTitle("Sorry...")
-        self.setIcon(qt.QMessageBox.Information)
-        self.addButton(qt.QMessageBox.Ok)
+        self.setIcon(QMessageBox.Information)
+        self.addButton(QMessageBox.Ok)
         self.exec()
 
 
-class YesCancelWindow(qt.QMessageBox):
+class YesCancelWindow(QMessageBox):
     def __init__(self, message_text: str, parent=None):
-        super(YesCancelWindow, self).__init__(parent)
+        super().__init__(parent)
         self.setText(message_text)
         self.setWindowTitle("Warning")
-        self.setIcon(qt.QMessageBox.Warning)
-        self.addButton(qt.QMessageBox.Yes)
-        self.addButton(qt.QMessageBox.Cancel)
+        self.setIcon(QMessageBox.Warning)
+        self.addButton(QMessageBox.Yes)
+        self.addButton(QMessageBox.Cancel)
