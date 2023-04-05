@@ -2,7 +2,7 @@ from silx.gui import qt
 from silx.gui import icons
 from resultsDataWidget import resultsDataWidget
 from procFastHeatWidget import procFastHeatWidget
-
+from SetProg_widget import *
 
 class mainWindowUi(qt.QWidget):
     def __init__(self, parent=None):
@@ -644,7 +644,8 @@ class mainWindowUi(qt.QWidget):
         if self.mainTabWidget.tabText(i) == "+":
             tab_types = ("Process fast heating", 
                         "Process slow heating", 
-                        "Process with custom workflow")
+                        "Process with custom workflow",
+                        "Advanced process control")
             tab_type, ok = qt.QInputDialog.getItem(self, "Choose type:", 
                 "New tab", tab_types, 0, False)
             if ok and tab_type:
@@ -656,7 +657,9 @@ class mainWindowUi(qt.QWidget):
                 if tab_type=="Process fast heating":
                     self.newTabWidget = procFastHeatWidget(self)
                     self.newTab.layout.addWidget(self.newTabWidget)
-
+                if tab_type == "Advanced process control":
+                    self.newTabWidget = SetProg(self)
+                    self.newTab.layout.addWidget(self.newTabWidget)
                 self.newTab.setLayout(self.newTab.layout)
 
     def close_tab_in_mainTabWidget(self, i):
