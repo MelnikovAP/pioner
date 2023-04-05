@@ -1,11 +1,11 @@
 # Code Style Guide
 
 ### Main rules:
-- Don't use tabs as separator. Use four spaces instead.
+- Don't use tab `\t` as a separator. Use four spaces instead.
 - Comments only in English.
 - Class names should use `CamelCase` convention.
 - Function names should use `snake_case` convention.
-- An empty line at the end of each file.
+- Add an empty line at the end of each file.
 - Get rid of `import` statements of unused modules and packages.
 - A single `#` symbol following by a single space `" "` for comments.
 - Two spaces before `#` to add comments in the same line of code.

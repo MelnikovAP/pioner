@@ -1,6 +1,6 @@
 from experiment_manager import ExperimentManager
 from daq_device import DaqDeviceHandler
-from utils import temperature_to_voltage
+from temp_volt_converters import temperature_to_voltage
 from settings import Settings
 from calibration import Calibration
 from utils.constants import SETTINGS_PATH

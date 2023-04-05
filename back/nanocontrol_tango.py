@@ -1,5 +1,4 @@
 from tango.server import Device, pipe, command
-from utils.constants import *
 from calibration import Calibration
 from fastheat import FastMode
 from iso_mode import IsoMode

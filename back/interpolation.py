@@ -4,6 +4,7 @@ import numpy as np
 from segment_data import SegmentData, SegmentStyle
 
 
+# TODO: move to utils
 def linear_interpolation(start_time: float, end_time: float, start_value: float,
                          end_value: float, sample_rate: int) -> np.ndarray:
     interpolation_function = interp1d(x=[start_time, end_time],

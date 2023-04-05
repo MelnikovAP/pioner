@@ -1,4 +1,3 @@
-from utils.constants import *
 from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler

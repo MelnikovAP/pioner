@@ -2,7 +2,7 @@ from settings import Settings
 from typing import Dict, Any
 
 from segment_data import SegmentType
-from data_types import DataType
+from utils.data_types import DataType
 
 
 # TODO: use other types instead of inner dicts

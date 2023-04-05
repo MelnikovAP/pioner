@@ -4,7 +4,7 @@ from experiment_manager import ExperimentManager
 from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from settings import Settings
-from utils import square_poly, cubic_poly
+from utils.utils import square_poly, cubic_poly
 
 from scipy import interpolate
 from typing import List

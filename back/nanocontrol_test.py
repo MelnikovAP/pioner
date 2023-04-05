@@ -2,7 +2,6 @@ from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from fastheat import FastMode
 from settings import Settings
-from utils.constants import *
 
 import matplotlib.pyplot as plt
 

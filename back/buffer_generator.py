@@ -1,18 +1,16 @@
 from sortedcontainers import SortedDict
 from typing import Dict, List
 from ctypes import Array
-
 import numpy as np
 import uldaq as ul
-import math
 
+from segment_data import IsoSegment, RampSegment, SineSegment, SegmentStyle
 from temp_volt_converters import temperature_to_voltage
 from interpolation import linear_segment_interpolation
-from segment_data import IsoSegment, RampSegment, SineSegment, SegmentStyle
 from sine_generator import SineGenerator
 from profile_data import ProfileData
 from calibration import Calibration
-from data_types import DataType
+from utils.data_types import DataType
 from settings import Settings
 
 
@@ -34,7 +32,7 @@ class BufferGenerator:
         self._chunk_duration = settings.ao_params.time_buffer
 
         self._experiment_time = self._calc_experiment_time()
-        self._chunks_count = math.ceil(self._experiment_time / self._chunk_duration)  # TODO: check, be careful
+        self._chunks_count = int(self._experiment_time / self._chunk_duration)  # TODO: check, be careful
         self._profile_chunks = self._divide_profile_to_chunks()
 
         # self._create_buffer(channel_count, chan_buffer_size)
@@ -143,8 +141,8 @@ class BufferGenerator:
                 buffer[i * channels_num + channel] = data[i]
 
 
-# example of slow mode experiment
-profiles_data = {
+# example of slow heating experiment
+slow_heat_profiles_data = {
     0: ProfileData(
         DataType.VOLT,
         [
@@ -160,7 +158,30 @@ profiles_data = {
     2: ProfileData(
         DataType.VOLT,
         [
-            IsoSegment(0., 50., 0.)
+            IsoSegment(0., 50., 4.5)
+        ]
+    )
+}
+
+
+# example of isothermal experiment
+iso_profiles_data = {
+    0: ProfileData(
+        DataType.VOLT,
+        [
+            SineSegment(0., 50., 0., 0.1, 37.5, 0.1)
+        ]
+    ),
+    1: ProfileData(
+        DataType.TEMP,
+        [
+            IsoSegment(0., 50., 50.),
+        ]
+    ),
+    2: ProfileData(
+        DataType.VOLT,
+        [
+            IsoSegment(0., 50., 4.5)
         ]
     )
 }

@@ -1,7 +1,7 @@
 from typing import List
 
 from segment_data import SegmentData
-from data_types import DataType
+from utils.data_types import DataType
 
 
 # for a single channel

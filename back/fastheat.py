@@ -1,7 +1,7 @@
 from utils.constants import EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
 from temp_volt_converters import temperature_to_voltage
 from experiment_manager import ExperimentManager
-from utils import square_poly, cubic_poly
+from utils.utils import square_poly, cubic_poly
 from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from settings import Settings

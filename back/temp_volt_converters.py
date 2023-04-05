@@ -2,7 +2,7 @@ from calibration import Calibration
 from bisect import bisect_left
 import numpy as np
 
-from utils import cubic_poly_array
+from utils.utils import cubic_poly_array
 
 # TODO: think maybe to create a T-V (and vice versa) converter class
 

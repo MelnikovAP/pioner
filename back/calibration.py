@@ -1,5 +1,4 @@
-from utils.constants import *
-from utils import cubic_poly
+from utils.utils import cubic_poly
 import json
 import os
 
