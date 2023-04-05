@@ -1,5 +1,6 @@
 from silx.gui import qt
 
+
 class ErrorWindow(qt.QMessageBox):
     def __init__(self, error_text: str, parent=None):
         super(ErrorWindow, self).__init__(parent)
@@ -9,6 +10,7 @@ class ErrorWindow(qt.QMessageBox):
         self.addButton(qt.QMessageBox.Ok)
         self.exec()
 
+
 class MessageWindow(qt.QMessageBox):
     def __init__(self, message_text: str, parent=None):
         super(MessageWindow, self).__init__(parent)
@@ -17,6 +19,7 @@ class MessageWindow(qt.QMessageBox):
         self.setIcon(qt.QMessageBox.Information)
         self.addButton(qt.QMessageBox.Ok)
         self.exec()
+
 
 class YesCancelWindow(qt.QMessageBox):
     def __init__(self, message_text: str, parent=None):

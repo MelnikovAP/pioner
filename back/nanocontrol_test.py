@@ -2,8 +2,10 @@ from daq_device import DaqDeviceHandler
 from calibration import Calibration
 from fastheat import FastMode
 from settings import Settings
-from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, SETTINGS_PATH)
+from utils.constants import *
+
 import matplotlib.pyplot as plt
+
 
 def initial_setup():
     calibration = Calibration()
@@ -16,13 +18,16 @@ def initial_setup():
     print("Calibration: ", calibration.comment)
     return calibration, settings, daq_device_handler
 
+
 def connect(calibration, settings, daq_device_handler):
     daq_device_handler.try_connect()
     descriptor = daq_device_handler.get_descriptor()
     print("TANGO: Product info: {}".format(descriptor.dev_string))
 
+
 def disconnect(daq_device_handler):
     daq_device_handler.disconnect()
+
 
 def test_fast_heat(calibration, settings, daq_device_handler):
     time_temp_table = {
@@ -45,11 +50,12 @@ def test_fast_heat(calibration, settings, daq_device_handler):
         fh.run()
         print("LOG: Fast heating finished.")
 
+
 if __name__ == '__main__':
     try:
-        [calibration, settings, daq_device_handler] = initial_setup()
-        connect(calibration, settings, daq_device_handler)
-        test_fast_heat(calibration, settings, daq_device_handler)
-        disconnect(daq_device_handler)
+        _calibration, _settings, _daq_device_handler = initial_setup()
+        connect(_calibration, _settings, _daq_device_handler)
+        test_fast_heat(_calibration, _settings, _daq_device_handler)
+        disconnect(_daq_device_handler)
     except BaseException as e:
         print(e)

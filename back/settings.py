@@ -5,7 +5,7 @@ from ai_device import AiParams
 from ao_device import AoParams
 from modulation_params import ModulationParams
 from utils import is_int_or_raise, is_float_or_raise, list_bitwise_or
-from constants import *
+from utils.constants import *
 
 
 class JsonReader:

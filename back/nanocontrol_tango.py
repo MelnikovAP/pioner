@@ -1,6 +1,5 @@
-from tango.server import Device, attribute, pipe, command, AttrWriteType
-from constants import (CALIBRATION_PATH, DEFAULT_CALIBRATION_PATH, LOGS_FOLDER_REL_PATH, RAW_DATA_FOLDER_REL_PATH,
-                       NANOCONTROL_LOG_FILE_REL_PATH, SETTINGS_PATH)
+from tango.server import Device, pipe, command
+from utils.constants import *
 from calibration import Calibration
 from fastheat import FastMode
 from iso_mode import IsoMode

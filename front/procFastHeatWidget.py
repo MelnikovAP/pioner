@@ -4,16 +4,14 @@ from silx.io import open
 from silx.math.fit import filters
 import h5py
 from shutil import copy
-import json
 
-from messageWindows import *
 from calibWindow import *
 from resultsDataWidget import resultsDataWidget
 
 
 class procFastHeatWidget(qt.QWidget):
     def __init__(self, parent=None):
-        super(procFastHeatWidget, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         # ####### UI setup
         # ########################################
@@ -29,7 +27,7 @@ class procFastHeatWidget(qt.QWidget):
         main_lout.addLayout(left_lout, 0)
         main_lout.addLayout(right_lout, 1)
 
-        ## Experiment files management table
+        # Experiment files management table
         left_lout.addWidget(qt.QLabel("Experimental data"))
         self.expFilesTable = qt.QListWidget()
         self.expFilesTable.setFixedSize(200, 200)
@@ -52,7 +50,7 @@ class procFastHeatWidget(qt.QWidget):
 
         left_lout.addSpacing(10)
 
-        ## Reference files management table
+        # Reference files management table
         left_lout.addWidget(qt.QLabel("Reference data"))
         self.emptyFilesTable = qt.QListWidget()
         self.emptyFilesTable.setFixedSize(200, 200)
@@ -75,7 +73,7 @@ class procFastHeatWidget(qt.QWidget):
 
         left_lout.addStretch()
 
-        ## Left control buttons
+        # Left control buttons
         lout_0 = qt.QHBoxLayout()
         left_lout.addLayout(lout_0)
         self.plotButton = qt.QPushButton("Plot")
@@ -85,14 +83,13 @@ class procFastHeatWidget(qt.QWidget):
         lout_0.addWidget(self.saveResultsButton)
         lout_0.addWidget(self.plotButton)
 
-        ## Graph space
+        # Graph space
         self.procFastHeatGraph = resultsDataWidget(parent=self)
         self.procFastHeatGraph.curveLegendsWidgetDock.setHidden(True)
         self.graphRoiManager = self.procFastHeatGraph.roiManager
         right_lout.addWidget(self.procFastHeatGraph, 1)
         
-        ## Calibration space
-        
+        # Calibration space
         self.calibrationGroupBox = qt.QGroupBox("Calibration coefficients")
         right_lout.addWidget(self.calibrationGroupBox)
         lout_1 = qt.QHBoxLayout()
@@ -118,7 +115,7 @@ class procFastHeatWidget(qt.QWidget):
         lout_1.addWidget(self.rgRhRatioInput)
         lout_1.addWidget(qt.QLabel(" \u2219 R<sub>h</sub> "))
 
-        ## Correction space
+        # Correction space
         lout_0 = qt.QHBoxLayout()
         right_lout.addLayout(lout_0)
         self.manualCorrectionGroupBox = qt.QGroupBox("Manual correction")
@@ -127,7 +124,7 @@ class procFastHeatWidget(qt.QWidget):
         self.autoCorrectionGroupBox = qt.QGroupBox("Auto correction")
         lout_0.addWidget(self.autoCorrectionGroupBox)
 
-        ## Manual Correction space
+        # Manual Correction space
         lout_0 = qt.QVBoxLayout()
         self.manualCorrectionGroupBox.setLayout(lout_0)
         lout_1 = qt.QHBoxLayout()
@@ -182,7 +179,7 @@ class procFastHeatWidget(qt.QWidget):
         self.calculateManualButton = qt.QPushButton("Calculate")
         lout_1.addWidget(self.calculateManualButton)
         
-        ## Auto Correction space
+        # Auto Correction space
         lout_0 = qt.QVBoxLayout()
         self.autoCorrectionGroupBox.setLayout(lout_0)
         lout_1 = qt.QHBoxLayout()
@@ -223,7 +220,7 @@ class procFastHeatWidget(qt.QWidget):
             item.setValidator(float_validator)
         
 
-        ## Signals and slots
+        # Signals and slots
         self.addButtonExpFilesTable.clicked.connect(self.add_files_to_table)
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonExpFilesTable.setEnabled(True))
         self.expFilesTable.itemSelectionChanged.connect(lambda: self.removeButtonExpFilesTable.setEnabled(False)

@@ -1,7 +1,8 @@
 from messageWindows import *
 
-# AM: check later if this class is indeed nessesary. Now almost all
+# AM: check later if this class is indeed necessary. Now almost all
 # buttons are disabled after no-hardware mode switched on.
+
 
 class virtualDevice:
     def __init__(self):

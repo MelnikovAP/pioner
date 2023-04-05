@@ -6,7 +6,7 @@ from messageWindows import *
 from configWindow import *
 from calibWindow import *
 from settings import *
-from constants import *
+from utils.constants import *
 
 import requests
 import pandas as pd

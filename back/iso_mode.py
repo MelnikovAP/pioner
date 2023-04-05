@@ -3,7 +3,7 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import Settings
 from calibration import Calibration
-from constants import SETTINGS_PATH
+from utils.constants import SETTINGS_PATH
 
 
 class IsoMode:

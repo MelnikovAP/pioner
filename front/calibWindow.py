@@ -1,8 +1,6 @@
 from silx.gui import qt
 from settings import *
 from messageWindows import *
-from constants import SETTINGS_FILE_REL_PATH
-import requests
 
 
 class calibWindow(qt.QDialog):
@@ -373,9 +371,9 @@ class calibWindow(qt.QDialog):
         self.amplcorBoxInput3.setText(str(round(self.parent().calibration.ac2, 10)))
         self.amplcorBoxInput4.setText(str(round(self.parent().calibration.ac2, 10)))
 
-
     def read_calib_input_fields(self):  
         self.parent().calibration.comment = self.calibInfoInput.text()
+
 
 if __name__ == "__main__":
     import sys

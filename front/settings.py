@@ -1,5 +1,5 @@
 import json
-from constants import *
+from utils.constants import *
 
 
 class mainParams:
@@ -45,6 +45,7 @@ class mainParams:
             }
 
         return params_dict
+
 
 class JsonReader:
     """Reads a JSON configuration file."""

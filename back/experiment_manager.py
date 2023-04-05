@@ -1,5 +1,4 @@
-from constants import (RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE_REL_PATH, RAW_DATA_BUFFER_FILE_FORMAT,
-                       RAW_DATA_BUFFER_FILE_PREFIX)
+from utils.constants import *
 from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler

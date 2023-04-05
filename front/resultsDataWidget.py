@@ -10,24 +10,25 @@ from silx.gui.fit import BackgroundWidget
 
 import numpy as np
 from messageWindows import *
-from settings import *
 import functools
+
 
 class resultsDataWidget(qt.QWidget):
     def __init__(self, parent=None):
         super(resultsDataWidget, self).__init__(parent=parent)
 
-        self.curveColors = {"black":"#292828",
-                            "blue":"#2544D2", 
-                            "green":"#46D225", 
-                            "red":"#D22525", 
-                            "violet":"#9F25D2", 
-                            "orange":"#D26125", 
-                            "lightred":"#e47c7c",
-                            "lightblue":"#25A7D2", 
-                            "yellow":"#D2B325", 
-                            "gray":"#5D5D5D"
-                            }
+        self.curveColors = {
+            "black": "#292828",
+            "blue": "#2544D2",
+            "green": "#46D225",
+            "red": "#D22525",
+            "violet": "#9F25D2",
+            "orange": "#D26125",
+            "lightred": "#e47c7c",
+            "lightblue": "#25A7D2",
+            "yellow": "#D2B325",
+            "gray": "#5D5D5D"
+        }
 
         main_lout = qt.QHBoxLayout()
         self.setLayout(main_lout)
@@ -68,7 +69,6 @@ class resultsDataWidget(qt.QWidget):
         self.roiManager = RegionOfInterestManager(self.resultPlot)
         self.roiManager.setColor(self.curveColors['lightblue'])
 
-
     def addCurve(self, x_data, y_data, legend:str, color:str):
         self.resultPlot.addCurve(x_data, y_data, 
                                 legend=legend,
@@ -92,7 +92,8 @@ class resultsDataWidget(qt.QWidget):
         # completely removes roi
         delattr(self, 'roi')
         self.roiManager.clear()
-    
+
+
 class CustomCurveLegendsWidget(CurveLegendsWidget):
     # Extension of CurveLegendWidget
 
