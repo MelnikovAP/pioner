@@ -30,6 +30,14 @@ class SegmentData:
         self.start_value = start_value  # Volts or °C
         self.end_value = end_value  # Volts or °C
 
+    def __str__(self):
+        s = "Profile segment of type: {}\n"
+        s += "start time: {}; end time: {}; duration: {}\n"
+        s += "start value: {}; end value: {}\n"
+        s.format(self.segment_type.name, self.start_time, self.end_time,
+                 self.duration(), self.start_value, self.end_value)
+        return s
+
     def style(self) -> SegmentStyle:
         ...
 
@@ -44,6 +52,9 @@ class IsoSegment(SegmentData):
                  start_value: float):
         super().__init__(SegmentType.ISO, start_time, end_time, start_value, start_value)
 
+    def __str__(self):
+        return super().__str__()
+
     def style(self) -> SegmentStyle:
         return SegmentStyle.LINEAR
 
@@ -55,6 +66,11 @@ class RampSegment(SegmentData):
                  start_value: float,
                  end_value: float):
         super().__init__(SegmentType.RAMP, start_time, end_time, start_value, end_value)
+
+    def __str__(self):
+        s = super().__str__()
+        s += "rate: {}\n".format(self.rate())
+        return s
 
     def style(self) -> SegmentStyle:
         return SegmentStyle.LINEAR
@@ -78,6 +94,11 @@ class SineSegment(SegmentData):
         self.amplitude = amplitude
         self.frequency = frequency
         self.offset = offset
+
+    def __str__(self):
+        s = super().__str__()
+        s += "amplitude: {}; frequency: {}; offset: {}\n".format(self.amplitude, self.frequency, self.offset)
+        return s
 
     def style(self) -> SegmentStyle:
         return SegmentStyle.PERIODIC

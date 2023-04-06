@@ -4,6 +4,7 @@ from fastheat import FastMode
 from iso_mode import IsoMode
 from settings import Settings
 from daq_device import DaqDeviceHandler
+from utils.constants import *
 
 import uldaq as ul
 import logging
@@ -130,9 +131,9 @@ class NanoControl(Device):
     
     # @command(dtype_in=[float])
     # def set_modulation_parameters(self, params):
-    #     self._settings.modualtaion_frequency = params[0]
-    #     self._settings.modualtaion_amplitude = params[1]
-    #     self._settings.modualtaion_offset = params[2]
+    #     self._settings.modulation_frequency = params[0]
+    #     self._settings.modulation_amplitude = params[1]
+    #     self._settings.modulation_offset = params[2]
 
     # ===================================
     # Fast heating

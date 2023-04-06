@@ -2,7 +2,7 @@
 
 ### Main rules:
 - Don't use tab `\t` as a separator. Use four spaces instead.
-- Comments only in English.
+- Comments should be necessary to explain some logic and only in English.
 - Class names should use `CamelCase` convention.
 - Function names should use `snake_case` convention.
 - Add an empty line at the end of each file.
@@ -14,6 +14,7 @@
 - Add space before and after operators (`=, ==, >, <` etc.).
 - Use `_` as a prefix of protected and private class fields.
 - Use a `@staticmethod` decorator for class methods that don't require `self`.
+- Initialize containers like this: `l = list(), d = dict(), s = set()`.
 - 
 
 ### Best resources:

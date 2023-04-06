@@ -1,6 +1,6 @@
 from typing import List
 
-from segment_data import SegmentData
+from utils.segment_data import SegmentData
 from utils.data_types import DataType
 
 
@@ -16,3 +16,10 @@ class ProfileData:
         if segments is None:
             segments = list()
         self.segments = segments
+
+    def __str__(self):
+        s = "Profile data of type: {}\n"
+        s += "Segments:"
+        for segment in self.segments:
+            s += str(segment)
+        return s

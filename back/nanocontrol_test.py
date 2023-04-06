@@ -3,6 +3,9 @@ from calibration import Calibration
 from fastheat import FastMode
 from settings import Settings
 
+from utils.constants import DEFAULT_CALIBRATION_PATH, SETTINGS_PATH
+
+
 import matplotlib.pyplot as plt
 
 

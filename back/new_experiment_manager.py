@@ -1,4 +1,3 @@
-from ctypes import Array
 from typing import Dict
 
 import uldaq as ul
@@ -8,7 +7,7 @@ from daq_device import DaqDeviceHandler
 from ai_device import AiDeviceHandler
 from ao_device import AoDeviceHandler
 from calibration import Calibration
-from profile_data import ProfileData
+from utils.profile_data import ProfileData
 from settings import Settings
 
 

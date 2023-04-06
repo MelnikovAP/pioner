@@ -4,13 +4,14 @@ from ctypes import Array
 import numpy as np
 import uldaq as ul
 
-from segment_data import IsoSegment, RampSegment, SineSegment, SegmentStyle
+from utils.segment_data import IsoSegment, RampSegment, SineSegment, SegmentStyle
+from utils.profile_data import ProfileData
+from utils.data_types import DataType
+
 from temp_volt_converters import temperature_to_voltage
 from interpolation import linear_segment_interpolation
 from sine_generator import SineGenerator
-from profile_data import ProfileData
 from calibration import Calibration
-from utils.data_types import DataType
 from settings import Settings
 
 

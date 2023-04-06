@@ -1,7 +1,7 @@
 from scipy.interpolate import interp1d
 import numpy as np
 
-from segment_data import SegmentData, SegmentStyle
+from utils.segment_data import SegmentData, SegmentStyle
 
 
 # TODO: move to utils

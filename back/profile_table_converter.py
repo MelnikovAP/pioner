@@ -1,7 +1,7 @@
 from settings import Settings
 from typing import Dict, Any
 
-from segment_data import SegmentType
+from utils.segment_data import SegmentType
 from utils.data_types import DataType
 
 
