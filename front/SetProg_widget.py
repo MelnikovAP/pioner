@@ -1,10 +1,11 @@
-import sys
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import json
-from enum import Enum
-from typing import List
+
+from utils.profile_data import ProfileData
+from utils.segment_data import *
+from utils.data_types import DataType
 
 
 class SetProg(QWidget):
@@ -79,11 +80,13 @@ class ProfileWidget(QWidget):
         self.typecbox.addItems(["°C", "V"])
 
         # Create labels for the table columns
-        typelabel = QLabel('Value type:')
-        labeltime = QLabel()
-        labelval = QLabel()
-        labeltime.setText('Time')
-        labelval.setText("Value")
+        label_value_type = QLabel('Value type:')
+
+        label_time = QLabel()
+        label_time.setText('Time')
+
+        label_value = QLabel()
+        label_value.setText("Value")
 
         # Add widgets to the layout
         layer3.addWidget(self.tableWidget, 0)
@@ -91,7 +94,7 @@ class ProfileWidget(QWidget):
         layer2.addWidget(buttonDEL1s, 0)
         layer2.addWidget(buttonSAVE, 0)
         layer2.addWidget(buttonLOAD, 0)
-        layer2.addWidget(typelabel, 0)
+        layer2.addWidget(label_value_type, 0)
         layer2.addWidget(self.typecbox, 0)
         layer2.addWidget(buttonARM, 0)
 
@@ -118,19 +121,19 @@ class ProfileWidget(QWidget):
         for i in range(self.tableWidget.rowCount()):
             row_widget1 = self.tableWidget.cellWidget(i, 1).layout()
             row_widget2 = self.tableWidget.cellWidget(i, 2).layout()
+
             for k in range(row_widget1.count()):
                 if row_widget1.itemAt(k).widget().text() == "°C":
-
                     row_widget1.itemAt(k).widget().setText('V')
                 elif row_widget1.itemAt(k).widget().text() == 'V':
-
                     row_widget1.itemAt(k).widget().setText("°C")
+
             for k in range(row_widget2.count()):
                 if row_widget2.itemAt(k).widget().text() in ["°C/min", "°C/ms", "°C/s"]:
                     row_widget2.itemAt(k).widget().setText('V/' + row_widget2.itemAt(k).widget().text().split('/')[1])
                 elif row_widget2.itemAt(k).widget().text() in ["V/min", "V/ms", "V/s"]:
-
                     row_widget2.itemAt(k).widget().setText("°C/" + row_widget2.itemAt(k).widget().text().split('/')[1])
+
             self.tableWidget.cellWidget(i, 1).setLayout(row_widget1)
             self.tableWidget.cellWidget(i, 2).setLayout(row_widget2)
 
@@ -146,7 +149,7 @@ class ProfileWidget(QWidget):
         if self.tableWidget.rowCount() != 0:
             # Loop through each row of the table and create a dictionary for that row's data
             for row in range(self.tableWidget.rowCount()):
-                row_dict = {}
+                row_dict = dict()
 
                 # Get the mode type for this row and add it to the row dictionary
                 row_dict['mode_type'] = self.tableWidget.cellWidget(row, 0).text()
@@ -209,7 +212,7 @@ class ProfileWidget(QWidget):
         self.tableWidget.clear()
         self.tableWidget.setRowCount(0)
         # Iterate through the keys in rows_data
-        row_data = {}
+        row_data = dict()
         for key in rows_data.keys():
             if key == 'unit':
                 typeval1 = rows_data['unit']
@@ -292,7 +295,7 @@ class ProfileWidget(QWidget):
 
             # self.typecbox.setEnabled(False)
 
-    def add_layer(self, x: int, b = True):
+    def add_layer(self, x: int, b=True):
 
         dialog = InputDialog1(self.typecbox.currentText())
         self.parent().setWindowModality(Qt.WindowModal)
@@ -300,7 +303,6 @@ class ProfileWidget(QWidget):
             row_number = self.tableWidget.rowCount()
 
         else:
-
             row_number = x
             mode_type = self.tableWidget.cellWidget(row_number, 0).text()
 
@@ -323,17 +325,15 @@ class ProfileWidget(QWidget):
                 time_type = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(2).widget().text()
                 dialog.set_values(Ampl, time_value, mode_type, time_type, Freq, Offs)
 
-
-
         if dialog.exec_() == QDialog.Accepted:
             self.tableWidget.insertRow(row_number)
-            if b != True:
-                self.tableWidget.removeRow(row_number+1)
+            if not b:
+                self.tableWidget.removeRow(row_number + 1)
             mode_type = dialog.type_combo.currentText()
             # Create and set the button widget
             buttrow = QPushButton(mode_type)
             buttrow.setObjectName("but" + str(row_number))
-            buttrow.clicked.connect(lambda checked, x=row_number: self.add_layer(x, False))
+            buttrow.clicked.connect(lambda checked, t=row_number: self.add_layer(t, False))
             self.tableWidget.setCellWidget(row_number, 0, buttrow)
             # Create and set the first value widget
             typeval1 = dialog.val_cb1.text()
@@ -394,14 +394,12 @@ class ProfileWidget(QWidget):
             wid2.setLayout(hlayer3)
 
             self.tableWidget.setCellWidget(row_number, 2, wid2)
-            self.tableWidget.cellClicked
+            # self.tableWidget.cellClicked  # TODO: check
         else:
-            if b == True:
+            if b:
                 self.tableWidget.removeRow(x)
 
     # self.typecbox.setEnabled(False)
-
-
 
     def mass_del(self):
         # Function to delete selected rows from the table widget
@@ -477,7 +475,7 @@ class ProfileWidget(QWidget):
             if typetime == "min":
                 duration = float(duration) * 60
 
-                # Create the appropriate segment based on the segment type
+            # Create the appropriate segment based on the segment type
             if seg_type == "Isotherm":
                 stval = float(self.tableWidget.cellWidget(i, 1).layout().itemAt(1).widget().text())
                 endmoment = stmoment + duration
@@ -518,7 +516,6 @@ class InputDialog1(QDialog):
         QDialog.__init__(self, parent)
         reg_ex = QRegExp("[0-9.]*")
 
-        # create a validator
         validator = QRegExpValidator(reg_ex)
 
         self.setWindowTitle("Add Option")
@@ -672,125 +669,27 @@ class InputDialog1(QDialog):
     def accept1(self):
         if self.type_combo.currentText() == "Isotherm":
             if not self.edit_val1.text() or not self.edit_val3.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
+                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values",
+                                           QMessageBox.Ok, self)
                 error_dialog.exec_()
             else:
                 self.accept()
 
         if self.type_combo.currentText() == "Ramp":
             if not self.edit_val1.text() or not self.edit_val2.text() or not self.edit_val3.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
+                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values",
+                                           QMessageBox.Ok, self)
                 error_dialog.exec_()
             else:
                 self.accept()
+
         if self.type_combo.currentText() == "Sine Segment":
             if not self.edit_val1.text() or not self.edit_val2.text() or not self.edit_val3.text() or not self.edit_val4.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
+                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values",
+                                           QMessageBox.Ok, self)
                 error_dialog.exec_()
             else:
                 self.accept()
-
-
-class SegmentType(Enum):
-    NONE = 0,
-    ISO = 1,
-    RAMP = 2,
-    SINE = 3
-
-
-class SegmentData:
-    def __init__(self,
-                 segment_type: SegmentType,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 end_value: float):
-        self.segment_type = segment_type
-        self.start_time = start_time  # in seconds
-        self.end_time = end_time  # in seconds
-        self.start_value = start_value  # Volts or °C
-        self.end_value = end_value  # Volts or °C
-
-    def duration(self) -> float:
-        return self.end_time - self.start_time
-
-
-class IsoSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float):
-        super().__init__(SegmentType.ISO, start_time, end_time, start_value, start_value)
-
-    def __repr__(self):
-        return f"IsoSegment({self.start_time}, {self.end_time}, {self.start_value})"
-
-
-class RampSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 end_value: float):
-        super().__init__(SegmentType.RAMP, start_time, end_time, start_value, end_value)
-
-    def __repr__(self):
-        return f"RampSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value})"
-
-        # Volts or °C per second
-
-    def rate(self) -> float:
-        return (self.end_value - self.start_value) / self.duration()
-
-
-class SineSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 amplitude: float,
-                 frequency: float,
-                 offset: float):
-        super().__init__(SegmentType.SINE, start_time, end_time, start_value, start_value)
-
-        self.amplitude = amplitude
-        self.frequency = frequency
-        self.offset = offset
-
-    def __repr__(self):
-        return f"SineSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value}, {self.amplitude}, {self.frequency}, {self.offset}  )"
-
-
-class DataType(Enum):
-    TIME = 1,
-    TEMP = 2,
-    VOLT = 3
-
-
-class ProfileData:
-    data_type: DataType
-    segments: List[SegmentData]
-
-    def __init__(self,
-                 data_type: DataType,  # Y-axis
-                 segments: List[SegmentData] = None):
-        self.data_type = data_type
-        if segments is None:
-            segments = list()
-        self.segments = segments
-
-    def __str__(self):
-        result = f"ProfileData(data_type={self.data_type}, segments=["
-        for segment in self.segments:
-            result += f"\n\t{segment}"
-        result += "\n])"
-        return result
-
-    def __repr__(self):
-        return f"ProfileData({self.data_type}, {self.segments})"
 
 
 if __name__ == "__main__":
@@ -802,4 +701,3 @@ if __name__ == "__main__":
     example = SetProg()
     example.show()
     sys.exit(app.exec())
-
