@@ -2,10 +2,10 @@
     "Settings": {
         "TANGO": {
             "TANGO_HOST": "lid13ctrl1.esrf.fr:20000",
-            "DEVICE_PROXY": "ID13/NanoControl/1"
+            "DEVICE_PROXY": "NanoControl/NanoControl/1"
         },
         "HTTP": {
-            "HTTP_HOST": "http://id13tmp0:8000/"
+            "HTTP_HOST": "http://nanocal.esrf.fr:8000/"
         },
         "PATHS": {
             "CALIB_PATH": "C:/Users/alexey0703/prog/nanocal/nanocal_front/settings/calibration.json",
