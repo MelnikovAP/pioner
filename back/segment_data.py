@@ -81,3 +81,20 @@ class SineSegment(SegmentData):
 
     def style(self) -> SegmentStyle:
         return SegmentStyle.PERIODIC
+
+
+class SegmentFactory:
+    @staticmethod
+    def create_segment(segment_type,
+                       start_time: float,
+                       end_time: float,
+                       start_value: float,
+                       end_value: float):
+        if segment_type == SegmentType.ISO:
+            return IsoSegment(start_time, end_time, start_value)
+        elif segment_type == SegmentType.RAMP:
+            return RampSegment(start_time, end_time, start_value, end_value)
+        elif segment_type == SegmentType.SINE:
+            return SineSegment(start_time, end_time, start_value, end_value)
+        else:
+            raise ValueError("Invalid segment type")
