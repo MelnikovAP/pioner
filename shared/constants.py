@@ -6,6 +6,52 @@ MAX_SCAN_SAMPLE_RATE = 1000000
 JSON_EXTENSION = "json"
 H5_EXTENSION = "h5"
 
+# Settings constants
+# =================================================================================
+SETTINGS_FOLDER = "settings"
+SETTINGS_FOLDER_REL_PATH = os.path.join(".", SETTINGS_FOLDER)
+SETTINGS_FILE = "settings.json"
+SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
+
+# JSON fields backend
+BACKEND_SETTINGS_FIELD = "Backend settings"
+
+DAQ_FIELD = "DAQ"
+AI_FIELD = "AI"
+AO_FIELD = "AO"
+
+INTERFACE_TYPE_FIELD = "InterfaceType"
+CONNECTION_CODE_FIELD = "ConnectionCode"
+
+SAMPLE_RATE_FIELD = "SampleRate"
+RANGE_ID_FIELD = "RangeId"
+LOW_CHANNEL_FIELD = "LowChannel"
+HIGH_CHANNEL_FIELD = "HighChannel"
+INPUT_MODE_FIELD = "InputMode"
+SCAN_FLAGS_FIELD = "ScanFlags"
+
+# JSON fields frontend
+FRONTEND_SETTINGS_FIELD = "Frontend settings"
+
+TANGO_FIELD = "TANGO"
+TANGO_HOST_FIELD = "TANGO_HOST"
+DEVICE_PROXY_FIELD = "DEVICE_PROXY"
+
+HTTP_FIELD = "HTTP"
+HTTP_HOST = "HTTP_HOST"
+
+PATHS_FIELD = "PATHS"
+CALIB_PATH_FIELD = "CALIB_PATH"
+DATA_PATH_FIELD = "DATA_PATH"
+
+SCAN_FIELD = "SCAN"
+SAMPLE_RATE_FIELD = "SAMPLE_RATE"
+
+MODULATION_FIELD = "MODULATION"
+FREQUENCY_FIELD = "FREQUENCY"
+AMPLITUDE_FIELD = "AMPLITUDE"
+OFFSET_FIELD = "OFFSET"
+
 # Raw data constants
 # =================================================================================
 DATA_FOLDER = "data"
@@ -29,30 +75,6 @@ LOGS_FOLDER = "logs"
 LOGS_FOLDER_REL_PATH = os.path.join(".", LOGS_FOLDER)
 NANOCONTROL_LOG_FILE = "nanocontrol.log"
 NANOCONTROL_LOG_FILE_REL_PATH = os.path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
-
-# Settings constants
-# =================================================================================
-SETTINGS_FOLDER = "settings"
-SETTINGS_FOLDER_REL_PATH = os.path.join(".", SETTINGS_FOLDER)
-SETTINGS_FILE = "settings.json"
-SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
-
-# JSON fields
-SETTINGS_FIELD = "Backend settings"
-
-DAQ_FIELD = "DAQ"
-AI_FIELD = "AI"
-AO_FIELD = "AO"
-
-INTERFACE_TYPE_FIELD = "InterfaceType"
-CONNECTION_CODE_FIELD = "ConnectionCode"
-
-SAMPLE_RATE_FIELD = "SampleRate"
-RANGE_ID_FIELD = "RangeId"
-LOW_CHANNEL_FIELD = "LowChannel"
-HIGH_CHANNEL_FIELD = "HighChannel"
-INPUT_MODE_FIELD = "InputMode"
-SCAN_FLAGS_FIELD = "ScanFlags"
 
 # Calibration constants
 # =================================================================================
