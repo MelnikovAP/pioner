@@ -1,5 +1,6 @@
 import json
-from constants import *
+
+from shared.constants import *
 
 
 class mainParams:

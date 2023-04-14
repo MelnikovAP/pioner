@@ -1,10 +1,10 @@
 
-from nanocal_utils import temperature_to_voltage
-from calibration import Calibration
-from scipy import interpolate
-import numpy as np
 import sys
 
+import numpy as np
+from calibration import Calibration
+from nanocal_utils import temperature_to_voltage
+from scipy import interpolate
 
 if __name__ == "__main__":
 

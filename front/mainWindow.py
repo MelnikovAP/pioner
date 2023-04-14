@@ -1,19 +1,19 @@
+import json
+import os
+
+import h5py
+import numpy as np
+import pandas as pd
+import requests
+from calibWindow import *
+from configWindow import *
+from mainWindowUi import mainWindowUi
+from messageWindows import *
 from silx.gui import qt
 from silx.gui.plot import Plot1D
 
-from mainWindowUi import mainWindowUi
-from messageWindows import *
-from configWindow import *
-from calibWindow import *
 from settings import *
-from constants import *
-
-import requests
-import pandas as pd
-import numpy as np
-import json
-import os
-import h5py
+from shared.constants import *
 
 
 class mainWindow(mainWindowUi):

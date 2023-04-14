@@ -1,8 +1,8 @@
-from calibration import Calibration
-
-from typing import List
 from bisect import bisect_left
+from typing import List
+
 import numpy as np
+from calibration import Calibration
 
 
 def is_int(key) -> bool:

@@ -2,7 +2,7 @@ from silx.gui import qt
 import os
 from settings import *
 from messageWindows import *
-from constants import SETTINGS_FILE_REL_PATH
+from shared.constants import *
 
 
 class configWindow(qt.QDialog):

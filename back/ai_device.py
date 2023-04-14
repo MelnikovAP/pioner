@@ -1,8 +1,8 @@
-from typing import Tuple
+import logging
 from ctypes import Array
+from typing import Tuple
 
 import uldaq as ul
-import logging
 
 
 class AiParams:

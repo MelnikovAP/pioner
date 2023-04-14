@@ -1,6 +1,7 @@
-import uldaq as ul
 import logging
 import time
+
+import uldaq as ul
 
 # TODO: add an abstract class for device + add a mock device for testing
 

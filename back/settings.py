@@ -1,10 +1,11 @@
 import json
 
-from daq_device import DaqParams
 from ai_device import AiParams
 from ao_device import AoParams
+from daq_device import DaqParams
 from utils import is_int_or_raise, list_bitwise_or
-from constants import *
+
+from shared.constants import *
 
 
 class JsonReader:
