@@ -50,10 +50,10 @@ class Settings:
             ValueError if any field doesn't exist.
         """
         json_dict = JsonReader(path).json()
-        if SETTINGS_FIELD not in json_dict:
+        if BACKEND_SETTINGS_FIELD not in json_dict:
             raise ValueError("No '{}' field found in the settings file.".format(SETTINGS_FIELD))
         else:
-            self._settings_dict = json_dict[SETTINGS_FIELD]
+            self._settings_dict = json_dict[BACKEND_SETTINGS_FIELD]
             for field in [DAQ_FIELD, AI_FIELD, AO_FIELD]:
                 if field not in self._settings_dict:
                     raise ValueError("No '{}' field found in the settings file.".format(field))

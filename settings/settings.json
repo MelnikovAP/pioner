@@ -36,7 +36,7 @@
         },
         "PATHS": {
             "CALIB_PATH": "./settings/default_calibration.json",
-            "DATA_PATH": "/home/pi/nanocal_pi/data/"
+            "DATA_PATH": "C://Users/alexey0703/prog/nanocal/nanocal_pi/data"
         },
         "SCAN": {
             "SAMPLE_RATE": 20000

@@ -319,7 +319,7 @@ class mainWindow(mainWindowUi):
             with open(fpath, 'r') as f:
                 file_settings = json.load(f)
 
-            file_settings[SETTINGS_FIELD] = self.settings.get_dict()[SETTINGS_FIELD]
+            file_settings[FRONTEND_SETTINGS_FIELD] = self.settings.get_dict()[FRONTEND_SETTINGS_FIELD]
 
             with open(fpath, 'w') as f:
                 json.dump(file_settings, f, separators=(',', ': '), indent=4)
