@@ -1,6 +1,8 @@
 from silx.gui import qt
 from settings import *
 from messageWindows import *
+import sys
+sys.path.append('./')
 from shared.constants import *
 import requests
 

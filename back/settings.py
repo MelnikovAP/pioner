@@ -5,6 +5,8 @@ from ao_device import AoParams
 from daq_device import DaqParams
 from utils import is_int_or_raise, list_bitwise_or
 
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 
@@ -50,10 +52,10 @@ class Settings:
             ValueError if any field doesn't exist.
         """
         json_dict = JsonReader(path).json()
-        if BACKEND_SETTINGS_FIELD not in json_dict:
-            raise ValueError("No '{}' field found in the settings file.".format(SETTINGS_FIELD))
+        if DAQ_SETTINGS_FIELD not in json_dict:
+            raise ValueError("No '{}' field found in the settings file.".format(DAQ_SETTINGS_FIELD))
         else:
-            self._settings_dict = json_dict[BACKEND_SETTINGS_FIELD]
+            self._settings_dict = json_dict[DAQ_SETTINGS_FIELD]
             for field in [DAQ_FIELD, AI_FIELD, AO_FIELD]:
                 if field not in self._settings_dict:
                     raise ValueError("No '{}' field found in the settings file.".format(field))
@@ -90,13 +92,6 @@ class Settings:
         """Parses all necessary analog-input parameters and fills AiParams instance."""
         self.ai_params = AiParams()
         ai_dict = self._settings_dict[AI_FIELD]
-
-        if SAMPLE_RATE_FIELD in ai_dict:
-            sample_rate = ai_dict[SAMPLE_RATE_FIELD]
-            if is_int_or_raise(sample_rate):
-                self.ai_params.sample_rate = min(int(sample_rate), MAX_SCAN_SAMPLE_RATE)
-        else:
-            self._invalid_fields.append(SAMPLE_RATE_FIELD)
 
         if RANGE_ID_FIELD in ai_dict:
             range_id = ai_dict[RANGE_ID_FIELD]
@@ -139,13 +134,6 @@ class Settings:
         """Parses all necessary analog-output parameters and fills AoParams instance."""
         self.ao_params = AoParams()
         ao_dict = self._settings_dict[AO_FIELD]
-
-        if SAMPLE_RATE_FIELD in ao_dict:
-            sample_rate = ao_dict[SAMPLE_RATE_FIELD]
-            if is_int_or_raise(sample_rate):
-                self.ao_params.sample_rate = min(int(sample_rate), MAX_SCAN_SAMPLE_RATE)
-        else:
-            self._invalid_fields.append(SAMPLE_RATE_FIELD)
             
         if RANGE_ID_FIELD in ao_dict:
             range_id = ao_dict[RANGE_ID_FIELD]
@@ -194,7 +182,7 @@ class Settings:
 
 if __name__ == '__main__':
     try:
-        _path = "./settings/settings.json"
+        _path = SETTINGS_FILE_REL_PATH
         settings = Settings(_path)
 
         print(settings.get_str())

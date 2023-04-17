@@ -1,5 +1,5 @@
 {
-    "Backend settings": {
+    "DAQ settings": {
         "DAQ": {
             "InterfaceType": [
                 1
@@ -7,7 +7,6 @@
             "ConnectionCode": 0
         },
         "AI": {
-            "SampleRate": 20000,
             "RangeId": 5,
             "LowChannel": 0,
             "HighChannel": 5,
@@ -17,7 +16,6 @@
             ]
         },
         "AO": {
-            "SampleRate": 20000,
             "RangeId": 5,
             "LowChannel": 0,
             "HighChannel": 3,

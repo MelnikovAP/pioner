@@ -10,6 +10,9 @@ from iso_mode import IsoMode
 from tango.server import AttrWriteType, Device, attribute, command, pipe
 
 from settings import Settings
+
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 
@@ -50,11 +53,6 @@ class NanoControl(Device):
         except TimeoutError as e:
             logging.error("TANGO: ERROR. Timeout exception while setting connection: {}".format(e))
             self._daq_device_handler.quit()
-
-    @command
-    def reset_connection(self):
-        self._daq_device_handler.reset()
-        logging.info('TANGO: Connection has been reset.')
 
     @command
     def disconnect(self):

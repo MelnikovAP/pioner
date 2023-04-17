@@ -1,5 +1,7 @@
 import json
 
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 

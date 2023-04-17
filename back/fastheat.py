@@ -11,6 +11,8 @@ from scipy import interpolate
 from utils import temperature_to_voltage
 
 from settings import Settings
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 

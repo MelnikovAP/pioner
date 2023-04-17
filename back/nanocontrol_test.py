@@ -4,6 +4,8 @@ from daq_device import DaqDeviceHandler
 from fastheat import FastHeat
 
 from settings import Settings
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 

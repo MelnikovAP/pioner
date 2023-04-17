@@ -12,6 +12,8 @@ from ao_device import AoDeviceHandler
 from daq_device import DaqDeviceHandler
 
 from settings import Settings
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 # TODO: check why we create analog devices inside scanning methods

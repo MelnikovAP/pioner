@@ -9,12 +9,12 @@ H5_EXTENSION = "h5"
 # Settings constants
 # =================================================================================
 SETTINGS_FOLDER = "settings"
-SETTINGS_FOLDER_REL_PATH = os.path.join(".", SETTINGS_FOLDER)
+SETTINGS_FOLDER_REL_PATH = os.path.join("./", SETTINGS_FOLDER)
 SETTINGS_FILE = "settings.json"
 SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
 
 # JSON fields backend
-BACKEND_SETTINGS_FIELD = "Backend settings"
+DAQ_SETTINGS_FIELD = "DAQ settings"
 
 DAQ_FIELD = "DAQ"
 AI_FIELD = "AI"
@@ -23,7 +23,6 @@ AO_FIELD = "AO"
 INTERFACE_TYPE_FIELD = "InterfaceType"
 CONNECTION_CODE_FIELD = "ConnectionCode"
 
-SAMPLE_RATE_FIELD = "SampleRate"
 RANGE_ID_FIELD = "RangeId"
 LOW_CHANNEL_FIELD = "LowChannel"
 HIGH_CHANNEL_FIELD = "HighChannel"
@@ -55,7 +54,7 @@ OFFSET_FIELD = "OFFSET"
 # Raw data constants
 # =================================================================================
 DATA_FOLDER = "data"
-DATA_FOLDER_REL_PATH = os.path.join(".", DATA_FOLDER)
+DATA_FOLDER_REL_PATH = os.path.join("./", DATA_FOLDER)
 RAW_DATA_FOLDER = "raw_data"
 RAW_DATA_FOLDER_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, RAW_DATA_FOLDER)
 RAW_DATA_FILE = "raw_data.h5"
@@ -72,7 +71,7 @@ EXP_DATA_FILE_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, EXP_DATA_FILE)
 # Logs constants
 # =================================================================================
 LOGS_FOLDER = "logs"
-LOGS_FOLDER_REL_PATH = os.path.join(".", LOGS_FOLDER)
+LOGS_FOLDER_REL_PATH = os.path.join("./", LOGS_FOLDER)
 NANOCONTROL_LOG_FILE = "nanocontrol.log"
 NANOCONTROL_LOG_FILE_REL_PATH = os.path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
 

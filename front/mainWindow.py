@@ -13,6 +13,8 @@ from silx.gui import qt
 from silx.gui.plot import Plot1D
 
 from settings import *
+import sys
+sys.path.append('./')
 from shared.constants import *
 
 
