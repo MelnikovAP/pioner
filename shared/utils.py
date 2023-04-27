@@ -2,7 +2,10 @@ from bisect import bisect_left
 from typing import List
 
 import numpy as np
-from calibration import Calibration
+
+import sys
+sys.path.append('./')
+from shared.calibration import Calibration
 
 
 def is_int(key) -> bool:

@@ -1,14 +1,14 @@
 import logging
 
-from calibration import Calibration
-from daq_device import DaqDeviceHandler
-from experiment_manager import ExperimentManager
-from utils import temperature_to_voltage
-
-from settings import Settings
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.settings import BackSettings
+from shared.calibration import Calibration
+from shared.utils import temperature_to_voltage
+from back.daq_device import DaqDeviceHandler
+from back.experiment_manager import ExperimentManager
+
 
 
 class IsoMode:

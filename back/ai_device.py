@@ -1,7 +1,6 @@
 import logging
 from ctypes import Array
 from typing import Tuple
-
 import uldaq as ul
 
 

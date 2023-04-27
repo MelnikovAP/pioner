@@ -1,13 +1,19 @@
+import sys
+from scipy import interpolate
+import numpy as np
+import matplotlib.pyplot as plt
+import time
 
 import sys
+sys.path.append('./')
+from shared.constants import *
+from shared.settings import BackSettings
+from shared.calibration import Calibration
+from shared.utils import temperature_to_voltage
+from back.daq_device import DaqDeviceHandler
+from back.fastheat import FastHeat
 
-import numpy as np
-from calibration import Calibration
-from nanocal_utils import temperature_to_voltage
-from scipy import interpolate
-
-if __name__ == "__main__":
-
+def debug_time_temp_table():
     time_temp_table = {
         'time'.TIME: [0, 50, 450, 550, 950, 1000],
         'temperature': [0, 0, 5, 5, 0, 0]
@@ -37,3 +43,46 @@ if __name__ == "__main__":
 
     volt_program_points = temperature_to_voltage(temp_program_points, calibration)
     # print("voltage: \n{}".format(volt_program_points))
+
+def debug_fast_heat():
+
+    calibration = Calibration()
+    calibration.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
+    settings = BackSettings(SETTINGS_FILE_REL_PATH)
+    daq_device_handler = DaqDeviceHandler(settings.daq_params)
+    print("DAQ settings: ", settings.daq_params)
+    print("AI settings: ", settings.ai_params)
+    print("AO settings: ", settings.ao_params)
+    print("Calibration: ", calibration.comment)
+    
+    daq_device_handler.try_connect()
+    descriptor = daq_device_handler.get_descriptor()
+    print("TANGO: Product info: {}".format(descriptor.dev_string))
+    
+    time_temp_table = {'ch0':{'time':[0, 3000], 
+                                'temp':[0.1, 0.1]},
+                        'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 
+                                'temp':[0, 0, 1, 1, 0, 0]},
+                    }
+    # fig, ax1 = plt.subplots()
+    # ax1.plot(time_temp_table['ch1']['time'], time_temp_table['ch1']['temp'])
+    # plt.show()
+
+    fh = FastHeat(daq_device_handler, settings,
+                    time_temp_table, calibration,
+                    ai_channels = [0,1,3,4,5],
+                    FAST_HEAT_CUSTOM_FLAG=False)
+    print("LOG: Fast heating armed.")
+
+    if fh.is_armed():
+        print("LOG: Fast heating started.")
+        t1 = time.time()
+        fh.run()
+        print("LOG: Fast heating finished. Took {} s.".format(time.time()-t1))
+
+    daq_device_handler.disconnect()
+
+
+if __name__ == "__main__":
+    # debug_time_temp_table()
+    debug_fast_heat()

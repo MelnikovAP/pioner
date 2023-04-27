@@ -1,12 +1,5 @@
-import matplotlib.pyplot as plt
-from calibration import Calibration
-from daq_device import DaqDeviceHandler
-from fastheat import FastHeat
 
-from settings import Settings
-import sys
-sys.path.append('./')
-from shared.constants import *
+
 
 
 def initial_setup():
@@ -29,13 +22,13 @@ def disconnect(daq_device_handler):
     daq_device_handler.disconnect()
 
 def test_fast_heat(calibration, settings, daq_device_handler):
-    time_temp_table = {
-        'time': [0, 100, 1000, 1500, 2000, 3000],
-        'temperature': [0, 0, 1, 1, 0, 0]
-    }
+    time_temp_table = {'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 1, 1, 0, 0]},
+                        }
 
     fh = FastHeat(daq_device_handler, settings,
-                time_temp_table, calibration)
+                time_temp_table, calibration,
+                ai_channels = [0,1,3,4,5],
+                FAST_HEAT_CUSTOM_FLAG=False)
     voltage_profiles = fh.arm()
     print("LOG: Fast heating armed.")
 
@@ -57,3 +50,4 @@ if __name__ == '__main__':
         disconnect(daq_device_handler)
     except BaseException as e:
         print(e)
+        disconnect(daq_device_handler)

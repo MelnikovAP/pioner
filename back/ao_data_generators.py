@@ -1,5 +1,4 @@
 from ctypes import Array
-
 import uldaq as ul
 
 # TODO: add an interface class for different types of data generators

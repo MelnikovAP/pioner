@@ -29,27 +29,30 @@ HIGH_CHANNEL_FIELD = "HighChannel"
 INPUT_MODE_FIELD = "InputMode"
 SCAN_FLAGS_FIELD = "ScanFlags"
 
-# JSON fields frontend
-FRONTEND_SETTINGS_FIELD = "Frontend settings"
+# JSON fields server
+SERVER_SETTINGS_FIELD = "Server settings"
 
-TANGO_FIELD = "TANGO"
-TANGO_HOST_FIELD = "TANGO_HOST"
-DEVICE_PROXY_FIELD = "DEVICE_PROXY"
+TANGO_FIELD = "Tango"
+TANGO_HOST_FIELD = "Tango host"
+DEVICE_PROXY_FIELD = "Device proxy"
 
 HTTP_FIELD = "HTTP"
-HTTP_HOST = "HTTP_HOST"
+HTTP_HOST = "HTTP host"
 
-PATHS_FIELD = "PATHS"
-CALIB_PATH_FIELD = "CALIB_PATH"
-DATA_PATH_FIELD = "DATA_PATH"
+# JSON fields experiment 
+EXPERIMENT_SETTINGS_FIELD = "Experiment settings"
 
-SCAN_FIELD = "SCAN"
-SAMPLE_RATE_FIELD = "SAMPLE_RATE"
+PATHS_FIELD = "Paths"
+CALIB_PATH_FIELD = "Calibration path"
+DATA_PATH_FIELD = "Data path"
 
-MODULATION_FIELD = "MODULATION"
-FREQUENCY_FIELD = "FREQUENCY"
-AMPLITUDE_FIELD = "AMPLITUDE"
-OFFSET_FIELD = "OFFSET"
+SCAN_FIELD = "Scan"
+SAMPLE_RATE_FIELD = "Sample rate"
+
+MODULATION_FIELD = "Modulation"
+FREQUENCY_FIELD = "Frequency"
+AMPLITUDE_FIELD = "Amplitude"
+OFFSET_FIELD = "Offset"
 
 # Raw data constants
 # =================================================================================
@@ -77,8 +80,10 @@ NANOCONTROL_LOG_FILE_REL_PATH = os.path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_L
 
 # Calibration constants
 # =================================================================================
-CALIBRATION_PATH = "./settings/calibration.json"
-DEFAULT_CALIBRATION_PATH = "./settings/default_calibration.json"
+CALIBRATION_FILE = "calibration.json"
+CALIBRATION_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, CALIBRATION_FILE)
+DEFAULT_CALIBRATION_FILE = "default_calibration.json"
+DEFAULT_CALIBRATION_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, DEFAULT_CALIBRATION_FILE)
 
 INFO_FIELD = "Info"
 

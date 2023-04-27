@@ -3,18 +3,17 @@ import logging
 import os
 from ctypes import Array
 from typing import List
-
 import pandas as pd
 import uldaq as ul
-from ai_device import AiDeviceHandler
-from ao_data_generators import ScanDataGenerator
-from ao_device import AoDeviceHandler
-from daq_device import DaqDeviceHandler
 
-from settings import Settings
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.settings import BackSettings
+from back.ai_device import AiDeviceHandler
+from back.ao_data_generators import ScanDataGenerator
+from back.ao_device import AoDeviceHandler
+from back.daq_device import DaqDeviceHandler
 
 # TODO: check why we create analog devices inside scanning methods
 
@@ -25,7 +24,7 @@ class ExperimentManager:
     _ao_buffer: Array[float]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 settings: Settings):
+                 settings: BackSettings):
         self._daq_device_handler = daq_device_handler
         self._ai_params = settings.ai_params
         self._ao_params = settings.ao_params

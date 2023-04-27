@@ -1,12 +1,11 @@
 import json
-
-from ai_device import AiParams
-from ao_device import AoParams
-from daq_device import DaqParams
-from utils import is_int_or_raise, list_bitwise_or
-
 import sys
 sys.path.append('./')
+
+from back.ai_device import AiParams
+from back.ao_device import AoParams
+from back.daq_device import DaqParams
+from shared.utils import is_int_or_raise, list_bitwise_or
 from shared.constants import *
 
 
@@ -37,7 +36,7 @@ class JsonReader:
         return self._json
 
 
-class Settings:
+class BackSettings:
     """Parses configuration file with all necessary acquisition parameters."""
 
     def __init__(self, path: str):
@@ -55,9 +54,17 @@ class Settings:
         if DAQ_SETTINGS_FIELD not in json_dict:
             raise ValueError("No '{}' field found in the settings file.".format(DAQ_SETTINGS_FIELD))
         else:
-            self._settings_dict = json_dict[DAQ_SETTINGS_FIELD]
+            self._daq_settings_dict = json_dict[DAQ_SETTINGS_FIELD]
             for field in [DAQ_FIELD, AI_FIELD, AO_FIELD]:
-                if field not in self._settings_dict:
+                if field not in self._daq_settings_dict:
+                    raise ValueError("No '{}' field found in the settings file.".format(field))
+        
+        if EXPERIMENT_SETTINGS_FIELD not in json_dict:
+            raise ValueError("No '{}' field found in the settings file.".format(EXPERIMENT_SETTINGS_FIELD))
+        else:
+            self._exp_settings_dict = json_dict[EXPERIMENT_SETTINGS_FIELD]
+            for field in [PATHS_FIELD, SCAN_FIELD, MODULATION_FIELD]:
+                if field not in self._exp_settings_dict:
                     raise ValueError("No '{}' field found in the settings file.".format(field))
 
         self._invalid_fields = []
@@ -70,7 +77,7 @@ class Settings:
     def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
         self.daq_params = DaqParams()
-        daq_dict = self._settings_dict[DAQ_FIELD]
+        daq_dict = self._daq_settings_dict[DAQ_FIELD]
 
         if INTERFACE_TYPE_FIELD in daq_dict:
             interface_types = daq_dict[INTERFACE_TYPE_FIELD]
@@ -91,7 +98,16 @@ class Settings:
     def parse_ai_params(self):
         """Parses all necessary analog-input parameters and fills AiParams instance."""
         self.ai_params = AiParams()
-        ai_dict = self._settings_dict[AI_FIELD]
+        ai_dict = self._daq_settings_dict[AI_FIELD]
+        scan_dict = self._exp_settings_dict[SCAN_FIELD]
+
+        if SAMPLE_RATE_FIELD in scan_dict:
+            sample_rate = scan_dict[SAMPLE_RATE_FIELD]
+            if is_int_or_raise(sample_rate):
+                self.ai_params.sample_rate = int(sample_rate)
+        else:
+            if SAMPLE_RATE_FIELD not in self._invalid_fields:
+                self._invalid_fields.append(SAMPLE_RATE_FIELD)
 
         if RANGE_ID_FIELD in ai_dict:
             range_id = ai_dict[RANGE_ID_FIELD]
@@ -133,8 +149,17 @@ class Settings:
     def parse_ao_params(self):
         """Parses all necessary analog-output parameters and fills AoParams instance."""
         self.ao_params = AoParams()
-        ao_dict = self._settings_dict[AO_FIELD]
-            
+        ao_dict = self._daq_settings_dict[AO_FIELD]
+        scan_dict = self._exp_settings_dict[SCAN_FIELD]
+
+        if SAMPLE_RATE_FIELD in scan_dict:
+            sample_rate = scan_dict[SAMPLE_RATE_FIELD]
+            if is_int_or_raise(sample_rate):
+                self.ao_params.sample_rate = int(sample_rate)
+        else:
+            if SAMPLE_RATE_FIELD not in self._invalid_fields:
+                self._invalid_fields.append(SAMPLE_RATE_FIELD)
+
         if RANGE_ID_FIELD in ao_dict:
             range_id = ao_dict[RANGE_ID_FIELD]
             if is_int_or_raise(range_id):
@@ -183,7 +208,7 @@ class Settings:
 if __name__ == '__main__':
     try:
         _path = SETTINGS_FILE_REL_PATH
-        settings = Settings(_path)
+        settings = BackSettings(_path)
 
         print(settings.get_str())
 

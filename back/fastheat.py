@@ -1,27 +1,26 @@
 import logging
 from typing import Dict
-
 import h5py
 import numpy as np
 import pandas as pd
-from calibration import Calibration
-from daq_device import DaqDeviceHandler
-from experiment_manager import ExperimentManager
 from scipy import interpolate
-from utils import temperature_to_voltage
 
-from settings import Settings
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.settings import BackSettings
+from shared.utils import temperature_to_voltage
+from shared.calibration import Calibration
+from back.daq_device import DaqDeviceHandler
+from back.experiment_manager import ExperimentManager
 
 
 class FastHeat:
     # receives time_temp_volt_tables as dict :
-    # {"ch0": {"time":[list], "temp":list}, 
-    # "ch1": {"time":[list], "temp":list},
-    # "ch2": {"time":[list], "temp":list}, 
-    # "ch3": {"time":[list], "temp":list}, }
+    # {"ch0": {"time":[list], "temp":[list]}, 
+    # "ch1": {"time":[list], "temp":[list]},
+    # "ch2": {"time":[list], "temp":[list]}, 
+    # "ch3": {"time":[list], "temp":[list]}, }
     # voltage can be used instead of temperature ("volt" instead of "temp")
     # if "volt" - no calibration applied
     # if "temp" - calibration applied
@@ -30,7 +29,7 @@ class FastHeat:
     # only data from specified ai_channels will be saved. For normal fast heating it is [0,1,3,4,5]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 settings: Settings,
+                 settings: BackSettings,
                  time_temp_volt_tables: dict,
                  calibration: Calibration,
                  ai_channels: list[int],
@@ -183,7 +182,7 @@ class FastHeat:
 
 if __name__ == '__main__':
     
-    settings = Settings(SETTINGS_FILE_REL_PATH)
+    settings = BackSettings(SETTINGS_FILE_REL_PATH)
     time_temp_volt_tables = {'ch0':{'time':[0, 3000], 'volt':[1,1]},
                             'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 5, 5, 0, 0]},
                             'ch2':{'time':[0, 3000], 'volt':[5,5]},

@@ -24,25 +24,29 @@
             ]
         }
     },
-    "Frontend settings": {
-        "TANGO": {
-            "TANGO_HOST": "lid13ctrl1.esrf.fr:20000",
-            "DEVICE_PROXY": "NanoControl/NanoControl/1"
+
+    "Server settings": {
+        "Tango": {
+            "Tango host": "lid13ctrl1.esrf.fr:20000",
+            "Device proxy": "NanoControl/NanoControl/1"
         },
         "HTTP": {
-            "HTTP_HOST": "http://nanocal.esrf.fr:8000/"
+            "HTTP host": "http://nanocal.esrf.fr:8000/"
+        }
+    },
+
+    "Experiment settings": {
+        "Paths": {
+            "Calibration path": "./settings/default_calibration.json",
+            "Data path": "C://Users/alexey0703/prog/nanocal/nanocal_pi/data"
         },
-        "PATHS": {
-            "CALIB_PATH": "./settings/default_calibration.json",
-            "DATA_PATH": "C://Users/alexey0703/prog/nanocal/nanocal_pi/data"
+        "Scan": {
+            "Sample rate": 20000
         },
-        "SCAN": {
-            "SAMPLE_RATE": 20000
-        },
-        "MODULATION": {
-            "FREQUENCY": 37.5,
-            "AMPLITUDE": 0.1,
-            "OFFSET": 0.3
+        "Modulation": {
+            "Frequency": 37.5,
+            "Amplitude": 0.1,
+            "Offset": 0.3
         }
     }
 }

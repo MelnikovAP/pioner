@@ -1,6 +1,5 @@
 import logging
 from typing import Tuple
-
 import uldaq as ul
 
 

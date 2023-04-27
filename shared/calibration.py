@@ -2,7 +2,7 @@ import json
 import os
 
 import sys
-sys.path.append('/home/pi/nanocal_pi/')
+sys.path.append('./')
 from shared.constants import *
 
 # TODO: write unit tests for reading and writing any calibration file

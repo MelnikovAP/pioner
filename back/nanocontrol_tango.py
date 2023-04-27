@@ -1,19 +1,18 @@
 import json
 import logging
 import os
-
 import uldaq as ul
-from calibration import Calibration
-from daq_device import DaqDeviceHandler
-from fastheat import FastHeat
-from iso_mode import IsoMode
 from tango.server import AttrWriteType, Device, attribute, command, pipe
-
-from settings import Settings
 
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.calibration import Calibration
+from shared.settings import BackSettings
+from back.daq_device import DaqDeviceHandler
+from back.fastheat import FastHeat
+from back.iso_mode import IsoMode
+
 
 
 class NanoControl(Device):
@@ -36,7 +35,7 @@ class NanoControl(Device):
         self.apply_default_calibration()
         self._time_temp_table = dict(time=[], temperature=[])
 
-        self._settings = Settings(SETTINGS_FILE_REL_PATH)
+        self._settings = BackSettings(SETTINGS_FILE_REL_PATH)
         daq_params = self._settings.daq_params
         self._daq_device_handler = DaqDeviceHandler(daq_params)
         logging.info('TANGO: Initial setup done.')
@@ -58,7 +57,6 @@ class NanoControl(Device):
     def disconnect(self):
         self._daq_device_handler.disconnect()
         logging.info('TANGO: Successfully disconnected.')
-        # self._daq_device_handler.release()
 
     @command
     def log_device_info(self):
@@ -85,23 +83,23 @@ class NanoControl(Device):
 
     @command(dtype_in=str)
     def load_calibration(self, str_calib):
-        with open(CALIBRATION_PATH, 'w') as f:
+        with open(CALIBRATION_FILE, 'w') as f:
             json.dump(json.loads(str_calib), f, separators=(',', ': '), indent=4)
-            logging.info('TANGO: Calibration file {} was updated from external file.'.format(CALIBRATION_PATH))
+            logging.info('TANGO: Calibration file {} was updated from external file.'.format(CALIBRATION_FILE))
 
     @command
     def apply_default_calibration(self):
         try:
-            self._calibration.read(DEFAULT_CALIBRATION_PATH)
-            logging.info('TANGO: Calibration was applied from {}'.format(DEFAULT_CALIBRATION_PATH))
+            self._calibration.read(DEFAULT_CALIBRATION_FILE)
+            logging.info('TANGO: Calibration was applied from {}'.format(DEFAULT_CALIBRATION_FILE))
         except Exception as e:
             logging.error("TANGO: Error while applying default calibration: {}.".format(e))
 
     @command
     def apply_calibration(self):
         try:
-            self._calibration.read(CALIBRATION_PATH)
-            logging.info('TANGO: Calibration was applied from {}'.format(CALIBRATION_PATH))
+            self._calibration.read(CALIBRATION_FILE)
+            logging.info('TANGO: Calibration was applied from {}'.format(CALIBRATION_FILE))
         except Exception as e:
             logging.error("TANGO: ERROR. Exception while applying calibration: {}.".format(e))
 
@@ -127,12 +125,6 @@ class NanoControl(Device):
     def reset_sample_scan_rate(self):
         self._settings.parse_ai_params()
         self._settings.parse_ao_params()
-    
-    # @command(dtype_in=[float])
-    # def set_modulation_parameters(self, params):
-    #     self._settings.modualtaion_frequency = params[0]
-    #     self._settings.modualtaion_amplitude = params[1]
-    #     self._settings.modualtaion_offset = params[2]
 
     # ===================================
     # Fast heating
