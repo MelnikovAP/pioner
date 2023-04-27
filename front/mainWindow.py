@@ -15,7 +15,7 @@ from silx.gui.plot import Plot1D
 import sys
 sys.path.append('./')
 from shared.constants import *
-from shared.settings import *
+from shared.settings import FrontSettings
 
 
 class mainWindow(mainWindowUi):
@@ -67,7 +67,7 @@ class mainWindow(mainWindowUi):
                 self.device.set_timeout_millis(10000000)
                 self.device.set_connection()
             
-                if self.settings.calib_path == DEFAULT_CALIBRATION_PATH:
+                if self.settings.calib_path == DEFAULT_CALIBRATION_FILE_REL_PATH:
                     self.apply_default_calib()
                 else: 
                     self.apply_calib()
@@ -96,8 +96,8 @@ class mainWindow(mainWindowUi):
                                                     None, qt.QFileDialog.ShowDirsOnly)
         if dpath: 
             dpath += '/'
-            self.sysDataPathInput.setText(os.path.abspath(dpath))
-            self.settings.data_path = dpath
+            self.settings.data_path = os.path.abspath(dpath)
+            self.sysDataPathInput.setText(self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
 
     def show_help(self):
@@ -114,8 +114,8 @@ class mainWindow(mainWindowUi):
     def select_calibration_file(self):
         fname = qt.QFileDialog.getOpenFileName(self, "Choose calibration file", None, "*.json")[0]
         if fname: 
-            self.calibPathInput.setText(os.path.abspath(fname))
-            self.settings.calib_path = fname
+            self.settings.calib_path = os.path.abspath(fname)
+            self.calibPathInput.setText(self.settings.calib_path)
         self.calibPathInput.setCursorPosition(0)
 
     def apply_calib(self):
@@ -131,7 +131,8 @@ class mainWindow(mainWindowUi):
     def apply_default_calib(self):
         self.device.apply_default_calibration()
         self.get_calib_from_device()
-        self.calibPathInput.setText(DEFAULT_CALIBRATION_PATH)
+        self.calibPathInput.setText(os.path.abspath(DEFAULT_CALIBRATION_FILE_REL_PATH))
+        self.calibPathInput.setCursorPosition(0)
 
     def get_calib_from_device(self):
         calib_str = self.device.get_current_calibration[1][0]['value']
@@ -150,22 +151,20 @@ class mainWindow(mainWindowUi):
             quit()
 
         if not os.path.exists(self.settings.data_path):
-            error_text = "Incorrect data path specified.\nIt will be set to ./data/"
+            error_text = "Incorrect data path specified.\nIt will be set to {}".format(DATA_FOLDER_REL_PATH)
             ErrorWindow(error_text)
-            if not os.path.exists('./data/'):
-                os.makedirs('./data/')
-            self.settings.data_path = os.path.abspath('./data/')
-        self.sysDataPathInput.setText(os.path.abspath(self.settings.data_path))
+            if not os.path.exists(DATA_FOLDER_REL_PATH):
+                os.makedirs(DATA_FOLDER_REL_PATH)
+            self.settings.data_path = os.path.abspath(DATA_FOLDER_REL_PATH)
+        self.sysDataPathInput.setText(self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
 
-        if os.path.exists(self.settings.calib_path):
-            self.calibPathInput.setText(os.path.abspath(self.settings.calib_path))
-            self.calibPathInput.setCursorPosition(0)
-        else:
+        if not os.path.exists(self.settings.calib_path):
             error_text = "Incorrect calibration file specified.\nIt will be set to default calibration."
             ErrorWindow(error_text)
-            self.calibPathInput.setText(DEFAULT_CALIBRATION_PATH)
-            self.settings.calib_path = DEFAULT_CALIBRATION_PATH   
+            self.settings.calib_path = os.path.abspath(DEFAULT_CALIBRATION_FILE_REL_PATH)
+        self.calibPathInput.setText(self.settings.calib_path)
+        self.calibPathInput.setCursorPosition(0)
 
         self.scanSampleRateInput.setText(str(self.settings.sample_rate))
 

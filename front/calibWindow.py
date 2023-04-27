@@ -3,7 +3,7 @@ from silx.gui import qt
 import sys
 sys.path.append('./')
 from shared.constants import *
-from shared.settings import *
+from shared.settings import FrontSettings
 from messageWindows import *
 
 

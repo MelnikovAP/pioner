@@ -35,8 +35,8 @@
     },
     "Experiment settings": {
         "Paths": {
-            "Calibration path": "./settings/default_calibration.json",
-            "Data path": "./data"
+            "Calibration path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\settings\\default_calibration.json",
+            "Data path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\back"
         },
         "Scan": {
             "Sample rate": 20000
