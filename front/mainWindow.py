@@ -12,10 +12,10 @@ from messageWindows import *
 from silx.gui import qt
 from silx.gui.plot import Plot1D
 
-from settings import *
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.settings import *
 
 
 class mainWindow(mainWindowUi):
@@ -321,7 +321,8 @@ class mainWindow(mainWindowUi):
             with open(fpath, 'r') as f:
                 file_settings = json.load(f)
 
-            file_settings[FRONTEND_SETTINGS_FIELD] = self.settings.get_dict()[FRONTEND_SETTINGS_FIELD]
+            file_settings[SERVER_SETTINGS_FIELD] = self.settings.get_server_settings()
+            file_settings[EXPERIMENT_SETTINGS_FIELD] = self.settings.get_exp_settings()
 
             with open(fpath, 'w') as f:
                 json.dump(file_settings, f, separators=(',', ': '), indent=4)
@@ -333,18 +334,16 @@ class mainWindow(mainWindowUi):
         else:
             fpath = qt.QFileDialog.getOpenFileName(self, "Choose file with settings:", None, "*.json")[0]
         try:
-            self.settings = Settings(fpath)
+            self.settings = FrontSettings(fpath)
             self.disconnect()
         except:
             error_text = "Settings file is missing or corrupted! Settings will be reset to default."
             ErrorWindow(error_text)
-            self.settings = mainParams()
+            self.reset_settings()
 
     def reset_settings(self):
         # reset config params; used default attributes from Params class
-        self.settings = mainParams()
-        self.save_settings_to_file()
-        self.disconnect()
+        self.settings = FrontSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
 
     def closeEvent(self, event):
         # dumping current settings to ./settings/settings.json and closing all the windows

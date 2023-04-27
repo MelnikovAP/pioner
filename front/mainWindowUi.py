@@ -1,9 +1,8 @@
+from silx.gui import icons, qt
+
 from procFastHeatWidget import procFastHeatWidget
 from resultsDataWidget import resultsDataWidget
 from SetProg_widget import *
-from silx.gui import icons, qt
-from silx.gui.plot import Plot1D, PlotWindow
-
 
 class mainWindowUi(qt.QWidget):
     def __init__(self, parent=None):

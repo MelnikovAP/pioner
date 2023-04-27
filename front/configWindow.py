@@ -1,10 +1,10 @@
 from silx.gui import qt
-import os
-from settings import *
-from messageWindows import *
+
 import sys
 sys.path.append('./')
 from shared.constants import *
+from shared.settings import *
+from messageWindows import *
 
 
 class configWindow(qt.QDialog):

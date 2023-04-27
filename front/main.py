@@ -1,8 +1,9 @@
-import os
-import sys
-
-from mainWindow import mainWindow
 from silx.gui import qt
+
+import sys
+sys.path.append('./')
+from mainWindow import mainWindow
+
 
 
 def create_GUI():

@@ -24,6 +24,7 @@
             ]
         }
     },
+
     "Server settings": {
         "Tango": {
             "Tango host": "lid13ctrl1.esrf.fr:20000",
@@ -33,6 +34,7 @@
             "HTTP host": "http://nanocal.esrf.fr:8000/"
         }
     },
+
     "Experiment settings": {
         "Paths": {
             "Calibration path": "./settings/default_calibration.json",

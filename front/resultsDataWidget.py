@@ -7,11 +7,15 @@ from silx.gui.plot.items.roi import HorizontalRangeROI
 from silx.gui.plot.actions import PlotAction
 from silx.gui import icons
 from silx.gui.fit import BackgroundWidget
-
 import numpy as np
-from messageWindows import *
-from settings import *
 import functools
+
+import sys
+sys.path.append('./')
+from shared.settings import *
+from messageWindows import *
+
+
 
 class resultsDataWidget(qt.QWidget):
     def __init__(self, parent=None):

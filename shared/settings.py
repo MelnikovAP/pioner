@@ -35,7 +35,6 @@ class JsonReader:
         """Provides access to the read dictionary."""
         return self._json
 
-
 class BackSettings:
     """Parses configuration file with all necessary acquisition parameters."""
 
@@ -205,12 +204,127 @@ class BackSettings:
         
         return settings_dict
 
+class FrontSettings:
+    """Parses configuration file with all necessary acquisition parameters."""
+
+    def __init__(self, path: str):
+        """Initializes dictionary and checks that all needed fields exist.
+
+        After correct parsing it is possible to obtain ???? AM: add description.
+
+        Args:
+            path: A string path to JSON file.
+
+        Raises:
+            ValueError if any field doesn't exist.
+        """
+
+        json_dict = JsonReader(path).json()
+
+        if SERVER_SETTINGS_FIELD not in json_dict:
+            raise ValueError("No '{}' field found in the settings file.".format(SERVER_SETTINGS_FIELD))
+        else:
+            self._server_settings_dict = json_dict[SERVER_SETTINGS_FIELD]
+            for field in [TANGO_FIELD, HTTP_FIELD]:
+                if field not in self._server_settings_dict:
+                    raise ValueError("No '{}' field found in the settings file.".format(field))
+        
+        if EXPERIMENT_SETTINGS_FIELD not in json_dict:
+            raise ValueError("No '{}' field found in the settings file.".format(EXPERIMENT_SETTINGS_FIELD))
+        else:
+            self._exp_settings_dict = json_dict[EXPERIMENT_SETTINGS_FIELD]
+            for field in [PATHS_FIELD, SCAN_FIELD, MODULATION_FIELD]:
+                if field not in self._exp_settings_dict:
+                    raise ValueError("No '{}' field found in the settings file.".format(field))
+
+
+        self._invalid_fields = []
+        # only in that order
+        self.parse_server_params()
+        self.parse_experiment_params()
+        self.check_invalid_fields()
+        self.set_server_settings()
+        self.set_exp_settings()
+
+    def parse_server_params(self):
+        for field in [TANGO_HOST_FIELD, DEVICE_PROXY_FIELD]:
+            if field not in self._server_settings_dict[TANGO_FIELD] or \
+                not isinstance(self._server_settings_dict[TANGO_FIELD][field], str):
+                self._invalid_fields.append(field)
+
+        for field in [HTTP_HOST]:
+            if field not in self._server_settings_dict[HTTP_FIELD] or \
+                not isinstance(self._server_settings_dict[HTTP_FIELD][field], str):
+                self._invalid_fields.append(field)
+
+    def parse_experiment_params(self):
+        for field in [CALIB_PATH_FIELD, DATA_PATH_FIELD]:
+            if field not in self._exp_settings_dict[PATHS_FIELD] or \
+                not isinstance(self._exp_settings_dict[PATHS_FIELD][field], str):
+                self._invalid_fields.append(field)
+
+        for field in [SAMPLE_RATE_FIELD]:
+            if field not in self._exp_settings_dict[SCAN_FIELD] or \
+                not isinstance(self._exp_settings_dict[SCAN_FIELD][field], int):
+                self._invalid_fields.append(field)
+        
+        for field in [FREQUENCY_FIELD, AMPLITUDE_FIELD, OFFSET_FIELD]:
+            if field not in self._exp_settings_dict[MODULATION_FIELD] or \
+                not isinstance(self._exp_settings_dict[MODULATION_FIELD][field], float):
+                self._invalid_fields.append(field)
+
+    def set_server_settings(self):
+        if not self._invalid_fields:
+            self.tango_host = self._server_settings_dict[TANGO_FIELD][TANGO_HOST_FIELD]
+            self.device_proxy = self._server_settings_dict[TANGO_FIELD][DEVICE_PROXY_FIELD]
+            self.http_host = self._server_settings_dict[HTTP_FIELD][HTTP_HOST]
+
+    def get_server_settings(self):
+        return {TANGO_FIELD: {
+                    TANGO_HOST_FIELD: self.tango_host,
+                    DEVICE_PROXY_FIELD: self.device_proxy
+                    },
+                HTTP_FIELD:{
+                    HTTP_HOST: self.http_host
+                    }
+                }
+
+    def set_exp_settings(self):
+        if not self._invalid_fields:
+            self.calib_path = self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD]
+            self.data_path = self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD]
+            self.sample_rate = self._exp_settings_dict[SCAN_FIELD][SAMPLE_RATE_FIELD]
+            self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
+            self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]
+            self.modulation_offset = self._exp_settings_dict[MODULATION_FIELD][OFFSET_FIELD]
+
+    def get_exp_settings(self):
+        return {PATHS_FIELD: {
+                    CALIB_PATH_FIELD: self.calib_path,
+                    DATA_PATH_FIELD: self.data_path
+                    },
+                SCAN_FIELD:{
+                    SAMPLE_RATE_FIELD: self.sample_rate
+                    },
+                MODULATION_FIELD: {
+                    FREQUENCY_FIELD: self.modulation_frequency,
+                    AMPLITUDE_FIELD: self.modulation_amplitude,
+                    OFFSET_FIELD: self.modulation_offset
+                    },
+                }
+
+    def check_invalid_fields(self):
+        """Raises ValueError if at least one required field is missing in the settings."""
+        if self._invalid_fields:
+            invalid_fields_str = ", ".join(self._invalid_fields)
+            raise ValueError("Wrong or missing inputs in the settings file: {}.".format(invalid_fields_str))
+
 if __name__ == '__main__':
-    try:
-        _path = SETTINGS_FILE_REL_PATH
-        settings = BackSettings(_path)
 
-        print(settings.get_str())
+    _path = SETTINGS_FILE_REL_PATH
+    # settings = BackSettings(_path)
+    settings = FrontSettings(_path)
 
-    except BaseException as e:
-        print(e)
+    # print(settings.get_str())
+    print(settings.data_path)
+
