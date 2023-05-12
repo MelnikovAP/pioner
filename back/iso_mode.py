@@ -19,7 +19,7 @@ class IsoMode:
     # if "temp" - calibration applied
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 settings: Settings,
+                 settings: BackSettings,
                  chan_temp_volt: dict,
                  calibration: Calibration):
         self._daq_device_handler = daq_device_handler
@@ -54,7 +54,7 @@ class IsoMode:
 
 if __name__ == '__main__':
 
-    settings = Settings(SETTINGS_FILE_REL_PATH)
+    settings = BackSettings(SETTINGS_FILE_REL_PATH)
     chan_temp_volt = {'ch2':{'volt':0},
                         }
     calibration = Calibration()
