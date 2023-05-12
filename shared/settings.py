@@ -2,9 +2,9 @@ import json
 import sys
 sys.path.append('./')
 
-from back.ai_device import AiParams
-from back.ao_device import AoParams
-from back.daq_device import DaqParams
+# from back.ai_device import AiParams
+# from back.ao_device import AoParams
+# from back.daq_device import DaqParams
 from shared.utils import is_int_or_raise, list_bitwise_or
 from shared.constants import *
 
@@ -291,8 +291,8 @@ class FrontSettings:
 
     def set_exp_settings(self):
         if not self._invalid_fields:
-            self.calib_path = self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD]
-            self.data_path = self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD]
+            self.calib_path = os.path.abspath(self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD])
+            self.data_path = os.path.abspath(self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD])
             self.sample_rate = self._exp_settings_dict[SCAN_FIELD][SAMPLE_RATE_FIELD]
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]

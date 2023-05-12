@@ -12,7 +12,7 @@ import functools
 
 import sys
 sys.path.append('./')
-from shared.settings import *
+from shared.settings import FrontSettings
 from messageWindows import *
 
 
