@@ -244,7 +244,7 @@ class mainWindow(mainWindowUi):
         URL = self.settings.http_host+"data/exp_data.h5"
         response = requests.get(URL, verify=False)
         fname = qt.QFileDialog.getSaveFileName(self, "Save data to file", 
-                                                self.settings.data_path+'exp_data.h5', 
+                                                self.settings.data_path+'/exp_data.h5', 
                                                 "*.h5")[0]
         if fname:
             with open(fname, 'wb') as f:
