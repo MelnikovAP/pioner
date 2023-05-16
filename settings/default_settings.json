@@ -38,7 +38,7 @@
     "Experiment settings": {
         "Paths": {
             "Calibration path": "./settings/default_calibration.json",
-            "Data path": "./data"
+            "Data path": "./data/"
         },
         "Scan": {
             "Sample rate": 20000
