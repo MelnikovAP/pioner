@@ -2,9 +2,9 @@ import json
 import sys
 sys.path.append('./')
 
-# from back.ai_device import AiParams
-# from back.ao_device import AoParams
-# from back.daq_device import DaqParams
+from back.ai_device import AiParams
+from back.ao_device import AoParams
+from back.daq_device import DaqParams
 from shared.utils import is_int_or_raise, list_bitwise_or
 from shared.constants import *
 

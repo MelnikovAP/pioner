@@ -179,6 +179,20 @@ class FastHeat:
         with h5py.File(fpath, 'a') as f:
             f.create_dataset('calibration', data=self._calibration.get_str())
             f.create_dataset('settings', data=self._settings.get_str())
+            
+            programs = f.create_group('temp_volt_programs')
+            for chan, table in self._time_temp_volt_tables.items():
+                key = list(table.keys())
+                key.remove('time')
+                key = key[0]          # get volt or temp key
+
+                program = programs.create_group(chan)
+                program.create_dataset('time', data=table['time'])
+                program.create_dataset(key, data=table[key])
+
+            profiles = f.create_group('voltage_profiles')
+            for chan in self._voltage_profiles.keys():
+                profiles.create_dataset(chan, data=self._voltage_profiles[chan])
 
 if __name__ == '__main__':
     
