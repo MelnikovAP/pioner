@@ -2,9 +2,12 @@ import sys
 from PyQt5.QtGui import QRegExpValidator
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+import numpy as np
 import json
 from enum import Enum
 from typing import List
+from segmentdialog import SegmentDialog
+from dataclass import *
 
 
 class SetProg(QWidget):
@@ -31,6 +34,7 @@ class SetProg(QWidget):
         self.mainTabWidget.addTab(self.tab3, "Channel 2")
         self.mainTabWidget.addTab(self.tab4, "Channel 3")
 
+
         self.rightLayout.addWidget(self.mainTabWidget)
 
         # Creating a vertical layout to place control elements
@@ -43,7 +47,7 @@ class SetProg(QWidget):
     # Function for getting a dictionary of profile data from tabs
     def get_main_dict(self):
         profiles_data = {}
-        # add dict from all tabs
+
         for i in range(self.mainTabWidget.count()):
             tab = self.mainTabWidget.widget(i)
             profiles_data[i] = tab.get_dict()
@@ -106,33 +110,11 @@ class ProfileWidget(QWidget):
         self.setLayout(self.layout)
 
         # Connect button signals to their corresponding functions
-
         buttonADD.clicked.connect(lambda: self.add_layer(self.tableWidget.rowCount()))
         buttonDEL1s.clicked.connect(lambda: self.mass_del())
         buttonARM.clicked.connect(lambda: self.parent().parent().parent().get_main_dict())
         buttonSAVE.clicked.connect(lambda: self.saving_procedure())
         buttonLOAD.clicked.connect(lambda: self.table_from_file())
-        self.typecbox.currentIndexChanged.connect(self.change_type_value)
-
-    def change_type_value(self):
-        for i in range(self.tableWidget.rowCount()):
-            row_widget1 = self.tableWidget.cellWidget(i, 1).layout()
-            row_widget2 = self.tableWidget.cellWidget(i, 2).layout()
-            for k in range(row_widget1.count()):
-                if row_widget1.itemAt(k).widget().text() == "°C":
-
-                    row_widget1.itemAt(k).widget().setText('V')
-                elif row_widget1.itemAt(k).widget().text() == 'V':
-
-                    row_widget1.itemAt(k).widget().setText("°C")
-            for k in range(row_widget2.count()):
-                if row_widget2.itemAt(k).widget().text() in ["°C/min", "°C/ms", "°C/s"]:
-                    row_widget2.itemAt(k).widget().setText('V/' + row_widget2.itemAt(k).widget().text().split('/')[1])
-                elif row_widget2.itemAt(k).widget().text() in ["V/min", "V/ms", "V/s"]:
-
-                    row_widget2.itemAt(k).widget().setText("°C/" + row_widget2.itemAt(k).widget().text().split('/')[1])
-            self.tableWidget.cellWidget(i, 1).setLayout(row_widget1)
-            self.tableWidget.cellWidget(i, 2).setLayout(row_widget2)
 
     def saving_procedure(self):
         # Create empty dictionaries to store table data and overall information
@@ -244,7 +226,7 @@ class ProfileWidget(QWidget):
 
             buttrow = QPushButton(row_data['mode_type'])
             buttrow.setObjectName("but" + str(row_number))
-            buttrow.clicked.connect(lambda checked, x=row_number: self.add_layer(x,False))
+            buttrow.clicked.connect(lambda checked, x=row_number: self.add_layer(x))
             self.tableWidget.setCellWidget(row_number, 0, buttrow)
 
             flabel = QLabel("Ampl: " if mode_type == "Sine Segment" else "From:")
@@ -290,55 +272,30 @@ class ProfileWidget(QWidget):
             wid2.setLayout(hlayer3)
             self.tableWidget.setCellWidget(row_number, 2, wid2)
 
-            # self.typecbox.setEnabled(False)
+            self.typecbox.setEnabled(False)
 
-    def add_layer(self, x: int, b = True):
-
-        dialog = InputDialog1(self.typecbox.currentText())
-        self.parent().setWindowModality(Qt.WindowModal)
-        if x == self.tableWidget.rowCount():
-            row_number = self.tableWidget.rowCount()
-
-        else:
-
-            row_number = x
-            mode_type = self.tableWidget.cellWidget(row_number, 0).text()
-
-            if mode_type == "Isotherm":
-                from_value = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(1).widget().text()
-                time_value = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(1).widget().text()
-                time_type = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(2).widget().text()
-                dialog.set_values(from_value, time_value, mode_type, time_type)
-            if mode_type == "Ramp":
-                from_value = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(1).widget().text()
-                to_value = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(4).widget().text()
-                time_value = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(1).widget().text()
-                time_type = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(2).widget().text().split('/')[1]
-                dialog.set_values(from_value, time_value, mode_type, time_type, to_value)
-            if mode_type == "Sine Segment":
-                Ampl = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(1).widget().text()
-                Freq = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(4).widget().text()
-                Offs = self.tableWidget.cellWidget(row_number, 1).layout().itemAt(6).widget().text()
-                time_value = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(1).widget().text()
-                time_type = self.tableWidget.cellWidget(row_number, 2).layout().itemAt(2).widget().text()
-                dialog.set_values(Ampl, time_value, mode_type, time_type, Freq, Offs)
-
-
-
+    def add_layer(self, x: int):
+        dialog = SegmentDialog(self.typecbox.currentText(),True)
         if dialog.exec_() == QDialog.Accepted:
-            self.tableWidget.insertRow(row_number)
-            if b != True:
-                self.tableWidget.removeRow(row_number+1)
+
+            if x != self.tableWidget.rowCount():
+                row_number = x
+                self.tableWidget.insertRow(row_number)
+                self.tableWidget.removeRow(row_number + 1)
+            # Create and set the button widget
+            else:
+
+                row_number = self.tableWidget.rowCount()
+                self.tableWidget.insertRow(row_number)
             mode_type = dialog.type_combo.currentText()
             # Create and set the button widget
             buttrow = QPushButton(mode_type)
             buttrow.setObjectName("but" + str(row_number))
-            buttrow.clicked.connect(lambda checked, x=row_number: self.add_layer(x, False))
+            buttrow.clicked.connect(lambda checked, x=row_number: self.add_layer(x))
             self.tableWidget.setCellWidget(row_number, 0, buttrow)
             # Create and set the first value widget
             typeval1 = dialog.val_cb1.text()
             val1 = dialog.edit_val1.text()
-
             flabel = QLabel("Ampl: " if mode_type == "Sine Segment" else "From:")
             spineditval1 = QLabel(str(val1))
             labelval1 = QLabel(typeval1 if mode_type != "Sine Segment" else "")
@@ -350,7 +307,6 @@ class ProfileWidget(QWidget):
             if mode_type == "Ramp":
                 typeval2 = dialog.val_cb2.text()
                 val2 = dialog.edit_val2.text()
-
                 tLabel = QLabel("To: ")
                 spineditval2 = QLabel(val2)
                 labelval2 = QLabel(typeval2)
@@ -363,7 +319,6 @@ class ProfileWidget(QWidget):
                 typeval1 = ""
                 val2 = dialog.edit_val2.text()
                 val3 = dialog.edit_val4.text()
-
                 tLabel = QLabel("Freq: ")
                 oLabel = QLabel("Offs: ")
                 spineditval2 = QLabel(val2)
@@ -376,12 +331,10 @@ class ProfileWidget(QWidget):
                 hlayer1.addWidget(labelval2)
                 wid1.setLayout(hlayer1)
             self.tableWidget.setCellWidget(row_number, 1, wid1)
-            self.tableWidget.cellDoubleClicked.connect(lambda checked, x=row_number: self.add_layer(x, False))
             wid1.setLayout(hlayer1)
             # Create and set the time widget
             typetime = dialog.val_cb3.currentText()
             time = dialog.edit_val3.text()
-
             spineditduration = QLabel(
                 "Duration: " if mode_type == "Isotherm" or mode_type == "Sine Segment" else "Rate: ")
             labeltime = QLabel(self.typecbox.currentText() + "/" + typetime if mode_type == "Ramp" else typetime)
@@ -392,16 +345,9 @@ class ProfileWidget(QWidget):
             hlayer3.addWidget(labeltime)
             wid2 = QWidget()
             wid2.setLayout(hlayer3)
-
             self.tableWidget.setCellWidget(row_number, 2, wid2)
-            self.tableWidget.cellClicked
-        else:
-            if b == True:
-                self.tableWidget.removeRow(x)
 
-    # self.typecbox.setEnabled(False)
-
-
+            self.typecbox.setEnabled(False)
 
     def mass_del(self):
         # Function to delete selected rows from the table widget
@@ -427,8 +373,6 @@ class ProfileWidget(QWidget):
         for i in range(row_number):
             if self.tableWidget.cellWidget(i, 0) is not None:
                 self.tableWidget.cellWidget(i, 0).setObjectName("but" + str(i))
-                self.tableWidget.cellWidget(i, 0).clicked.disconnect()
-                self.tableWidget.cellWidget(i, 0).clicked.connect(lambda checked, x = i : self.add_layer(x, False))
 
         # If the table widget is now empty, enable the typecbox combo box
         if self.tableWidget.rowCount() == 0:
@@ -513,292 +457,15 @@ class ProfileWidget(QWidget):
         return data
 
 
-class InputDialog1(QDialog):
-    def __init__(self, type: str, parent=None):
-        QDialog.__init__(self, parent)
-        reg_ex = QRegExp("[0-9.]*")
-
-        # create a validator
-        validator = QRegExpValidator(reg_ex)
-
-        self.setWindowTitle("Add Option")
-        self.val_cb1 = QLabel()
-        self.val_cb1.setText(type)
-        self.val_cb2 = QLabel()
-        self.val_cb2.setText(type)
-        self.rate = QLabel()
-        self.rate.setText(type + "/")
-        self.val_cb3 = QComboBox()
-        self.val_cb3.addItems(['s', 'ms', 'min'])
-        self.val_cb3.setMinimumSize(80, 25)
-        self.horlayout0 = QHBoxLayout()
-        self.horlayout1 = QHBoxLayout()
-        self.edit_val1 = QLineEdit()
-        self.edit_val1.setValidator(validator)
-        self.edit_val2 = QLineEdit()
-        self.edit_val2.setValidator(validator)
-        self.edit_val4 = QLineEdit()  # offset
-        self.edit_val4.setValidator(validator)
-
-        self.edit_val3 = QLineEdit()
-        self.edit_val3.setValidator(validator)
-        self.label1 = QLabel("val1")
-        self.label2 = QLabel("val2")
-        self.label4 = QLabel("Offset")
-        self.label3 = QLabel("Duration")
-        self.type_label = QLabel("Choose type")
-        self.type_combo = QComboBox()
-        self.type_combo.addItems(["Isotherm", "Ramp", "Sine Segment"])
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.button_box.accepted.connect(self.accept1)
-        self.button_box.rejected.connect(self.reject)
-        layer1 = QVBoxLayout()
-        vlayer1 = QVBoxLayout()
-        vlayer2 = QVBoxLayout()
-        vlayer3 = QVBoxLayout()
-        vlayer4 = QVBoxLayout()
-        vlayer5 = QVBoxLayout()
-        hlayer1 = QHBoxLayout()
-        hlayer2 = QHBoxLayout()
-        hlayer3 = QHBoxLayout()
-
-        self.layout = QVBoxLayout()
-
-        vlayer1.addWidget(self.type_label)
-        vlayer1.addWidget(self.type_combo)
-        vlayer2.addWidget(self.label1)
-        hlayer1.addWidget(self.edit_val1)
-        hlayer1.addWidget(self.val_cb1)
-        vlayer2.addLayout(hlayer1)
-        vlayer3.addWidget(self.label2)
-        hlayer2.addWidget(self.edit_val2)
-        hlayer2.addWidget(self.val_cb2)
-        vlayer3.addLayout(hlayer2)
-        vlayer4.addWidget(self.label4)
-        vlayer4.addWidget(self.edit_val4)
-        vlayer5.addWidget(self.label3)
-        hlayer3.addWidget(self.edit_val3)
-        hlayer3.addWidget(self.rate)
-        hlayer3.addWidget(self.val_cb3)
-        vlayer5.addLayout(hlayer3)
-        self.horlayout0.addLayout(vlayer1)
-        self.horlayout0.addLayout(vlayer2)
-        self.horlayout0.addLayout(vlayer3)
-        self.horlayout0.addLayout(vlayer4)
-        self.horlayout0.addLayout(vlayer5)
-
-        self.layout.addLayout(self.horlayout0)
-
-        layer1.addLayout(self.layout)
-        layer1.addWidget(self.button_box)
-        self.setLayout(layer1)
-        self.change_type()
-        self.type_combo.currentTextChanged.connect(self.change_type)
-
-    def set_values(self, val1, val3, type_mode, duration_unit, val2='', val4=''):
-        index = self.type_combo.findText(type_mode)
-        self.type_combo.setCurrentIndex(index)
-        self.change_type()
-
-        self.edit_val1.setText(str(val1))
-        self.edit_val2.setText(str(val2))
-        self.edit_val3.setText(str(val3))
-        self.edit_val4.setText(str(val4))
-
-        index2 = self.val_cb3.findText(duration_unit)
-        self.val_cb3.setCurrentIndex(index2)
-
-    def text_take(self, type_mode: str, arg: list):
-        index = self.type_combo.findText(type_mode)
-        self.type_combo.setCurrentIndex(index)
-        self.change_type()
-        if type_mode == "Isotherm":
-            self.edit_val1.setText(arg[1])
-            self.edit_val3.setText(arg[2])
-            index2 = self.val_cb3.findText(arg[3])
-            self.val_cb3.setCurrentIndex(index2)
-        if type_mode == "Ramp":
-            self.edit_val1.setText(arg[1])
-            self.edit_val2.setText(arg[2])
-            self.edit_val3.setText(arg[3])
-            index2 = self.val_cb3.findText(arg[4])
-            self.val_cb3.setCurrentIndex(index2)
-        if type_mode == "Sine Segment":
-            self.edit_val1.setText(arg[1])
-            self.edit_val2.setText(arg[2])
-            self.edit_val3.setText(arg[4])
-            self.edit_val3.setText(arg[3])
-            index2 = self.val_cb3.findText(arg[5])
-            self.val_cb3.setCurrentIndex(index2)
-
-    def change_type(self):
-        if self.type_combo.currentText() == "Isotherm":
-            self.label2.setVisible(False)
-            self.val_cb2.setVisible(False)
-            self.val_cb1.setVisible(True)
-            self.edit_val2.setVisible(False)
-            self.edit_val4.setVisible(False)
-            self.label4.setVisible(False)
-            self.rate.setVisible(False)
-            self.label1.setText("Start Value")
-
-            self.label3.setText("Duration")
-        if self.type_combo.currentText() == "Ramp":
-            self.label2.setVisible(True)
-            self.val_cb2.setVisible(True)
-            self.val_cb1.setVisible(True)
-            self.edit_val2.setVisible(True)
-            self.edit_val4.setVisible(False)
-            self.label4.setVisible(False)
-            self.rate.setVisible(True)
-            self.label3.setText("Speed")
-            self.label1.setText("Start Value")
-            self.label2.setText("Final Value")
-        if self.type_combo.currentText() == "Sine Segment":
-            self.label2.setVisible(True)
-            self.val_cb2.setVisible(True)
-            self.edit_val2.setVisible(True)
-            self.edit_val4.setVisible(True)
-            self.label4.setVisible(True)
-            self.rate.setVisible(False)
-            self.label3.setText("Duration")
-            self.label1.setText("Amplitude")
-            self.label2.setText("Frequency")
-            self.val_cb1.setVisible(False)
-            self.val_cb2.setVisible(False)
-            # self.val_cb3.clear()
-            # self.val_cb3.addItems(["min", "s", "ms"])
-
-    def accept1(self):
-        if self.type_combo.currentText() == "Isotherm":
-            if not self.edit_val1.text() or not self.edit_val3.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
-                error_dialog.exec_()
-            else:
-                self.accept()
-
-        if self.type_combo.currentText() == "Ramp":
-            if not self.edit_val1.text() or not self.edit_val2.text() or not self.edit_val3.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
-                error_dialog.exec_()
-            else:
-                self.accept()
-        if self.type_combo.currentText() == "Sine Segment":
-            if not self.edit_val1.text() or not self.edit_val2.text() or not self.edit_val3.text() or not self.edit_val4.text():
-                error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
-                                           self)
-                error_dialog.exec_()
-            else:
-                self.accept()
 
 
-class SegmentType(Enum):
-    NONE = 0,
-    ISO = 1,
-    RAMP = 2,
-    SINE = 3
 
 
-class SegmentData:
-    def __init__(self,
-                 segment_type: SegmentType,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 end_value: float):
-        self.segment_type = segment_type
-        self.start_time = start_time  # in seconds
-        self.end_time = end_time  # in seconds
-        self.start_value = start_value  # Volts or °C
-        self.end_value = end_value  # Volts or °C
-
-    def duration(self) -> float:
-        return self.end_time - self.start_time
-
-
-class IsoSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float):
-        super().__init__(SegmentType.ISO, start_time, end_time, start_value, start_value)
-
-    def __repr__(self):
-        return f"IsoSegment({self.start_time}, {self.end_time}, {self.start_value})"
-
-
-class RampSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 end_value: float):
-        super().__init__(SegmentType.RAMP, start_time, end_time, start_value, end_value)
-
-    def __repr__(self):
-        return f"RampSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value})"
-
-        # Volts or °C per second
-
-    def rate(self) -> float:
-        return (self.end_value - self.start_value) / self.duration()
-
-
-class SineSegment(SegmentData):
-    def __init__(self,
-                 start_time: float,
-                 end_time: float,
-                 start_value: float,
-                 amplitude: float,
-                 frequency: float,
-                 offset: float):
-        super().__init__(SegmentType.SINE, start_time, end_time, start_value, start_value)
-
-        self.amplitude = amplitude
-        self.frequency = frequency
-        self.offset = offset
-
-    def __repr__(self):
-        return f"SineSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value}, {self.amplitude}, {self.frequency}, {self.offset}  )"
-
-
-class DataType(Enum):
-    TIME = 1,
-    TEMP = 2,
-    VOLT = 3
-
-
-class ProfileData:
-    data_type: DataType
-    segments: List[SegmentData]
-
-    def __init__(self,
-                 data_type: DataType,  # Y-axis
-                 segments: List[SegmentData] = None):
-        self.data_type = data_type
-        if segments is None:
-            segments = list()
-        self.segments = segments
-
-    def __str__(self):
-        result = f"ProfileData(data_type={self.data_type}, segments=["
-        for segment in self.segments:
-            result += f"\n\t{segment}"
-        result += "\n])"
-        return result
-
-    def __repr__(self):
-        return f"ProfileData({self.data_type}, {self.segments})"
-
-
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     import sys
-
     app = QApplication(sys.argv)
 
     app.setStyle('Fusion')
     example = SetProg()
     example.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec())'''

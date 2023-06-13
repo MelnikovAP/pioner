@@ -3,7 +3,9 @@ from silx.gui.plot import Plot1D, PlotWindow
 from silx.gui import icons
 from resultsDataWidget import resultsDataWidget
 from procFastHeatWidget import procFastHeatWidget
-from SetProg_widget import *
+from AdvancedSetProg import *
+from SetProgUI import *
+from functions import SetProgWidget
 
 class mainWindowUi(qt.QWidget):
     def __init__(self, parent=None):
@@ -246,8 +248,10 @@ class mainWindowUi(qt.QWidget):
         lout_0.addLayout(lout_1, 1)
         
         # Prog group box
-        self.progGroupBox = qt.QGroupBox("Prog")
+        self.progGroupBox = SetProgWidget()
         lout_1.addWidget(self.progGroupBox, 0)
+        #self.progGroupBox = qt.QGroupBox("Prog")
+        #lout_1.addWidget(self.progGroupBox, 0)
         lout_2 = qt.QVBoxLayout()
         lout_2.setSpacing(0)
         self.progGroupBox.setLayout(lout_2)
