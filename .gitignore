@@ -4,6 +4,5 @@ __pycache__/
 .env
 .vscode
 
-data/raw_data/*
-
+data/
 logs/*
