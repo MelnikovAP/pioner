@@ -3,7 +3,7 @@ from daq_device import DaqDeviceHandler
 from utils import temperature_to_voltage
 from settings import Settings
 from calibration import Calibration
-from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_PATH
+from constants import RAW_DATA_FILE_REL_PATH, EXP_DATA_FILE_REL_PATH, SETTINGS_FILE_REL_PATH
 
 from scipy import interpolate
 from typing import Dict
@@ -179,7 +179,7 @@ class FastHeat:
 
 if __name__ == '__main__':
     
-    settings = Settings(SETTINGS_PATH)
+    settings = Settings(SETTINGS_FILE_REL_PATH)
     time_temp_volt_tables = {'ch0':{'time':[0, 3000], 'volt':[1,1]},
                             'ch1':{'time':[0, 100, 1100, 1900, 2900, 3000], 'temp':[0, 0, 5, 5, 0, 0]},
                             'ch2':{'time':[0, 3000], 'volt':[5,5]},
