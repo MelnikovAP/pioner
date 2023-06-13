@@ -275,7 +275,7 @@ class ProfileWidget(QWidget):
             self.typecbox.setEnabled(False)
 
     def add_layer(self, x: int):
-        dialog = SegmentDialog(self.typecbox.currentText(),True)
+        dialog = SegmentDialog(self.typecbox.currentText(),False)
         if dialog.exec_() == QDialog.Accepted:
 
             if x != self.tableWidget.rowCount():
