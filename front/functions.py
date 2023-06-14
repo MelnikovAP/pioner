@@ -25,11 +25,88 @@ class SetProgWidget(SetProgWidgetUI):
         self.shortcut_copy.activated.connect(self.copy_selected_rows)
         self.shortcut_paste.activated.connect(self.paste_copied_rows)
         self.shortcut_new_segment.activated.connect(lambda: self.add_layer(self.combo_box_val.currentText(), self.table.rowCount()))
+        self.table.cellDoubleClicked.connect(self.edit_selected_row)
+        self.table.itemDoubleClicked.connect(self.show_dialog)
+
+    def show_dialog(self, item):
+        row = item.row()
+        column = item.column()
+        if column == 0:
+            # Ignore double click on the first column
+            return
+        dialog = SegmentDialog(self.combo_box_val.currentText(), True)
+        if dialog.exec_() == QDialog.Accepted:
+            type_val = dialog.type_combo.currentText()
+            f_val = dialog.edit_val1.text()
+            dur_val = dialog.edit_val3.text()
+            dur_type = dialog.val_cb3.currentText()
+            trigger = dialog.checkbox_ttl.isChecked()
+            dur_item = QTableWidgetItem(dur_val + " " + dur_type)
+            val_item = QTableWidgetItem()
+            ttl_mark = QTableWidgetItem()
+
+            if type_val == "Isotherm":
+                val_item = QTableWidgetItem(f_val + " " + self.combo_box_val.currentText())
+            elif type_val == "Ramp":
+                to_val = dialog.edit_val2.text()
+                val_item = QTableWidgetItem(f_val + "..." + to_val + ' ' + self.combo_box_val.currentText())
+                dur_item = QTableWidgetItem(dur_val + ' ' + self.combo_box_val.currentText() + '/' + dur_type)
+
+            if trigger:
+                ttl_mark = QTableWidgetItem("ttl")
+
+            dur_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            val_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            ttl_mark.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.table.setItem(row, 1, val_item)
+            self.table.setItem(row, 2, dur_item)
+            self.table.setItem(row, 3, ttl_mark)
+
+            self.sum_numbers_and_extract_text()
 
     @staticmethod
     def add_action():
         print("hello")
 
+    def edit_selected_row(self, row, column):
+        # Проверяем, что выбрана ячейка первого столбца
+        if column == 0:
+            # Получаем выделенную строку
+            selected_row = [self.table.item(row, col).text() for col in range(self.table.columnCount())]
+
+            # Создаем диалоговое окно с использованием значений выделенной строки
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Edit Row")
+            dialog.resize(300, 200)
+
+            # Создаем поля ввода для каждого значения в строке
+            input_fields = []
+            for i, value in enumerate(selected_row):
+                input_label = QLabel(value, dialog)
+                input_field = QLineEdit(dialog)
+                input_field.setText(value)
+                input_label.move(20, 20 + i * 30)
+                input_field.move(100, 20 + i * 30)
+                input_fields.append(input_field)
+
+            # Создаем кнопку "OK" для сохранения изменений
+            ok_button = QPushButton("OK", dialog)
+            ok_button.move(100, 20 + len(selected_row) * 30)
+            ok_button.clicked.connect(lambda: self.update_row_values(row, input_fields, dialog))
+
+            dialog.exec_()
+
+    def update_row_values(self, row, input_fields, dialog):
+        # Получаем новые значения из полей ввода
+        new_values = [field.text() for field in input_fields]
+
+        # Обновляем значения в таблице
+        for col, value in enumerate(new_values):
+            item = QTableWidgetItem(value)
+            item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.table.setItem(row, col, item)
+
+        dialog.close()
     def add_layer(self, type_v: str, x: int):
         if self.table.rowCount() != 0:
             meme = self.sum_numbers_and_extract_text()
@@ -87,6 +164,46 @@ class SetProgWidget(SetProgWidgetUI):
             # self.tot_dur_val.setText(str(float(self.tot_dur_val.text()) + duration))
             self.combo_box_val.setEnabled(False)
             self.sum_numbers_and_extract_text()
+
+    def update_table_row(self, row, type_v: str, x: int):
+        dialog = SegmentDialog(type_v, True)  # Создание и открытие диалогового окна
+        if dialog.exec_() == QDialog.Accepted:
+            type_val = dialog.type_combo.currentText()
+            f_val = dialog.edit_val1.text()
+            to_val = dialog.edit_val2.text()
+            dur_val = dialog.edit_val3.text()
+            dur_type = dialog.val_cb3.currentText()
+            trigger = dialog.checkbox_ttl.isChecked()
+
+            # Create the QTableWidgetItem objects with the new values
+            mode_item = QTableWidgetItem()
+            val_item = QTableWidgetItem()
+            dur_item = QTableWidgetItem(dur_val + " " + dur_type)
+            ttl_mark = QTableWidgetItem("ttl" if trigger else "")
+
+            if type_val == "Isotherm":
+                mode_item = QTableWidgetItem('→')
+                val_item = QTableWidgetItem(f_val + " " + type_val)
+            elif type_val == "Ramp":
+                val_item = QTableWidgetItem(f_val + "..." + to_val + ' ' + type_val)
+                dur_item = QTableWidgetItem(dur_val + ' ' + type_val + '/' + dur_type)
+
+                if float(f_val) > float(to_val):
+                    mode_item = QTableWidgetItem('↘')
+                else:
+                    mode_item = QTableWidgetItem('↗')
+
+            # Set the text alignment for the QTableWidgetItem objects
+            mode_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            val_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            dur_item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            ttl_mark.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+            # Replace the values in the specified row of the table
+            self.table.setItem(row, 0, mode_item)
+            self.table.setItem(row, 1, val_item)
+            self.table.setItem(row, 2, dur_item)
+            self.table.setItem(row, 3, ttl_mark)
 
     def copy_selected_rows(self):
         # get a rows

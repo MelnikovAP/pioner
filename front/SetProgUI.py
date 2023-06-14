@@ -21,6 +21,7 @@ class SetProgWidgetUI(QWidget):
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setRowCount(0)
         self.table.setColumnWidth(0, 10)
         self.table.setColumnWidth(1, 83)
