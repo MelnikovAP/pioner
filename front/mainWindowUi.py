@@ -2,7 +2,7 @@ from silx.gui import icons, qt
 
 from procFastHeatWidget import procFastHeatWidget
 from resultsDataWidget import resultsDataWidget
-from SetProg_widget import *
+from progWidget import progWidget
 
 class mainWindowUi(qt.QWidget):
     def __init__(self, parent=None):
@@ -247,13 +247,40 @@ class mainWindowUi(qt.QWidget):
         # Prog group box
         self.progGroupBox = qt.QGroupBox("Prog")
         lout_1.addWidget(self.progGroupBox, 0)
-        lout_2 = qt.QVBoxLayout()
-        lout_2.setSpacing(0)
-        self.progGroupBox.setLayout(lout_2)
+        self.progGroupBox_lout = qt.QVBoxLayout()
+        self.progGroupBox_lout.setSpacing(0)
+        self.progGroupBox.setLayout(self.progGroupBox_lout)
         
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(0)
-        lout_2.addLayout(lout_3)
+        self.progGroupBox_lout.addLayout(lout_3)
+        self.progTypeSelector = qt.QComboBox()
+        self.progTypeSelector.insertItem(0, "profile editor")
+        self.progTypeSelector.insertItem(1, "time/temp table")
+        lout_3.addWidget(self.progTypeSelector)
+
+        self.progGroupBox_lout.addSpacing(5)
+
+        self.progTypeSelector.setCurrentIndex(0)
+        
+        self.ttStackWidget = qt.QStackedWidget()
+        self.progGroupBox_lout.addWidget(self.ttStackWidget)
+        
+        self.ttProgWidget = progWidget()
+        self.ttStackWidget.insertWidget(0, self.ttProgWidget)
+        ttProg_lout = qt.QVBoxLayout()
+        self.ttProgWidget.setLayout(ttProg_lout)
+        ttProg_lout.addSpacing(15)
+        ttProg_lout.addWidget(qt.QLabel('test'))
+
+
+        self.ttTableWidget = qt.QWidget()
+        self.ttStackWidget.insertWidget(1, self.ttTableWidget)
+        tttable_lout = qt.QVBoxLayout()
+        self.ttTableWidget.setLayout(tttable_lout)
+        lout_3 = qt.QHBoxLayout()
+        lout_3.setSpacing(0)
+        tttable_lout.addLayout(lout_3)
         self.experimentTimeComboBox = qt.QComboBox()
         self.experimentTimeComboBox.setFixedWidth(75)
         self.experimentTimeComboBox.addItem("Time (ms)")
@@ -267,7 +294,7 @@ class mainWindowUi(qt.QWidget):
 
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(0)
-        lout_2.addLayout(lout_3)
+        tttable_lout.addLayout(lout_3)
         self.experimentTable = qt.QTableWidget()
         self.experimentTable.setFixedSize(150, 207)
         self.experimentTable.setFrameStyle(qt.QFrame.NoFrame)
@@ -299,34 +326,34 @@ class mainWindowUi(qt.QWidget):
         self.experimentTable.resizeRowsToContents()
         lout_3.addWidget(self.experimentTable, 0)
 
-        lout_2.addSpacing(5)
+        tttable_lout.addSpacing(5)
 
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(1)
-        lout_2.addLayout(lout_3)
+        tttable_lout.addLayout(lout_3)
         self.loadTxtButton = qt.QPushButton("Load")
         lout_3.addWidget(self.loadTxtButton)
         self.armButton = qt.QPushButton("Arm")
         lout_3.addWidget(self.armButton)
 
-        lout_2.addSpacing(5)
+        tttable_lout.addSpacing(5)
 
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(1)
-        lout_2.addLayout(lout_3)
+        tttable_lout.addLayout(lout_3)
         self.stopButton = qt.QPushButton("Stop")
         lout_3.addWidget(self.stopButton)
         self.startButton = qt.QPushButton("Start")
         lout_3.addWidget(self.startButton)
 
         self.holdFinalValue = qt.QCheckBox(" hold final value")
-        lout_2.addWidget(self.holdFinalValue)
+        tttable_lout.addWidget(self.holdFinalValue)
 
-        lout_2.addStretch()
+        self.progGroupBox_lout.addStretch()
 
         lout_3 = qt.QVBoxLayout()
         lout_3.setSpacing(5)
-        lout_2.addLayout(lout_3)
+        self.progGroupBox_lout.addLayout(lout_3)
         isoLabel = qt.QLabel("Isothermal mode")
         isoLabel.setAlignment(qt.Qt.AlignCenter)
         lout_3.addWidget(isoLabel)
@@ -627,6 +654,7 @@ class mainWindowUi(qt.QWidget):
         # [item.setEnabled(False) for item in [self.experimentBox, self.controlTab]]
 
         self.setComboBox.currentTextChanged.connect(self.setComboBox_changed)
+        self.progTypeSelector.currentTextChanged.connect(self.progTypeSelector_changed)
         
         ####### Add/delete tabs on mainTabWidget
         #######################################         
@@ -639,7 +667,12 @@ class mainWindowUi(qt.QWidget):
             self.setInputUnits.setText("°C")
         if text == "Volt":
             self.setInputUnits.setText("V")
-    
+
+    def progTypeSelector_changed(self):
+        index = self.progTypeSelector.currentIndex()
+        self.ttStackWidget.setCurrentIndex(index)
+
+        
     def add_tab_to_mainTabWidget(self, i):
         if self.mainTabWidget.tabText(i) == "+":
             tab_types = ("Process fast heating", 
