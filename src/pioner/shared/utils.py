@@ -3,9 +3,7 @@ from typing import List
 
 import numpy as np
 
-import sys
-sys.path.append('./')
-from shared.calibration import Calibration
+from pioner.shared.calibration import Calibration
 
 
 def is_int(key) -> bool:

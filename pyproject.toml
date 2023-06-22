@@ -6,8 +6,8 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pioner"
-version = "0.0.1"
+name = "ppioner"
+version = "0.0.4"
 authors = [
     {name = "awesome author", email = "awesome@author.edu"},
 ]
@@ -35,7 +35,7 @@ dependencies = [
 
 [project.optional-dependencies]
 server = ["uldaq==1.2.3",]
-gui = ["pytango==9.3.3", "silx==1.0.0", "pyqt5==5.15.6",]
+gui = ["silx==1.0.0", "pyqt5==5.15.6",]
 
-
-dynamic = ["version"]
+[project.scripts]
+pionerUI = "pioner.runUI:pioner_run_ui"

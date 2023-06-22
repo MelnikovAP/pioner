@@ -1,0 +1,2 @@
+[console_scripts]
+pionerUI = pioner.runUI:pioner_run_ui

@@ -1,7 +1,7 @@
 import json
 import os
 
-from shared.constants import *
+from pioner.shared.constants import *
 
 # TODO: write unit tests for reading and writing any calibration file
 # TODO: do we want to provide **public** access to all calibration attributes?

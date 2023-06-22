@@ -1,0 +1,45 @@
+Metadata-Version: 2.1
+Name: ppioner
+Version: 0.0.4
+Summary: Basic software to operate PIONER device (former Nanocal)
+Author-email: awesome author <awesome@author.edu>
+License: MIT
+Keywords: nanocalorimetry,DAQ
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Provides-Extra: server
+Provides-Extra: gui
+License-File: LICENSE
+
+# Nanocal
+
+
+## 1. Install MCC Universal Library for Linux (uldaq)
+
+**Author:** Measurement Computing
+The **uldaq** package contains programming libraries and components for developing applications using C/C++ on Linux and macOS Operating Systems. For more information please refer to [mccdaq github](https://github.com/mccdaq/uldaq)
+
+## 2. Install the Python interface
+
+Install the uldaq Python API with:  
+ ```
+   $ pip install uldaq
+ ```
+Refer to https://pypi.org/project/uldaq/ for more detailes.  
+**Note:** sometimes one needs to change date on raspberry pi:
+ ```
+   $ sudo date -s "YYYY-MM-DD HH:MM:SS"
+ ```
+
+## 3. For developers
+Refer to the UL documentation:
+https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html
+
+
+
+
+python -m build
+pip install -e .

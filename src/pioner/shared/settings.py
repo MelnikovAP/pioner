@@ -7,8 +7,8 @@ try:
 except:
     pass
 
-from shared.utils import is_int_or_raise, list_bitwise_or
-from shared.constants import *
+from pioner.shared.utils import is_int_or_raise, list_bitwise_or
+from pioner.shared.constants import *
 
 
 class JsonReader:
