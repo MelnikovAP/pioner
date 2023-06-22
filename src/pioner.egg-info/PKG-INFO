@@ -1,3 +1,20 @@
+Metadata-Version: 2.1
+Name: pioner
+Version: 0.0.1
+Summary: Basic software to operate PIONER device (former Nanocal)
+Author-email: awesome author <awesome@author.edu>
+License: MIT
+Keywords: nanocalorimetry,DAQ
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Provides-Extra: server
+Provides-Extra: gui
+Provides-Extra: dynamic
+License-File: LICENSE
+
 # Nanocal
 
 

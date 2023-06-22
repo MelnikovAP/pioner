@@ -1,8 +1,8 @@
 from silx.gui import icons, qt
 
-from procFastHeatWidget import procFastHeatWidget
-from resultsDataWidget import resultsDataWidget
-from SetProg_widget import *
+from pioner.front.procFastHeatWidget import procFastHeatWidget
+from pioner.front.resultsDataWidget import resultsDataWidget
+from pioner.front.SetProg_widget import *
 
 class mainWindowUi(qt.QWidget):
     def __init__(self, parent=None):

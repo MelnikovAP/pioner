@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 
-import sys
-sys.path.append('./')
 from shared.constants import *
 from shared.settings import BackSettings
 from shared.utils import temperature_to_voltage

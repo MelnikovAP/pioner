@@ -10,10 +10,7 @@ from silx.gui.fit import BackgroundWidget
 import numpy as np
 import functools
 
-import sys
-sys.path.append('./')
-from shared.settings import FrontSettings
-from messageWindows import *
+from pioner.front.messageWindows import *
 
 
 

@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
-import sys
-sys.path.append('./')
 from shared.constants import *
 from shared.settings import BackSettings
 from shared.calibration import Calibration

@@ -6,9 +6,8 @@ import h5py
 from shutil import copy
 import json
 
-from messageWindows import *
-from calibWindow import *
-from resultsDataWidget import resultsDataWidget
+from pioner.front.messageWindows import *
+from pioner.front.calibWindow import *
 
 
 class procFastHeatWidget(qt.QWidget):

@@ -1,0 +1,41 @@
+[build-system]
+requires = [
+    "setuptools>=61.0", 
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pioner"
+version = "0.0.1"
+authors = [
+    {name = "awesome author", email = "awesome@author.edu"},
+]
+description = "Basic software to operate PIONER device (former Nanocal)"
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["nanocalorimetry", "DAQ"]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "matplotlib==3.5.2",
+    "numpy==1.22.4",
+    "pandas==1.4.2",
+    "scipy==1.8.1",
+    "h5py==3.7.0",
+    "pytango==9.3.3",
+    "requests==2.23.0",
+    "sortedcontainers==2.4.0",
+    'importlib-metadata; python_version<"3.8"',
+]
+
+[project.optional-dependencies]
+server = ["uldaq==1.2.3",]
+gui = ["pytango==9.3.3", "silx==1.0.0", "pyqt5==5.15.6",]
+
+
+dynamic = ["version"]

@@ -5,17 +5,15 @@ import h5py
 import numpy as np
 import pandas as pd
 import requests
-from calibWindow import *
-from configWindow import *
-from mainWindowUi import mainWindowUi
-from messageWindows import *
 from silx.gui import qt
 from silx.gui.plot import Plot1D
 
-import sys
-sys.path.append('./')
-from shared.constants import *
-from shared.settings import FrontSettings
+from pioner.front.calibWindow import *
+from pioner.front.configWindow import *
+from pioner.front.mainWindowUi import mainWindowUi
+from pioner.front.messageWindows import *
+from pioner.shared.constants import *
+from pioner.shared.settings import FrontSettings
 
 
 class mainWindow(mainWindowUi):

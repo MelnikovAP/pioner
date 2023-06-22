@@ -4,8 +4,6 @@ import os
 import uldaq as ul
 from tango.server import AttrWriteType, Device, attribute, command, pipe
 
-import sys
-sys.path.append('./')
 from shared.constants import *
 from shared.calibration import Calibration
 from shared.settings import BackSettings

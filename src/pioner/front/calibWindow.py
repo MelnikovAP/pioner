@@ -1,11 +1,7 @@
 from silx.gui import qt
 
-import sys
-sys.path.append('./')
-from shared.constants import *
-from shared.settings import FrontSettings
-from messageWindows import *
-
+from pioner.shared.constants import *
+from pioner.front.messageWindows import *
 
 class calibWindow(qt.QDialog):
     def __init__(self, parent=None):

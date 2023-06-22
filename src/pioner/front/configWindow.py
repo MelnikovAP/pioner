@@ -1,10 +1,8 @@
 from silx.gui import qt
 
-import sys
-sys.path.append('./')
-from shared.constants import *
-from shared.settings import *
-from messageWindows import *
+from pioner.shared.constants import *
+from pioner.shared.settings import *
+from pioner.front.messageWindows import *
 
 
 class configWindow(qt.QDialog):

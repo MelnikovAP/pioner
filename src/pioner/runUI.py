@@ -1,12 +1,9 @@
 from silx.gui import qt
-
 import sys
-sys.path.append('./')
-from mainWindow import mainWindow
 
+from pioner.front.mainWindow import mainWindow
 
-
-def create_GUI():
+def pioner_run_ui():
     app = qt.QApplication([])
     sys.excepthook = qt.exceptionHandler
     app.setStyle('Fusion')
@@ -15,4 +12,4 @@ def create_GUI():
     app.exec()
 
 if __name__ == "__main__":
-    create_GUI()
+    pioner_run_ui()

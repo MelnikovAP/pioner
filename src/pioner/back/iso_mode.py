@@ -1,7 +1,5 @@
 import logging
 
-import sys
-sys.path.append('./')
 from shared.constants import *
 from shared.settings import BackSettings
 from shared.calibration import Calibration

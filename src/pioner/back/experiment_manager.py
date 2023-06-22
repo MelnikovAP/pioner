@@ -6,8 +6,6 @@ from typing import List
 import pandas as pd
 import uldaq as ul
 
-import sys
-sys.path.append('./')
 from shared.constants import *
 from shared.settings import BackSettings
 from back.ai_device import AiDeviceHandler

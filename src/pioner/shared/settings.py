@@ -1,6 +1,4 @@
 import json
-import sys
-sys.path.append('./')
 
 try:
     from back.ai_device import AiParams
