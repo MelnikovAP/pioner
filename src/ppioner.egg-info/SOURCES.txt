@@ -24,6 +24,9 @@ src/pioner/front/messageWindows.py
 src/pioner/front/procFastHeatWidget.py
 src/pioner/front/resultsDataWidget.py
 src/pioner/front/virtualDevice.py
+src/pioner/settings/__init__.py
+src/pioner/settings/default_calibration.json
+src/pioner/settings/default_settings.json
 src/pioner/shared/__init__.py
 src/pioner/shared/calibration.py
 src/pioner/shared/constants.py

@@ -8,6 +8,7 @@ import json
 
 from pioner.front.messageWindows import *
 from pioner.front.calibWindow import *
+from pioner.front.resultsDataWidget import resultsDataWidget
 
 
 class procFastHeatWidget(qt.QWidget):

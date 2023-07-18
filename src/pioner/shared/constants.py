@@ -1,4 +1,4 @@
-import os
+from os import path
 
 # Common constants
 # =================================================================================
@@ -6,14 +6,19 @@ MAX_SCAN_SAMPLE_RATE = 1000000
 JSON_EXTENSION = "json"
 H5_EXTENSION = "h5"
 
+ROOT_PATH = path.dirname(path.dirname(path.realpath(__file__)))
+
 # Settings constants
 # =================================================================================
 SETTINGS_FOLDER = "settings"
-SETTINGS_FOLDER_REL_PATH = os.path.join("./", SETTINGS_FOLDER)
+
+SETTINGS_FOLDER_REL_PATH = path.join("./", SETTINGS_FOLDER)     #./ for user settings files to use folder from where package was called
 SETTINGS_FILE = "settings.json"
-SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
+SETTINGS_FILE_REL_PATH = path.join(SETTINGS_FOLDER_REL_PATH, SETTINGS_FILE)
+
+DEFAULT_SETTINGS_FOLDER_REL_PATH = path.join(ROOT_PATH, SETTINGS_FOLDER)    # use package installation directory
 DEFAULT_SETTINGS_FILE = "default_settings.json"
-DEFAULT_SETTINGS_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, DEFAULT_SETTINGS_FILE)
+DEFAULT_SETTINGS_FILE_REL_PATH = path.join(DEFAULT_SETTINGS_FOLDER_REL_PATH, DEFAULT_SETTINGS_FILE)
 
 # JSON fields backend
 DAQ_SETTINGS_FIELD = "DAQ settings"
@@ -59,11 +64,11 @@ OFFSET_FIELD = "Offset"
 # Raw data constants
 # =================================================================================
 DATA_FOLDER = "data"
-DATA_FOLDER_REL_PATH = os.path.join("./", DATA_FOLDER)
+DATA_FOLDER_REL_PATH = path.join("./", DATA_FOLDER)
 RAW_DATA_FOLDER = "raw_data"
-RAW_DATA_FOLDER_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, RAW_DATA_FOLDER)
+RAW_DATA_FOLDER_REL_PATH = path.join(DATA_FOLDER_REL_PATH, RAW_DATA_FOLDER)
 RAW_DATA_FILE = "raw_data.h5"
-RAW_DATA_FILE_REL_PATH = os.path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
+RAW_DATA_FILE_REL_PATH = path.join(RAW_DATA_FOLDER_REL_PATH, RAW_DATA_FILE)
 
 RAW_DATA_BUFFER_FILE_PREFIX = "raw_data_buffer_"
 RAW_DATA_BUFFER_FILE_FORMAT = "raw_data_buffer_{}.h5"
@@ -71,21 +76,21 @@ BUFFER_DUMMY_1 = "raw_data_dummy_1.h5"
 BUFFER_DUMMY_2 = "raw_data_dummy_2.h5"
 
 EXP_DATA_FILE = "exp_data.h5"
-EXP_DATA_FILE_REL_PATH = os.path.join(DATA_FOLDER_REL_PATH, EXP_DATA_FILE)
+EXP_DATA_FILE_REL_PATH = path.join(DATA_FOLDER_REL_PATH, EXP_DATA_FILE)
 
 # Logs constants
 # =================================================================================
 LOGS_FOLDER = "logs"
-LOGS_FOLDER_REL_PATH = os.path.join("./", LOGS_FOLDER)
+LOGS_FOLDER_REL_PATH = path.abspath(path.join("./", LOGS_FOLDER))
 NANOCONTROL_LOG_FILE = "nanocontrol.log"
-NANOCONTROL_LOG_FILE_REL_PATH = os.path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
+NANOCONTROL_LOG_FILE_REL_PATH = path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
 
 # Calibration constants
 # =================================================================================
 CALIBRATION_FILE = "calibration.json"
-CALIBRATION_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, CALIBRATION_FILE)
+CALIBRATION_FILE_REL_PATH = path.join(SETTINGS_FOLDER_REL_PATH, CALIBRATION_FILE)
 DEFAULT_CALIBRATION_FILE = "default_calibration.json"
-DEFAULT_CALIBRATION_FILE_REL_PATH = os.path.join(SETTINGS_FOLDER_REL_PATH, DEFAULT_CALIBRATION_FILE)
+DEFAULT_CALIBRATION_FILE_REL_PATH = path.join(DEFAULT_SETTINGS_FOLDER_REL_PATH, DEFAULT_CALIBRATION_FILE)
 
 INFO_FIELD = "Info"
 
@@ -103,3 +108,7 @@ R_GUARD_FIELD = "R guard"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
 # =================================================================================
+
+
+if __name__=="__main__":
+    print(ROOT_PATH)

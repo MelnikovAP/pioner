@@ -1,5 +1,7 @@
 import json
 
+import os 
+
 try:
     from back.ai_device import AiParams
     from back.ao_device import AoParams
@@ -327,6 +329,5 @@ if __name__ == '__main__':
     # settings = BackSettings(_path)
     settings = FrontSettings(_path)
 
-    # print(settings.get_str())
-    print(settings.data_path)
+    print(settings.get_exp_settings())
 

@@ -2,7 +2,10 @@ __pycache__/
 .idea/*
 
 .env
+.env2
 .vscode
+
+dist
 
 data/raw_data/*
 

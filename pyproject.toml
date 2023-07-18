@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ppioner"
-version = "0.0.4"
+version = "0.0.9"
 authors = [
     {name = "awesome author", email = "awesome@author.edu"},
 ]
@@ -22,20 +22,22 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "matplotlib==3.5.2",
-    "numpy==1.22.4",
-    "pandas==1.4.2",
-    "scipy==1.8.1",
-    "h5py==3.7.0",
-    "pytango==9.3.3",
-    "requests==2.23.0",
-    "sortedcontainers==2.4.0",
+    "silx>=1.1.2",
+    "pytango>=9.4.1",
+    "matplotlib>=3.7",
+    "pandas>=2.0.2",
+    "requests>=2.31.0",
+    "sortedcontainers>=2.4.0",
     'importlib-metadata; python_version<"3.8"',
 ]
 
 [project.optional-dependencies]
-server = ["uldaq==1.2.3",]
-gui = ["silx==1.0.0", "pyqt5==5.15.6",]
+server = ["uldaq>=1.2.3",]
+gui = ["pyqt5>=5.15.6",]
 
 [project.scripts]
 pionerUI = "pioner.runUI:pioner_run_ui"
+
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]

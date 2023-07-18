@@ -2,15 +2,13 @@ import logging
 from typing import Dict
 import h5py
 import numpy as np
-import pandas as pd
-from scipy import interpolate
 
-from shared.constants import *
-from shared.settings import BackSettings
-from shared.utils import temperature_to_voltage
-from shared.calibration import Calibration
-from back.daq_device import DaqDeviceHandler
-from back.experiment_manager import ExperimentManager
+from pioner.shared.constants import *
+from pioner.shared.settings import BackSettings
+from pioner.shared.utils import temperature_to_voltage
+from pioner.shared.calibration import Calibration
+from pioner.back.daq_device import DaqDeviceHandler
+from pioner.back.experiment_manager import ExperimentManager
 
 
 class FastHeat:
@@ -108,10 +106,8 @@ class FastHeat:
 
     def _interpolate_profile(self, profile_time, profile_temp_or_volt) -> np.array:
         # profile interpolation with respect to time column in table
-        interpolation = interpolate.interp1d(x=profile_time, y=profile_temp_or_volt, kind='linear')
-        
         time_program_points = np.linspace(profile_time[0], profile_time[-1], self._samples_per_channel)
-        temp_or_volt_program_points = interpolation(time_program_points)
+        temp_or_volt_program_points = np.interp(time_program_points, xp=profile_time, fp=profile_temp_or_volt)
 
         return temp_or_volt_program_points
 

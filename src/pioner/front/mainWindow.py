@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 
 import h5py
 import numpy as np
@@ -14,6 +15,7 @@ from pioner.front.mainWindowUi import mainWindowUi
 from pioner.front.messageWindows import *
 from pioner.shared.constants import *
 from pioner.shared.settings import FrontSettings
+from pioner.shared.utils import Dict2Class
 
 
 class mainWindow(mainWindowUi):
@@ -60,11 +62,12 @@ class mainWindow(mainWindowUi):
             # in order to include feature with no-hardware mode 
             try:
                 import tango
-
                 self.device = tango.DeviceProxy(self.settings.device_proxy)
                 self.device.set_timeout_millis(10000000)
+                print(self.settings.get_server_settings())
                 self.device.set_connection()
-            
+                print('success')
+
                 if self.settings.calib_path == DEFAULT_CALIBRATION_FILE_REL_PATH:
                     self.apply_default_calib()
                 else: 
@@ -144,6 +147,13 @@ class mainWindow(mainWindowUi):
     # ===================================
     # Settings
     def preload_settings(self):
+        if not os.path.exists(SETTINGS_FOLDER_REL_PATH):
+            os.makedirs(SETTINGS_FOLDER_REL_PATH)
+        if not os.path.exists(SETTINGS_FILE_REL_PATH):
+            shutil.copy(DEFAULT_SETTINGS_FILE_REL_PATH, SETTINGS_FILE_REL_PATH)
+        if not os.path.exists(DATA_FOLDER_REL_PATH):
+            os.makedirs(DATA_FOLDER_REL_PATH)
+
         self.load_settings_from_file()
         if not self.settings: 
             quit()
@@ -151,8 +161,6 @@ class mainWindow(mainWindowUi):
         if not os.path.exists(self.settings.data_path):
             error_text = "Incorrect data path specified.\nIt will be set to {}".format(DATA_FOLDER_REL_PATH)
             ErrorWindow(error_text)
-            if not os.path.exists(DATA_FOLDER_REL_PATH):
-                os.makedirs(DATA_FOLDER_REL_PATH)
             self.settings.data_path = os.path.abspath(DATA_FOLDER_REL_PATH)
         self.sysDataPathInput.setText(self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
@@ -350,12 +358,4 @@ class mainWindow(mainWindowUi):
 
 
 
-# Turns a dictionary into a class
-class Dict2Class(object):
-    def __init__(self, my_dict):
-        for key in my_dict:
-            setattr(self, key, my_dict[key])
-        self.my_dict = my_dict
-    def get_dict(self):
-        return self.my_dict
 

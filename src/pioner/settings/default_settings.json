@@ -24,6 +24,7 @@
             ]
         }
     },
+
     "Server settings": {
         "Tango": {
             "Tango host": "lid13ctrl1.esrf.fr:20000",
@@ -33,10 +34,11 @@
             "HTTP host": "http://nanocal.esrf.fr:8000/"
         }
     },
+
     "Experiment settings": {
         "Paths": {
-            "Calibration path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\settings\\calibration.json",
-            "Data path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\data"
+            "Calibration path": "./settings/default_calibration.json",
+            "Data path": "./data/"
         },
         "Scan": {
             "Sample rate": 20000

@@ -6,12 +6,12 @@ from typing import List
 import pandas as pd
 import uldaq as ul
 
-from shared.constants import *
-from shared.settings import BackSettings
-from back.ai_device import AiDeviceHandler
-from back.ao_data_generators import ScanDataGenerator
-from back.ao_device import AoDeviceHandler
-from back.daq_device import DaqDeviceHandler
+from pioner.shared.constants import *
+from pioner.shared.settings import BackSettings
+from pioner.back.ai_device import AiDeviceHandler
+from pioner.back.ao_data_generators import ScanDataGenerator
+from pioner.back.ao_device import AoDeviceHandler
+from pioner.back.daq_device import DaqDeviceHandler
 
 # TODO: check why we create analog devices inside scanning methods
 
