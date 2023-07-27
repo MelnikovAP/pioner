@@ -1,4 +1,5 @@
-# Nanocal
+# PIONER Lab (Platform for Integrated Operative Nano Experiments and Research)  
+*former Nanocal*0.9
 
 
 ## 1. Install MCC Universal Library for Linux (uldaq)
@@ -23,7 +24,12 @@ Refer to the UL documentation:
 https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html
 
 
-
+python -m venv .env
+source .env/bin/activate
+pip install --upgrade pip
+pip install build 
 
 python -m build
 pip install -e .
+pip install -e ".[gui]"
+pip install -e ".[server]"
