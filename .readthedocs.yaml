@@ -3,13 +3,13 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
 # Required
-version: 0.0.9
+version: 0.0.1
 
 # Set the OS, Python version and other tools you might need
 build:
   os: ubuntu-22.04
   tools:
-    python: "3.11"
+    python: "3.9"
     # You can also specify other tool versions:
     # nodejs: "19"
     # rust: "1.64"
