@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Usage &mdash; pioner 0.0.9 documentation</title>
+  <title>For developers &mdash; pioner 0.0.9 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -20,7 +20,7 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="prev" title="Installation" href="installation.html" /> 
+    <link rel="prev" title="Usage" href="usage.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,9 +47,10 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="installation.html#raspberry-pi-configuration">Raspberry Pi configuration</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#runUI.pioner_run_ui"><code class="docutils literal notranslate"><span class="pre">pioner_run_ui()</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">For developers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#optional">Optional</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#for-testing-tango-on-windows">For testing Tango on Windows</a></li>
 </ul>
 </li>
 </ul>
@@ -68,9 +69,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Usage</li>
+      <li class="breadcrumb-item active">For developers</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/usage.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/for_developers.md.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -78,36 +79,62 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="usage">
-<h1>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h1>
-<p>you can use the <code class="docutils literal notranslate"><span class="pre">lumache.get_random_ingredients()</span></code> function:</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="runUI.pioner_run_ui">
-<span class="sig-prename descclassname"><span class="pre">runUI.</span></span><span class="sig-name descname"><span class="pre">pioner_run_ui</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#runUI.pioner_run_ui" title="Permalink to this definition"></a></dt>
-<dd><p>Test documentation.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>kind</strong> (<em>list</em><em>[</em><em>str</em><em>] or </em><em>None</em>) – Optional “kind” of ingredients.</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>lumache.InvalidKindError</strong> – If the kind is invalid.</p>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>The ingredients list.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>list[str]</p>
-</dd>
-</dl>
-</dd></dl>
-
+  <section id="for-developers">
+<h1>For developers<a class="headerlink" href="#for-developers" title="Permalink to this heading"></a></h1>
+<p>Refer to the UL documentation:
+https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html</p>
+<p>python -m venv .env
+source .env/bin/activate
+pip install –upgrade pip
+pip install build</p>
+<p>python -m build
+pip install -e .
+pip install -e “.[gui]”
+pip install -e “.[server]”</p>
+<section id="optional">
+<h2>Optional<a class="headerlink" href="#optional" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Configure git:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git config --global user.name &quot;username&quot;
+$ git config --global user.email &quot;email&quot;
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>If mistake with acces to USB:
+https://askubuntu.com/questions/978552/how-do-i-make-libusb-work-as-non-root
+$ sudo nano /etc/udev/rules.d/90-usbpermission.rules
+add there: SUBSYSTEM==“usb”,GROUP=“users”,MODE=“0666”</p></li>
+</ul>
+</section>
+<section id="for-testing-tango-on-windows">
+<h2>For testing Tango on Windows<a class="headerlink" href="#for-testing-tango-on-windows" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Install Java from <a class="reference external" href="https://www.java.com/en/download/">here</a></p></li>
+<li><p>Install Tango from <a class="reference external" href="https://www.tango-controls.org/downloads/">here</a></p></li>
+<li><p>Set enviroment variable TANGO_HOST=’raspberrypi:10000’</p></li>
+<li><p>Add to path C:\Program Files\tango\bin</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">numpy</span> <span class="n">six</span> <span class="n">Sphinx</span> <span class="n">pytango</span> 
+</pre></div>
+</div>
+<p>???
+https://anaconda.org/tango-controls/repo</p>
+<p>think about auto installation on raspberry using script</p>
+<p>Installing Java 8 on Debian (to launch jive):
+https://linuxize.com/post/install-java-on-debian-10/</p>
+<p>There could be a problem with X11 forwarding on VScode.<br />
+To fix id generate ssh key with: ssh-keygen -p -m PEM<br />
+and install vscode extension on pi<br />
+and add to ~/.bashrc &amp; ~/.profile the following: export DISPLAY=”localhost:10.0$DISPLAY”</p>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="usage.html" class="btn btn-neutral float-left" title="Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

@@ -17,10 +17,11 @@
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Usage" href="usage.html" />
-    <link rel="prev" title="Welcome to PIONER’s documentation!" href="index.html" /> 
+    <link rel="prev" title="About" href="about.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -45,8 +46,32 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#backend-installation-on-raspberry-pi">1. Backend installation (on Raspberry Pi)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#raspberry-pi-configuration">1.1. Raspberry Pi configuration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#a-in-case-of-using-pi-top">1.1.1(a) In case of using Pi-top:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#b-in-case-of-using-standard-raspberry-pi">1.1.1(b) In case of using standard Raspberry Pi:</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">1.1.2. Configuration:</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#install-mcc-universal-library-for-linux-uldaq">1.2. Install MCC Universal Library for Linux (uldaq)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#install-uldaq-python-interface">1.3. Install uldaq Python interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-pioner-libraries">1.4. Installing Pioner libraries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-tango-server">1.5. Installing Tango server</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-of-tango-server">1.6. Configuration of Tango server</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#frontend-installation">2. Frontend installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">2.1. Install uldaq Python interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#id2">2.2. Installing Pioner libraries</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#bliss-installation">3. Bliss installation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="for_developers.html">For developers</a></li>
 </ul>
 
         </div>
@@ -65,7 +90,7 @@
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Installation</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/installation.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/installation.md.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -75,17 +100,307 @@
              
   <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h1>
-<p>To use Lumache, first install it using pip:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(.venv)</span> <span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>lumache
+<hr class="docutils" />
+<section id="backend-installation-on-raspberry-pi">
+<h2>1. Backend installation (on Raspberry Pi)<a class="headerlink" href="#backend-installation-on-raspberry-pi" title="Permalink to this heading"></a></h2>
+<section id="raspberry-pi-configuration">
+<h3>1.1. Raspberry Pi configuration<a class="headerlink" href="#raspberry-pi-configuration" title="Permalink to this heading"></a></h3>
+<section id="a-in-case-of-using-pi-top">
+<h4>1.1.1(a) In case of using Pi-top:<a class="headerlink" href="#a-in-case-of-using-pi-top" title="Permalink to this heading"></a></h4>
+<ul class="simple">
+<li><p>Download <a class="reference external" href="https://www.pi-top.com/resources/download-os">Pi-top image</a> and write image to SD card with <a class="reference external" href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a> or
+<a class="reference external" href="https://www.balena.io/etcher/">Etcher</a></p></li>
+<li><p>Switch on pi-top</p></li>
+<li><p>Activate SSH with pi-top screen and buttons</p></li>
+<li><p>Find ip address on pi-top display</p></li>
+<li><p>Now you can connect via ssh, default password is “pi-top”:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ ssh -X pi@{ip_address} 
 </pre></div>
 </div>
+</section>
+<section id="b-in-case-of-using-standard-raspberry-pi">
+<h4>1.1.1(b) In case of using standard Raspberry Pi:<a class="headerlink" href="#b-in-case-of-using-standard-raspberry-pi" title="Permalink to this heading"></a></h4>
+<ul class="simple">
+<li><p>Download <a class="reference external" href="https://downloads.raspberrypi.org/raspios_arm64/images/">Rapberry Pi image</a>
+for arm64 and write image to SD card with
+<a class="reference external" href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a> or
+<a class="reference external" href="https://www.balena.io/etcher/">Etcher</a></p></li>
+<li><p>For using 7” multitouch display add to /config.txt:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">dtparam</span><span class="o">=</span><span class="n">i2c_vc_baudrate</span><span class="o">=</span><span class="mi">50000</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Switch on Raspberry Pi, enter locale, password, etc.</p></li>
+<li><p>Activate SSH via raspi-config:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo raspi-config
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>To use onscreen keyboard install onboard and activate it with GUI. Also you can add the shortcut to the top pi panel:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo apt install onboard
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h4>1.1.2. Configuration:<a class="headerlink" href="#configuration" title="Permalink to this heading"></a></h4>
+<ul class="simple">
+<li><p>Connect via ssh:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="o">-</span><span class="n">X</span> <span class="n">pi</span><span class="o">@</span><span class="p">{</span><span class="n">ipaddrress</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Set the static ip address in:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sudo nano /etc/dhcpcd.conf
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Maybe one needs to change time and date:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sudo date -s &#39;YYYY-MM-DD HH:MM:SS&#39;
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Update all the packages:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sudo apt update  
+$ sudo apt upgrade
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Change the password:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">passwd</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Change hostname:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">nano</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">hostname</span>
+<span class="n">sudo</span> <span class="n">nano</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">hosts</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="install-mcc-universal-library-for-linux-uldaq">
+<h3>1.2. Install MCC Universal Library for Linux (uldaq)<a class="headerlink" href="#install-mcc-universal-library-for-linux-uldaq" title="Permalink to this heading"></a></h3>
+<p><strong>Author:</strong> Measurement Computing
+The <strong>uldaq</strong> package contains programming libraries and components for developing applications using C/C++ on Linux and macOS Operating Systems. An API (Application Programming Interface) for interacting with the library in Python is available as an additional installation. This package was created and is supported by MCC. For more information please refer to <a class="reference external" href="https://github.com/mccdaq/uldaq">mccdaq github</a></p>
+<ul class="simple">
+<li><p>Building the <strong>uldaq</strong> package requires C/C++ compilers, make tool, and the development package for libusb. The following describes how these prerequisites can be installed on different Linux distributions and macOS.</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo apt-get install gcc g++ make
+   $ sudo apt-get install libusb-1.0-0-dev
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Download and extract the latest version of <strong>uldaq</strong>:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ wget -N https://github.com/mccdaq/uldaq/releases/download/v1.2.1/libuldaq-1.2.1.tar.bz2
+   $ tar -xvjf libuldaq-1.2.1.tar.bz2
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Run the following commands to build and install the library:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ cd libuldaq-1.2.1
+   $ ./configure &amp;&amp; make
+   $ sudo make install
+</pre></div>
+</div>
+</section>
+<section id="install-uldaq-python-interface">
+<h3>1.3. Install uldaq Python interface<a class="headerlink" href="#install-uldaq-python-interface" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>Install the uldaq Python API with:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ pip install uldaq
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Refer to https://pypi.org/project/uldaq/ for more detailes.<br />
+<strong>Note:</strong> sometimes one needs to change date on raspberry pi:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo date -s &quot;YYYY-MM-DD HH:MM:SS&quot;
+</pre></div>
+</div>
+</section>
+<section id="installing-pioner-libraries">
+<h3>1.4. Installing Pioner libraries<a class="headerlink" href="#installing-pioner-libraries" title="Permalink to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install pioner
+$ pip install pioner[server]
+</pre></div>
+</div>
+</section>
+<section id="installing-tango-server">
+<h3>1.5. Installing Tango server<a class="headerlink" href="#installing-tango-server" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>The following packages need to be installed for Tango server:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ pip install numpy six Sphinx
+   $ sudo apt install g++ mariadb-server libmariadb-dev zlib1g-dev libomniorb4-dev libcos4-dev omniidl libzmq3-dev make
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Launch database:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo service mariadb start
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Install <a class="reference external" href="https://tango-controls.readthedocs.io/en/latest/installation/tango-on-raspberry-pi.html">Pi Tango server</a>:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo apt install tango-db
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>enter host and port (raspberrypi:10000); configure db -&gt; Yes; password - empty</p></li>
+<li><p>Install the following Tango libraries:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo apt install tango-starter tango-test liblog4j1.2-java  
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Install PyTango. The official <a class="reference external" href="https://gitlab.com/tango-controls/pytango">instructions</a> does not work correctly. Use:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo apt install libboost-python-dev libtango-dev python3-tango
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Graphic tools (Jive, Astor,…) installation. Download the latest version of libtango-java librairies on <a class="reference external" href="https://people.debian.org/~picca/">picaa</a> and install it:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">wget</span> <span class="o">-</span><span class="n">c</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">people</span><span class="o">.</span><span class="n">debian</span><span class="o">.</span><span class="n">org</span><span class="o">/~</span><span class="n">picca</span><span class="o">/</span><span class="n">libtango</span><span class="o">-</span><span class="n">java_XX_version</span><span class="o">.</span><span class="n">deb</span>\
+   <span class="n">sudo</span> <span class="n">dpkg</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">libtango</span><span class="o">-</span><span class="n">java_XX_version</span><span class="o">.</span><span class="n">deb</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>if there is a problem with the last command, use</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">tango</span><span class="o">-</span><span class="n">starter</span> <span class="n">tango</span><span class="o">-</span><span class="n">test</span> <span class="n">liblog4j1</span><span class="mf">.2</span><span class="o">-</span><span class="n">java</span>
+   <span class="n">sudo</span> <span class="n">apt</span> <span class="o">--</span><span class="n">fix</span><span class="o">-</span><span class="n">broken</span> <span class="n">install</span>
+   <span class="n">sudo</span> <span class="n">dpkg</span> <span class="o">-</span><span class="n">i</span> <span class="o">./</span><span class="n">libtango</span><span class="o">-</span><span class="n">java_XX_version</span><span class="o">.</span><span class="n">deb</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Install java 8 and set is as default java (Tango graphic tools are working only with java 8!!):</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">openjdk</span><span class="o">-</span><span class="mi">8</span><span class="o">-</span><span class="n">jdk</span>
+   <span class="n">sudo</span> <span class="n">update</span><span class="o">-</span><span class="n">alternatives</span> <span class="o">--</span><span class="n">config</span> <span class="n">java</span>
+   <span class="n">java</span> <span class="o">-</span><span class="n">version</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-of-tango-server">
+<h3>1.6. Configuration of Tango server<a class="headerlink" href="#configuration-of-tango-server" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>Install PionerControl server to Tango:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">jive</span><span class="o">&amp;</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>In Jive Tools -&gt; Server wizard -&gt; Server name: PionerControl; Instance name: PionerControl</p></li>
+<li><p>Run server from /nanical_pi:<br />
+<strong>!!! Change here!!!!</strong></p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">python</span> <span class="n">nanocontrol_tango</span><span class="o">.</span><span class="n">py</span> <span class="n">NanoControl</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>In Jive Server wizard continue: Declare -&gt; NanoControl/NanoControl/1</p></li>
+<li><p>Install supervisor for Tango server auto-start:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="n">sudo</span> <span class="n">apt</span> <span class="n">install</span> <span class="n">supervisor</span>
+   <span class="n">supervisord</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Configure Supervisor. Edit /etc/supervisor/supervisord.conf. Add the following:<br />
+Attention! change TANGO_HOST to connect to another tango database, e.g. ID13 ESRF:<br />
+<code class="docutils literal notranslate"><span class="pre">environment</span> <span class="pre">=</span> <span class="pre">TANGO_HOST=&quot;lid13ctrl1.esrf.fr:20000&quot;</span></code> or remove ths line</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">inet_http_server</span><span class="p">]</span>
+<span class="n">port</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">ip</span><span class="o">&gt;</span><span class="p">:</span><span class="mi">9001</span>
+<span class="n">username</span> <span class="o">=</span> <span class="n">pi</span>
+<span class="n">password</span> <span class="o">=</span> <span class="n">tonic13</span>
+
+<span class="p">[</span><span class="n">program</span><span class="p">:</span><span class="n">nanocontrol_tango</span><span class="p">]</span>
+<span class="n">directory</span> <span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span>
+<span class="n">command</span> <span class="o">=</span> <span class="n">python</span> <span class="n">back</span><span class="o">/</span><span class="n">nanocontrol_tango</span><span class="o">.</span><span class="n">py</span> <span class="n">NanoControl</span>
+<span class="n">environment</span> <span class="o">=</span> <span class="n">TANGO_HOST</span><span class="o">=</span><span class="s2">&quot;lid13ctrl1.esrf.fr:20000&quot;</span>
+<span class="n">stdout_logfile</span> <span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span><span class="o">/</span><span class="n">logs</span><span class="o">/</span><span class="n">supervisor_nanocontrol_tango</span><span class="o">.</span><span class="n">log</span>
+<span class="n">stderr_logfile</span><span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span><span class="o">/</span><span class="n">logs</span><span class="o">/</span><span class="n">supervisor_nanocontrol_tango</span><span class="o">.</span><span class="n">err</span>
+<span class="n">autostart</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">startsecs</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">autorestart</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">user</span> <span class="o">=</span> <span class="n">pi</span>
+
+<span class="p">[</span><span class="n">program</span><span class="p">:</span><span class="n">nanocontrol_http</span><span class="p">]</span>
+<span class="n">directory</span> <span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span>
+<span class="n">command</span> <span class="o">=</span> <span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">http</span><span class="o">.</span><span class="n">server</span>
+<span class="n">stdout_logfile</span> <span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span><span class="o">/</span><span class="n">logs</span><span class="o">/</span><span class="n">supervisor_nanocontrol_http</span><span class="o">.</span><span class="n">log</span>
+<span class="n">stderr_logfile</span><span class="o">=</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">pi</span><span class="o">/</span><span class="n">nanocal_pi</span><span class="o">/</span><span class="n">logs</span><span class="o">/</span><span class="n">supervisor_nanocontrol_http</span><span class="o">.</span><span class="n">err</span>
+<span class="n">autostart</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">startsecs</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">autorestart</span> <span class="o">=</span> <span class="n">true</span>
+<span class="n">user</span> <span class="o">=</span> <span class="n">pi</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">enable</span> <span class="n">supervisor</span> <span class="o">--</span><span class="n">now</span>
+<span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">status</span> <span class="n">supervisor</span>
+<span class="n">sudo</span> <span class="n">systemctl</span> <span class="n">restart</span> <span class="n">supervisor</span>
+<span class="n">sudo</span> <span class="n">supervisorctl</span> <span class="n">reload</span>
+<span class="n">sudo</span> <span class="n">supervisorctl</span> <span class="n">status</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="frontend-installation">
+<h2>2. Frontend installation<a class="headerlink" href="#frontend-installation" title="Permalink to this heading"></a></h2>
+<section id="id1">
+<h3>2.1. Install uldaq Python interface<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>Install the uldaq Python API with:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ pip install uldaq
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Refer to https://pypi.org/project/uldaq/ for more detailes.<br />
+<strong>Note:</strong> sometimes one needs to change date on raspberry pi:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   $ sudo date -s &quot;YYYY-MM-DD HH:MM:SS&quot;
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>2.2. Installing Pioner libraries<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install pioner
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>To use GUI:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install pioner[GUI]
+</pre></div>
+</div>
+</section>
+</section>
+<section id="bliss-installation">
+<h2>3. Bliss installation<a class="headerlink" href="#bliss-installation" title="Permalink to this heading"></a></h2>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to PIONER’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="about.html" class="btn btn-neutral float-left" title="About" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="usage.html" class="btn btn-neutral float-right" title="Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

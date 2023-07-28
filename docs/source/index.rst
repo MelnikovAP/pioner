@@ -26,6 +26,7 @@ It offers:
    about
    installation
    usage
+   for_developers
 
 
 
