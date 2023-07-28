@@ -23,6 +23,7 @@ It offers:
    :maxdepth: 2
    :caption: Contents:
 
+   about
    installation
    usage
 

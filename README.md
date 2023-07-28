@@ -33,3 +33,4 @@ python -m build
 pip install -e .
 pip install -e ".[gui]"
 pip install -e ".[server]"
+
