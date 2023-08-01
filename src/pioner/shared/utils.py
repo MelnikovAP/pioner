@@ -5,14 +5,9 @@ import numpy as np
 
 from pioner.shared.calibration import Calibration
 
-"""
-main.py
-====================================
-The core module of my example project
-"""
 
 def is_int(key) -> bool:
-    """Docstring for class attribute Foo.baz."""
+    """Docstring for is_int function"""
 
     if isinstance(key, int) or isinstance(key, str) and key.isdigit():
         return True
@@ -58,6 +53,14 @@ def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.arra
 
     return voltage.round(4)
 
+# Turns a dictionary into a class
+class Dict2Class(object):
+    def __init__(self, my_dict):
+        for key in my_dict:
+            setattr(self, key, my_dict[key])
+        self.my_dict = my_dict
+    def get_dict(self):
+        return self.my_dict
 
 if __name__ == '__main__':
 
@@ -83,13 +86,3 @@ if __name__ == '__main__':
     # plt.legend()
     # plt.show()
 
-
-
-# Turns a dictionary into a class
-class Dict2Class(object):
-    def __init__(self, my_dict):
-        for key in my_dict:
-            setattr(self, key, my_dict[key])
-        self.my_dict = my_dict
-    def get_dict(self):
-        return self.my_dict

@@ -6,6 +6,24 @@ import uldaq as ul
 
 
 class DaqParams:
+    """ 
+    General class to represent main DAQ parameters 
+    ...
+
+    Attributes
+    ----------
+    name : str
+        first name of the person
+    surname : str
+        family name of the person
+    age : int
+        age of the person
+
+    Methods
+    -------
+    info(additional=""):
+        Prints the person's name and age.
+    """
     def __init__(self):
         # init class with default daq settings
         self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
@@ -16,6 +34,7 @@ class DaqParams:
 
 
 class DaqDeviceHandler:
+    """ Class to handle connection to DAQ device """
     def __init__(self, params: DaqParams):
         self._params = params
         self._init_daq_device()

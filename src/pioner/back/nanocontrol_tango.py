@@ -16,6 +16,7 @@ class NanoControl(Device):
     _fh: FastHeat
 
     def init_device(self):
+        """Docstring for is_int function"""
         Device.init_device(self)
         self._do_initial_setup()
 

@@ -26,6 +26,7 @@ It offers:
    about
    installation
    usage
+   python_api
    for_developers
 
 

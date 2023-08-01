@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python API &mdash; pioner 0.0.9 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="For developers" href="for_developers.html" />
+    <link rel="prev" title="Usage" href="usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            pioner
+              <img src="_static/pioner-logo.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Python API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#pioner-back">pioner.back</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.daq_device">daq_device.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler"><code class="docutils literal notranslate"><span class="pre">DaqDeviceHandler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.daq_device.DaqParams"><code class="docutils literal notranslate"><span class="pre">DaqParams</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pioner-shared">pioner.shared</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="for_developers.html">For developers</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">pioner</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Python API</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/python_api.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="python-api">
+<h1>Python API<a class="headerlink" href="#python-api" title="Permalink to this heading"></a></h1>
+<section id="pioner-back">
+<h2>pioner.back<a class="headerlink" href="#pioner-back" title="Permalink to this heading"></a></h2>
+<p>Backend, server part. Everything related to Raspberry Pi &amp; PyTango</p>
+<section id="module-pioner.back.daq_device">
+<span id="daq-device-py-module"></span><h3>daq_device.py module<a class="headerlink" href="#module-pioner.back.daq_device" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqDeviceHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><span class="pre">DaqParams</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler" title="Permalink to this definition"></a></dt>
+<dd><p>Class to handle connection to DAQ device</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.connect">
+<span class="sig-name descname"><span class="pre">connect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.connect" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.disconnect">
+<span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.disconnect" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ai_device">
+<span class="sig-name descname"><span class="pre">get_ai_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AiDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ai_device" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ao_device">
+<span class="sig-name descname"><span class="pre">get_ao_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AoDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ao_device" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_descriptor">
+<span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDeviceDescriptor</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_descriptor" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.is_connected">
+<span class="sig-name descname"><span class="pre">is_connected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.is_connected" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.quit">
+<span class="sig-name descname"><span class="pre">quit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.quit" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.release">
+<span class="sig-name descname"><span class="pre">release</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.release" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.reset" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.try_connect">
+<span class="sig-name descname"><span class="pre">try_connect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sleep_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.try_connect" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.daq_device.DaqParams">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqParams</span></span><a class="headerlink" href="#pioner.back.daq_device.DaqParams" title="Permalink to this definition"></a></dt>
+<dd><p>General class to represent main DAQ parameters 
+…</p>
+<section id="attributes">
+<h4>Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading"></a></h4>
+<dl class="simple">
+<dt>name<span class="classifier">str</span></dt><dd><p>first name of the person</p>
+</dd>
+<dt>surname<span class="classifier">str</span></dt><dd><p>family name of the person</p>
+</dd>
+<dt>age<span class="classifier">int</span></dt><dd><p>age of the person</p>
+</dd>
+</dl>
+</section>
+<section id="methods">
+<h4>Methods<a class="headerlink" href="#methods" title="Permalink to this heading"></a></h4>
+<dl class="simple">
+<dt>info(additional=””):</dt><dd><p>Prints the person’s name and age.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+</section>
+<section id="pioner-front">
+<h2>pioner.front<a class="headerlink" href="#pioner-front" title="Permalink to this heading"></a></h2>
+<p>Frontend, user interfaces part. GUI and command-line communication</p>
+</section>
+<section id="pioner-shared">
+<h2>pioner.shared<a class="headerlink" href="#pioner-shared" title="Permalink to this heading"></a></h2>
+<p>Methods, common for backend and frontend parts.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="usage.html" class="btn btn-neutral float-left" title="Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="for_developers.html" class="btn btn-neutral float-right" title="For developers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Melnikov A.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
