@@ -14,6 +14,8 @@ from pioner.back.iso_mode import IsoMode
 
 
 class NanoControl(Device):
+    """An example docstring for a class definition."""
+
     _fh: FastHeat
 
     def init_device(self):
@@ -21,6 +23,14 @@ class NanoControl(Device):
         self._do_initial_setup()
 
     def _do_initial_setup(self):
+        """
+        Blah blah blah.
+        Parameters
+        ---------
+        name
+            A string to assign to the `name` instance attribute.
+        """
+
         if not (os.path.exists(LOGS_FOLDER_REL_PATH)):
             os.makedirs(LOGS_FOLDER_REL_PATH)
         if not (os.path.exists(RAW_DATA_FOLDER_REL_PATH)):

@@ -30,7 +30,7 @@
    ```
       $ sudo apt install onboard
    ```
-#### 1.1.2. Configuration:
+#### 1.1.2. Configuration
    - Connect via ssh:
    ```
    ssh -X pi@{ipaddrress}
