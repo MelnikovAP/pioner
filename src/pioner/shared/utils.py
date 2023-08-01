@@ -5,8 +5,15 @@ import numpy as np
 
 from pioner.shared.calibration import Calibration
 
+"""
+main.py
+====================================
+The core module of my example project
+"""
 
 def is_int(key) -> bool:
+    """Docstring for class attribute Foo.baz."""
+
     if isinstance(key, int) or isinstance(key, str) and key.isdigit():
         return True
 

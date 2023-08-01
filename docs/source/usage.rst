@@ -1,5 +1,5 @@
 Usage
 =======
 
-.. automodule:: pioner.back.nanocontrol_tango
-    :members:
+.. automodule:: pioner.shared.utils
+    :members: 
