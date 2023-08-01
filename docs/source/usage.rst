@@ -1,5 +1,5 @@
 Usage
 =======
 
-.. automodule:: my_project.main
+.. automodule:: pioner.back.nanocontrol_tango
     :members:
