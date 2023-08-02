@@ -5,7 +5,10 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../src/'))
 sys.path.insert(0, os.path.abspath('../../src/pioner/'))
 
 # -- Project information -----------------------------------------------------
@@ -39,7 +42,6 @@ html_logo = "images/pioner-logo.png"
 
 autodoc_mock_imports = [
     'uldaq',
-    'tango',
     'pytango',
 ]
 
