@@ -41,6 +41,5 @@ autodoc_mock_imports = [
     'uldaq',
     'tango',
     'pytango',
-    'ppioner'
 ]
 
