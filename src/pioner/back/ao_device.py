@@ -1,10 +1,11 @@
 import logging
 from typing import Tuple
+from ctypes import Array
 import uldaq as ul
-# from ctypes import Array
 
 
 class AoParams:
+    """Wraps the analog output uldaq.AoDevice."""
     def __init__(self):
         self.sample_rate = -1  # Hz
         self.range_id = -1
@@ -59,7 +60,7 @@ class AoDeviceHandler:
         """Provides analog output scan and data transfer status"""
         return self._ao_device.get_scan_status()
 
-    def scan(self, ao_buffer: [float]) -> float:
+    def scan(self, ao_buffer: Array[float]) -> float:
         """Launches analog output scan with current (:obj:`AoParams`).
         Voltage data (voltage profiles) is taken from assigned buffer - 
         an 1D array of size number_of_channels * samples_per_channel. 

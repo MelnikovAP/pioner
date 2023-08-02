@@ -270,7 +270,7 @@ Initializes AO DAQ device and all parameters.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.scan">
-<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ao_buffer:</span> <span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_buffer:</span> <span class="pre">ctypes.Array.&lt;class</span> <span class="pre">'float'&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="Permalink to this definition"></a></dt>
 <dd><p>Launches analog output scan with current (<a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AoParams</span></code></a>).
 Voltage data (voltage profiles) is taken from assigned buffer -
 an 1D array of size number_of_channels * samples_per_channel.</p>
@@ -304,7 +304,8 @@ an 1D array of size number_of_channels * samples_per_channel.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.ao_device.AoParams">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_device.</span></span><span class="sig-name descname"><span class="pre">AoParams</span></span><a class="headerlink" href="#pioner.back.ao_device.AoParams" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Wraps the analog output uldaq.AoDevice.</p>
+</dd></dl>
 
 </section>
 </section>
