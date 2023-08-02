@@ -39,7 +39,7 @@ exclude_patterns = []
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
-html_logo = "images/pioner-logo.png"
+html_logo = "_static/pioner-logo.png"
 
 autodoc_mock_imports = [
     'uldaq',

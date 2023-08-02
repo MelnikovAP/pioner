@@ -1,3 +1,3 @@
 About
 =============
-![image](images/diagram.png)
+![image](_static/diagram.png)
