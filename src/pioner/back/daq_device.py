@@ -6,9 +6,7 @@ import uldaq as ul
 
 
 class DaqParams:
-    """ 
-    General class to represent main DAQ parameters with default settings.
-    """
+    """General class to represent main DAQ parameters with default settings."""
     def __init__(self):
         self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
         self.connection_code = -1
@@ -50,12 +48,18 @@ class DaqDeviceHandler:
         self.quit()
 
     def get_descriptor(self) -> ul.DaqDeviceDescriptor:
-        """ Returns descriptor of the connected DAQ device
+        """ Provides explicit access to the descriptor of connected DAQ device. 
+        
+        Returns: 
+            :obj:`ul.DaqDeviceDescriptor` 
         """
         return self._daq_device.get_descriptor()
 
     def is_connected(self) -> bool:
-        """ Returns status of the connection to DAQ device
+        """ Provides explicit access to the connection status of DAQ device.
+        
+        Returns: 
+            :obj:`bool` 
         """
         return self._daq_device.is_connected()
 
@@ -81,7 +85,6 @@ class DaqDeviceHandler:
         Args:  
             `timeout` (:obj:`int`): timeout to give up connecting in seconds.  
             `sleep_time` (:obj:`int`): sleeptime between connection attempts in seconds.  
-
         """
         for _ in range(timeout):
             if not self.is_connected():
@@ -92,46 +95,47 @@ class DaqDeviceHandler:
         raise TimeoutError("DAQ DEVICE: Connection timed out.")
 
     def disconnect(self):
-        """ Basic method to disconnect DAQ device.
-        Logs result. 
-        """
+        """ Basic method to disconnect DAQ device. Logs result."""
         self._daq_device.disconnect()
         logging.info("DAQ DEVICE: DAQ device has been disconnected.")
 
     def release(self):
-        """ Basic method to release DAQ device.
-        Logs result. 
-        """
+        """ Basic method to release DAQ device. Logs result."""
         self._daq_device.release()
         logging.info("DAQ DEVICE: DAQ device has been released.")
 
     def reset(self):
-        """ Basic method to reset DAQ device.
-        Logs result. 
-        """
+        """ Basic method to reset DAQ device. Logs result."""
         self._daq_device.reset()
         logging.info("DAQ DEVICE: DAQ device has been reset.")
 
     def quit(self):
-        """ Basic method to disconnect and release DAQ device.
-        Logs result. 
-        """
+        """ Basic method to disconnect and release DAQ device. Logs result. """
         if self.is_connected():
             self.disconnect()
         self.release()
         logging.info("DAQ DEVICE: DAQ device has been disconnected and released.")
 
     def get(self) -> ul.DaqDevice:
-        """ Returns DAQ device.
+        """ Provides explicit access to uldaq.daq_device.
+        
+        Returns: 
+            :obj:`ul.DaqDevice` 
         """
         return self._daq_device
 
     def get_ai_device(self) -> ul.AiDevice:
-        """ Returns AI DAQ device.
+        """ Provides explicit access to uldaq.ai_device.
+        
+        Returns: 
+            :obj:`ul.AiDevice`
         """
         return self._daq_device.get_ai_device()
 
     def get_ao_device(self) -> ul.AoDevice:
-        """ Returns AO DAQ device.
+        """ Provides explicit access to uldaq.ao_device.
+        
+        Returns: 
+            :obj:`ul.AoDevice`
         """
         return self._daq_device.get_ao_device()

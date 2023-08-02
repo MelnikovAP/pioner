@@ -56,6 +56,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.daq_device.DaqParams"><code class="docutils literal notranslate"><span class="pre">DaqParams</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ao_device">ao_device.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_device.AoDeviceHandler"><code class="docutils literal notranslate"><span class="pre">AoDeviceHandler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_device.AoParams"><code class="docutils literal notranslate"><span class="pre">AoParams</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a></li>
@@ -116,59 +121,80 @@ Logs success/unsuccess result.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.disconnect">
 <span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.disconnect" title="Permalink to this definition"></a></dt>
-<dd><p>Basic method to disconnect DAQ device.
-Logs result.</p>
+<dd><p>Basic method to disconnect DAQ device. Logs result.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get" title="Permalink to this definition"></a></dt>
-<dd><p>Returns DAQ device.</p>
+<dd><p>Provides explicit access to uldaq.daq_device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDevice</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ai_device">
 <span class="sig-name descname"><span class="pre">get_ai_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AiDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ai_device" title="Permalink to this definition"></a></dt>
-<dd><p>Returns AI DAQ device.</p>
+<dd><p>Provides explicit access to uldaq.ai_device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AiDevice</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ao_device">
 <span class="sig-name descname"><span class="pre">get_ao_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AoDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ao_device" title="Permalink to this definition"></a></dt>
-<dd><p>Returns AO DAQ device.</p>
+<dd><p>Provides explicit access to uldaq.ao_device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AoDevice</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_descriptor">
 <span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDeviceDescriptor</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_descriptor" title="Permalink to this definition"></a></dt>
-<dd><p>Returns descriptor of the connected DAQ device</p>
+<dd><p>Provides explicit access to the descriptor of connected DAQ device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDeviceDescriptor</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.is_connected">
 <span class="sig-name descname"><span class="pre">is_connected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.is_connected" title="Permalink to this definition"></a></dt>
-<dd><p>Returns status of the connection to DAQ device</p>
+<dd><p>Provides explicit access to the connection status of DAQ device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.quit">
 <span class="sig-name descname"><span class="pre">quit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.quit" title="Permalink to this definition"></a></dt>
-<dd><p>Basic method to disconnect and release DAQ device.
-Logs result.</p>
+<dd><p>Basic method to disconnect and release DAQ device. Logs result.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.release">
 <span class="sig-name descname"><span class="pre">release</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.release" title="Permalink to this definition"></a></dt>
-<dd><p>Basic method to release DAQ device.
-Logs result.</p>
+<dd><p>Basic method to release DAQ device. Logs result.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.reset">
 <span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.reset" title="Permalink to this definition"></a></dt>
-<dd><p>Basic method to reset DAQ device.
-Logs result.</p>
+<dd><p>Basic method to reset DAQ device. Logs result.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -195,6 +221,90 @@ Logs success/unsuccess result.</p>
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqParams</span></span><a class="headerlink" href="#pioner.back.daq_device.DaqParams" title="Permalink to this definition"></a></dt>
 <dd><p>General class to represent main DAQ parameters with default settings.</p>
 </dd></dl>
+
+</section>
+<section id="module-pioner.back.ao_device">
+<span id="ao-device-py-module"></span><h3>ao_device.py module<a class="headerlink" href="#module-pioner.back.ao_device" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_device.</span></span><span class="sig-name descname"><span class="pre">AoDeviceHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_device_from_daq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">uldaq.AoDevice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><span class="pre">AoParams</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler" title="Permalink to this definition"></a></dt>
+<dd><p>Wraps the analog output uldaq.AoDevice.
+Initializes AO DAQ device and all parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ao_device_from_daq</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AoDevice</span></code>) – uldaq.AoDevice obtained from uldaq.DaqDevice.</p></li>
+<li><p><strong>params</strong> (<a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AoParams</span></code></a>) – An AoParams instance, containing all needed analog-output parameters parsed from JSON.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>RuntimeError if the DAQ device doesn't support analog output</strong><strong> or </strong><strong>hardware paced analog output.</strong> – </p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AoDevice</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.get" title="Permalink to this definition"></a></dt>
+<dd><p>Provides explicit access to the uldaq.AoDevice.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.iso_mode">
+<span class="sig-name descname"><span class="pre">iso_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.iso_mode" title="Permalink to this definition"></a></dt>
+<dd><p>Sets voltage to the specified AO channel.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The voltage remains on the channel until DAQ board released and disconnected.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ao_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – AO channel number (usually from 0 to 3).</p></li>
+<li><p><strong>voltage</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>) – voltage value, usually from 0 to 10.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>scan rate in points per second, (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.scan">
+<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_buffer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="Permalink to this definition"></a></dt>
+<dd><p>Launches analog output scan with current (<a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AoParams</span></code></a>).
+Voltage data (voltage profiles) is taken from assigned buffer -
+an 1D array of size number_of_channels * samples_per_channel.</p>
+<p>For example, in case of using:</p>
+<p>AO ch1: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">2.0,</span> <span class="pre">3.0]</span></code> &amp; AO ch2: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code> &amp; AO ch3: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.5,</span> <span class="pre">2.5]</span></code></p>
+<p>ao_buffer should be: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.5,</span> <span class="pre">2.0,</span> <span class="pre">0.0,</span> <span class="pre">1.5,</span> <span class="pre">3.0,</span> <span class="pre">0.0,</span> <span class="pre">2.5]</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ao_buffer</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">Array[float]</span></code>) – A buffer with double precision floating point sample values.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>scan rate in points per second, (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.status">
+<span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">uldaq.ScanStatus</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">uldaq.TransferStatus</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.status" title="Permalink to this definition"></a></dt>
+<dd><p>Provides analog output scan and data transfer status</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.stop" title="Permalink to this definition"></a></dt>
+<dd><p>Interrupts analog output scan</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ao_device.AoParams">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_device.</span></span><span class="sig-name descname"><span class="pre">AoParams</span></span><a class="headerlink" href="#pioner.back.ao_device.AoParams" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 </section>
 </section>

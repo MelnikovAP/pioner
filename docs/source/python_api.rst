@@ -12,6 +12,11 @@ daq_device.py module
     :members: 
     :undoc-members:
 
+ao_device.py module
+-------------------------------------
+.. automodule:: pioner.back.ao_device
+    :members: 
+    :undoc-members:
 
 pioner.front
 ************
