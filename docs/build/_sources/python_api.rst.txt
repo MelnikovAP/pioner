@@ -13,7 +13,6 @@ daq_device.py module
     :undoc-members:
 
 
-
 pioner.front
 ************
 Frontend, user interfaces part. GUI and command-line communication

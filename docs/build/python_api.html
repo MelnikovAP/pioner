@@ -99,87 +99,101 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqDeviceHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><span class="pre">DaqParams</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler" title="Permalink to this definition"></a></dt>
-<dd><p>Class to handle connection to DAQ device</p>
+<dd><p>Class to handle connection to DAQ device with preset parameters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DaqParams</span></code></a>) – basic parameters to initialize connection to DAQ device.</p>
+</dd>
+</dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.connect">
 <span class="sig-name descname"><span class="pre">connect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.connect" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Basic method to connect to DAQ device only with USB interface.
+Only one device expected to be connected.
+Logs success/unsuccess result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.disconnect">
 <span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.disconnect" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Basic method to disconnect DAQ device.
+Logs result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Returns DAQ device.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ai_device">
 <span class="sig-name descname"><span class="pre">get_ai_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AiDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ai_device" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Returns AI DAQ device.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ao_device">
 <span class="sig-name descname"><span class="pre">get_ao_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AoDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ao_device" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Returns AO DAQ device.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_descriptor">
 <span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDeviceDescriptor</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_descriptor" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Returns descriptor of the connected DAQ device</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.is_connected">
 <span class="sig-name descname"><span class="pre">is_connected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.is_connected" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Returns status of the connection to DAQ device</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.quit">
 <span class="sig-name descname"><span class="pre">quit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.quit" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Basic method to disconnect and release DAQ device.
+Logs result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.release">
 <span class="sig-name descname"><span class="pre">release</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.release" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Basic method to release DAQ device.
+Logs result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.reset">
 <span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.reset" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Basic method to reset DAQ device.
+Logs result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.try_connect">
 <span class="sig-name descname"><span class="pre">try_connect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sleep_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.try_connect" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Uses basic method <a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler.connect" title="pioner.back.daq_device.DaqDeviceHandler.connect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">connect</span></code></a> to connect to DAQ device
+via USB interface using timeout.
+No action if device is already connected.
+Logs success/unsuccess result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>timeout</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – timeout to give up connecting in seconds.</p></li>
+<li><p><strong>sleep_time</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – sleeptime between connection attempts in seconds.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqParams">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqParams</span></span><a class="headerlink" href="#pioner.back.daq_device.DaqParams" title="Permalink to this definition"></a></dt>
-<dd><p>General class to represent main DAQ parameters 
-…</p>
-<section id="attributes">
-<h4>Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading"></a></h4>
-<dl class="simple">
-<dt>name<span class="classifier">str</span></dt><dd><p>first name of the person</p>
-</dd>
-<dt>surname<span class="classifier">str</span></dt><dd><p>family name of the person</p>
-</dd>
-<dt>age<span class="classifier">int</span></dt><dd><p>age of the person</p>
-</dd>
-</dl>
-</section>
-<section id="methods">
-<h4>Methods<a class="headerlink" href="#methods" title="Permalink to this heading"></a></h4>
-<dl class="simple">
-<dt>info(additional=””):</dt><dd><p>Prints the person’s name and age.</p>
-</dd>
-</dl>
-</section>
+<dd><p>General class to represent main DAQ parameters with default settings.</p>
 </dd></dl>
 
 </section>
