@@ -40,5 +40,7 @@ html_logo = "images/pioner-logo.png"
 autodoc_mock_imports = [
     'uldaq',
     'tango',
+    'pytango',
+    'ppioner'
 ]
 
