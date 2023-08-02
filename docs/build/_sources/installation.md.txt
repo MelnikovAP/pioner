@@ -1,5 +1,5 @@
 # Installation
----
+
 ## 1. Backend installation (on Raspberry Pi)
 ### 1.1. Raspberry Pi configuration
 #### 1.1.1(a) In case of using Pi-top:
@@ -190,6 +190,8 @@ The **uldaq** package contains programming libraries and components for developi
    sudo supervisorctl reload
    sudo supervisorctl status
    ```
+
+---
 ## 2. Frontend installation
 ### 2.1. Install uldaq Python interface
    - Install the uldaq Python API with:  
@@ -209,4 +211,6 @@ The **uldaq** package contains programming libraries and components for developi
    ```
    $ pip install pioner[GUI]
    ```
+
+---
 ## 3. Bliss installation
