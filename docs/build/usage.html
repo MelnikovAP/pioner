@@ -49,7 +49,18 @@
 <li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#utils-module-for-docs-test">Utils module (for docs test)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pioner.shared.utils">Utils module (for docs test)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.Dict2Class"><code class="docutils literal notranslate"><span class="pre">Dict2Class</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.shared.utils.Dict2Class.get_dict"><code class="docutils literal notranslate"><span class="pre">Dict2Class.get_dict()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.is_int"><code class="docutils literal notranslate"><span class="pre">is_int()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.is_int_or_raise"><code class="docutils literal notranslate"><span class="pre">is_int_or_raise()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.list_bitwise_or"><code class="docutils literal notranslate"><span class="pre">list_bitwise_or()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.temperature_to_voltage"><code class="docutils literal notranslate"><span class="pre">temperature_to_voltage()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pioner.shared.utils.voltage_to_temperature"><code class="docutils literal notranslate"><span class="pre">voltage_to_temperature()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="python_api.html">Python API</a></li>
@@ -82,8 +93,45 @@
              
   <section id="usage">
 <h1>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h1>
-<section id="utils-module-for-docs-test">
-<h2>Utils module (for docs test)<a class="headerlink" href="#utils-module-for-docs-test" title="Permalink to this heading"></a></h2>
+<section id="module-pioner.shared.utils">
+<span id="utils-module-for-docs-test"></span><h2>Utils module (for docs test)<a class="headerlink" href="#module-pioner.shared.utils" title="Permalink to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.shared.utils.Dict2Class">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">Dict2Class</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">my_dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.shared.utils.Dict2Class" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.shared.utils.Dict2Class.get_dict">
+<span class="sig-name descname"><span class="pre">get_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.shared.utils.Dict2Class.get_dict" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pioner.shared.utils.is_int">
+<span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">is_int</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.shared.utils.is_int" title="Permalink to this definition"></a></dt>
+<dd><p>Docstring for is_int function</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pioner.shared.utils.is_int_or_raise">
+<span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">is_int_or_raise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.shared.utils.is_int_or_raise" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pioner.shared.utils.list_bitwise_or">
+<span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">list_bitwise_or</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#pioner.shared.utils.list_bitwise_or" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pioner.shared.utils.temperature_to_voltage">
+<span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">temperature_to_voltage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">temp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Calibration</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.array</span></span></span><a class="headerlink" href="#pioner.shared.utils.temperature_to_voltage" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pioner.shared.utils.voltage_to_temperature">
+<span class="sig-prename descclassname"><span class="pre">pioner.shared.utils.</span></span><span class="sig-name descname"><span class="pre">voltage_to_temperature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Calibration</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.array</span></span></span><a class="headerlink" href="#pioner.shared.utils.voltage_to_temperature" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 </section>
 </section>
 
