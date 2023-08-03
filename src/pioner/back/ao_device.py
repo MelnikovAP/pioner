@@ -5,7 +5,19 @@ import uldaq as ul
 
 
 class AoParams:
-    """Wraps the analog output uldaq.AoDevice."""
+    """General class to represent main AO DAQ parameters. 
+    Deafult paramteres cannot be used to initialize uldaq.AoDevice,
+    they need to be parsed from file or specified manually.
+    
+    Args:
+        sample_rate (:obj:`int`): description.
+        range_id (:obj:`int`): description.
+        low_channel (:obj:`int`): description.
+        high_channel (:obj:`int`): description.
+        scan_flags (:obj:`int`): ul.AOutScanFlag description.
+        options (:obj:`int`): ul.ScanOption description.
+        
+    """
     def __init__(self):
         self.sample_rate = -1  # Hz
         self.range_id = -1
@@ -92,6 +104,7 @@ class AoDeviceHandler:
 
         Args:
             ao_channel (:obj:`int`): AO channel number (usually from 0 to 3).
+            
             voltage (:obj:`float`): voltage value, usually from 0 to 10.
 
         Returns:

@@ -6,7 +6,18 @@ import uldaq as ul
 
 
 class DaqParams:
-    """General class to represent main DAQ parameters with default settings."""
+    """General class to represent main DAQ parameters.
+    Deafult paramteres cannot be used to initialize :obj:`uldaq.DaqDevice`,
+    they need to be parsed from file or specified manually.
+    
+    Parameters
+    ----------
+        interface_type : :obj:`ul.InterfaceType`
+            Description
+        connection_code : :obj:`int`
+            Description
+
+    """
     def __init__(self):
         self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
         self.connection_code = -1
@@ -18,8 +29,10 @@ class DaqParams:
 class DaqDeviceHandler:
     """ Class to handle connection to DAQ device with preset parameters
     
-    Args:
-        params (:obj:`DaqParams`): basic parameters to initialize connection to DAQ device.
+    Args
+    ------
+        params : :obj:`DaqParams`
+            Basic parameters to initialize connection to DAQ device.
 
     """
     def __init__(self, params: DaqParams):
@@ -50,7 +63,8 @@ class DaqDeviceHandler:
     def get_descriptor(self) -> ul.DaqDeviceDescriptor:
         """ Provides explicit access to the descriptor of connected DAQ device. 
         
-        Returns: 
+        Returns
+        -------- 
             :obj:`ul.DaqDeviceDescriptor` 
         """
         return self._daq_device.get_descriptor()
@@ -59,6 +73,7 @@ class DaqDeviceHandler:
         """ Provides explicit access to the connection status of DAQ device.
         
         Returns: 
+        ---------
             :obj:`bool` 
         """
         return self._daq_device.is_connected()
@@ -82,9 +97,13 @@ class DaqDeviceHandler:
         No action if device is already connected. 
         Logs success/unsuccess result. 
 
-        Args:  
-            `timeout` (:obj:`int`): timeout to give up connecting in seconds.  
-            `sleep_time` (:obj:`int`): sleeptime between connection attempts in seconds.  
+        Args
+        ------  
+            timeout : :obj:`int`
+                Timeout to give up connecting in seconds.  
+            sleep_time : :obj:`int`
+                Sleeptime between connection attempts in seconds.  
+
         """
         for _ in range(timeout):
             if not self.is_connected():
@@ -119,7 +138,8 @@ class DaqDeviceHandler:
     def get(self) -> ul.DaqDevice:
         """ Provides explicit access to uldaq.daq_device.
         
-        Returns: 
+        Returns
+        ------- 
             :obj:`ul.DaqDevice` 
         """
         return self._daq_device
@@ -127,7 +147,8 @@ class DaqDeviceHandler:
     def get_ai_device(self) -> ul.AiDevice:
         """ Provides explicit access to uldaq.ai_device.
         
-        Returns: 
+        Returns
+        -------
             :obj:`ul.AiDevice`
         """
         return self._daq_device.get_ai_device()
@@ -135,7 +156,8 @@ class DaqDeviceHandler:
     def get_ao_device(self) -> ul.AoDevice:
         """ Provides explicit access to uldaq.ao_device.
         
-        Returns: 
+        Returns
+        ------- 
             :obj:`ul.AoDevice`
         """
         return self._daq_device.get_ao_device()

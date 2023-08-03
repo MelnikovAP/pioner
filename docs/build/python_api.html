@@ -105,10 +105,14 @@
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqDeviceHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><span class="pre">DaqParams</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler" title="Permalink to this definition"></a></dt>
 <dd><p>Class to handle connection to DAQ device with preset parameters</p>
-<dl class="simple">
-<dt>Args:</dt><dd><p>params (<a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DaqParams</span></code></a>): basic parameters to initialize connection to DAQ device.</p>
+<section id="args">
+<h4>Args<a class="headerlink" href="#args" title="Permalink to this heading"></a></h4>
+<blockquote>
+<div><dl>
+<dt>params<span class="classifier"><a class="reference internal" href="#pioner.back.daq_device.DaqParams" title="pioner.back.daq_device.DaqParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DaqParams</span></code></a></span></dt><dd><p>Basic parameters to initialize connection to DAQ device.</p>
 </dd>
 </dl>
+</div></blockquote>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.connect">
 <span class="sig-name descname"><span class="pre">connect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.connect" title="Permalink to this definition"></a></dt>
@@ -127,50 +131,60 @@ Logs success/unsuccess result.</p>
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get">
 <span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to uldaq.daq_device.</p>
-<dl class="simple">
-<dt>Returns: </dt><dd><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDevice</span></code></p>
-</dd>
-</dl>
+<section id="returns">
+<h5>Returns<a class="headerlink" href="#returns" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDevice</span></code></p>
+</div></blockquote>
+</section>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ai_device">
 <span class="sig-name descname"><span class="pre">get_ai_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AiDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ai_device" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to uldaq.ai_device.</p>
-<dl class="simple">
-<dt>Returns: </dt><dd><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AiDevice</span></code></p>
-</dd>
-</dl>
+<section id="id1">
+<h5>Returns<a class="headerlink" href="#id1" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AiDevice</span></code></p>
+</div></blockquote>
+</section>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_ao_device">
 <span class="sig-name descname"><span class="pre">get_ao_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AoDevice</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_ao_device" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to uldaq.ao_device.</p>
-<dl class="simple">
-<dt>Returns: </dt><dd><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AoDevice</span></code></p>
-</dd>
-</dl>
+<section id="id2">
+<h5>Returns<a class="headerlink" href="#id2" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AoDevice</span></code></p>
+</div></blockquote>
+</section>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.get_descriptor">
 <span class="sig-name descname"><span class="pre">get_descriptor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.DaqDeviceDescriptor</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.get_descriptor" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to the descriptor of connected DAQ device.</p>
-<dl class="simple">
-<dt>Returns: </dt><dd><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDeviceDescriptor</span></code></p>
-</dd>
-</dl>
+<section id="id3">
+<h5>Returns<a class="headerlink" href="#id3" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.DaqDeviceDescriptor</span></code></p>
+</div></blockquote>
+</section>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqDeviceHandler.is_connected">
 <span class="sig-name descname"><span class="pre">is_connected</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.daq_device.DaqDeviceHandler.is_connected" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to the connection status of DAQ device.</p>
-<dl class="simple">
-<dt>Returns: </dt><dd><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></p>
-</dd>
-</dl>
+<section id="id4">
+<h5>Returns:<a class="headerlink" href="#id4" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></p>
+</div></blockquote>
+</section>
 </dd></dl>
 
 <dl class="py method">
@@ -198,19 +212,39 @@ Logs success/unsuccess result.</p>
 via USB interface using timeout. 
 No action if device is already connected. 
 Logs success/unsuccess result.</p>
-<dl class="simple">
-<dt>Args:  </dt><dd><p><cite>timeout</cite> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): timeout to give up connecting in seconds.  
-<cite>sleep_time</cite> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): sleeptime between connection attempts in seconds.</p>
+<section id="id5">
+<h5>Args<a class="headerlink" href="#id5" title="Permalink to this heading"></a></h5>
+<blockquote>
+<div><dl>
+<dt>timeout<span class="classifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></span></dt><dd><p>Timeout to give up connecting in seconds.</p>
+</dd>
+<dt>sleep_time<span class="classifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></span></dt><dd><p>Sleeptime between connection attempts in seconds.</p>
 </dd>
 </dl>
+</div></blockquote>
+</section>
 </dd></dl>
 
+</section>
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.daq_device.DaqParams">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.daq_device.</span></span><span class="sig-name descname"><span class="pre">DaqParams</span></span><a class="headerlink" href="#pioner.back.daq_device.DaqParams" title="Permalink to this definition"></a></dt>
-<dd><p>General class to represent main DAQ parameters with default settings.</p>
+<dd><p>General class to represent main DAQ parameters.
+Deafult paramteres cannot be used to initialize <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.DaqDevice</span></code>,
+they need to be parsed from file or specified manually.</p>
+<section id="parameters">
+<h4>Parameters<a class="headerlink" href="#parameters" title="Permalink to this heading"></a></h4>
+<blockquote>
+<div><dl>
+<dt>interface_type<span class="classifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.InterfaceType</span></code></span></dt><dd><p>Description</p>
+</dd>
+<dt>connection_code<span class="classifier"><code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></span></dt><dd><p>Description</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
 </dd></dl>
 
 </section>
@@ -238,11 +272,11 @@ params (<a class="reference internal" href="#pioner.back.ao_device.AoParams" tit
 <dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.iso_mode">
 <span class="sig-name descname"><span class="pre">iso_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.iso_mode" title="Permalink to this definition"></a></dt>
 <dd><p>Sets voltage to the specified AO channel.</p>
-<dl class="simple">
+<dl>
 <dt>Note:</dt><dd><p>The voltage remains on the channel until DAQ board released and disconnected.</p>
 </dd>
-<dt>Args:</dt><dd><p>ao_channel (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): AO channel number (usually from 0 to 3).
-voltage (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>): voltage value, usually from 0 to 10.</p>
+<dt>Args:</dt><dd><p>ao_channel (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): AO channel number (usually from 0 to 3).</p>
+<p>voltage (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>): voltage value, usually from 0 to 10.</p>
 </dd>
 <dt>Returns:</dt><dd><p>scan rate in points per second, (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>)</p>
 </dd>
@@ -283,9 +317,21 @@ an 1D array of size number_of_channels * samples_per_channel.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.ao_device.AoParams">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_device.</span></span><span class="sig-name descname"><span class="pre">AoParams</span></span><a class="headerlink" href="#pioner.back.ao_device.AoParams" title="Permalink to this definition"></a></dt>
-<dd><p>Wraps the analog output uldaq.AoDevice.</p>
+<dd><p>General class to represent main AO DAQ parameters. 
+Deafult paramteres cannot be used to initialize uldaq.AoDevice,
+they need to be parsed from file or specified manually.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>sample_rate (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): description.
+range_id (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): description.
+low_channel (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): description.
+high_channel (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): description.
+scan_flags (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): ul.AOutScanFlag description.
+options (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>): ul.ScanOption description.</p>
+</dd>
+</dl>
 </dd></dl>
 
+<p>—</p>
 </section>
 </section>
 <section id="pioner-front">

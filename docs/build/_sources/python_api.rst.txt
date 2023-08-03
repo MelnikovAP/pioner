@@ -18,6 +18,8 @@ ao_device.py module
     :members: 
     :undoc-members:
 
+---
+
 pioner.front
 ************
 Frontend, user interfaces part. GUI and command-line communication
