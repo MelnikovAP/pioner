@@ -7,7 +7,7 @@ import uldaq as ul
 class AoParams:
     """General class to represent main AO DAQ parameters. 
     Deafult paramteres cannot be used to initialize uldaq.AoDevice,
-    they need to be parsed from file or specified manually.
+    they need to be parsed from JSON file or specified manually.
     
     Parameters
     ----------
@@ -20,12 +20,12 @@ class AoParams:
             First D/A channel in the scan.
         high_channel : :obj:`int`
             Last D/A channel in the scan.
-        scan_flags : :obj:`ul.AOutScanFlag`
+        scan_flags : :obj:`uldaq.AOutScanFlag`
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data.
             Refer to :obj:`uldaq` for additional info.
             By default :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
-        options : :obj:`ul.ScanOption`
+        options : :obj:`uldaq.ScanOption`
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data.
             Refer to :obj:`uldaq` for additional info.
@@ -50,8 +50,8 @@ class AoDeviceHandler:
 
     Parameters
     ----------
-        ao_device_from_daq : :obj:`ul.AoDevice`
-            Class instance, obtained from :obj:`uldaq.DaqDevice`.
+        ao_device_from_daq : :obj:`uldaq.AoDevice`
+            A class instance, obtained from :obj:`uldaq.DaqDevice`.
         params : :obj:`AoParams` 
             A class instance, containing all needed 
             analog output parameters parsed from JSON or specified manually.
@@ -118,7 +118,7 @@ class AoDeviceHandler:
         
         For example, in case of using:
 
-        AO ch1: :obj:`[1.0, 2.0, 3.0]` & AO ch2: :obj:`[0.0, 0.0, 0.0]` & AO ch3: :obj:`[0.5, 1.5, 2.5]`
+        AO ch0: :obj:`[1.0, 2.0, 3.0]` & AO ch1: :obj:`[0.0, 0.0, 0.0]` & AO ch2: :obj:`[0.5, 1.5, 2.5]`
         
         ao_buffer should be: :obj:`[1.0, 0.0, 0.5, 2.0, 0.0, 1.5, 3.0, 0.0, 2.5]`
 
