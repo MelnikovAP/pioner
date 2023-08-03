@@ -5,7 +5,6 @@ pioner.back
 ***********************************
 Backend, server part. Everything related to Raspberry Pi & PyTango
 
-
 daq_device.py module
 -------------------------------------
 .. automodule:: pioner.back.daq_device
@@ -18,7 +17,11 @@ ao_device.py module
     :members: 
     :undoc-members:
 
-
+ai_device.py module
+-------------------------------------
+.. automodule:: pioner.back.ai_device
+    :members: 
+    :undoc-members:
 
 ---
 

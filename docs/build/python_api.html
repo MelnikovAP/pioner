@@ -61,6 +61,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_device.AoParams"><code class="docutils literal notranslate"><span class="pre">AoParams</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ai_device">ai_device.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ai_device.AiDeviceHandler"><code class="docutils literal notranslate"><span class="pre">AiDeviceHandler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ai_device.AiParams"><code class="docutils literal notranslate"><span class="pre">AiParams</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a></li>
@@ -280,7 +285,7 @@ Initializes AO DAQ device and all parameters.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>ao_device_from_daq</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AoDevice</span></code>) – Class instance, obtained from <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.DaqDevice</span></code>.</p></li>
+<li><p><strong>ao_device_from_daq</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AoDevice</span></code>) – Class instance, obtained from <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.DaqDevice</span></code>.</p></li>
 <li><p><strong>params</strong> (<a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AoParams</span></code></a>) – A class instance, containing all needed
 analog output parameters parsed from JSON or specified manually.</p></li>
 </ul>
@@ -382,7 +387,7 @@ define the progress of a scan operation:
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_device.</span></span><span class="sig-name descname"><span class="pre">AoParams</span></span><a class="headerlink" href="#pioner.back.ao_device.AoParams" title="Permalink to this definition"></a></dt>
 <dd><p>General class to represent main AO DAQ parameters.
 Deafult paramteres cannot be used to initialize uldaq.AoDevice,
-they need to be parsed from file or specified manually.</p>
+they need to be parsed from JSON file or specified manually.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -391,12 +396,137 @@ they need to be parsed from file or specified manually.</p>
 Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.</p></li>
 <li><p><strong>low_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – First D/A channel in the scan.</p></li>
 <li><p><strong>high_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Last D/A channel in the scan.</p></li>
-<li><p><strong>scan_flags</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.AOutScanFlag</span></code>) – One or more of the attributes (suitable for bit-wise operations)
+<li><p><strong>scan_flags</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AOutScanFlag</span></code>) – One or more of the attributes (suitable for bit-wise operations)
 specifying the conditioning applied to the data.
 Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.
 By default <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AOutScanFlag.DEFAULT</span></code> flag is used</p></li>
-<li><p><strong>options</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">ul.ScanOption</span></code>) – One or more of the attributes (suitable for bit-wise operations)
+<li><p><strong>options</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.ScanOption</span></code>) – One or more of the attributes (suitable for bit-wise operations)
 specifying the conditioning applied to the data.
+Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.
+By default <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.ScanOption.CONTINUOUS</span></code> option is used</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-pioner.back.ai_device">
+<span id="ai-device-py-module"></span><h3>ai_device.py module<a class="headerlink" href="#module-pioner.back.ai_device" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ai_device.</span></span><span class="sig-name descname"><span class="pre">AiDeviceHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ai_device_from_daq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">uldaq.AiDevice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.ai_device.AiParams" title="pioner.back.ai_device.AiParams"><span class="pre">AiParams</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler" title="Permalink to this definition"></a></dt>
+<dd><p>Wraps the analog input <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AiDevice</span></code>.
+Initializes AI DAQ device, all parameters and buffer to write data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ai_device_from_daq</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AiDevice</span></code>) – A class instance, obtained from <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.DaqDevice</span></code>.</p></li>
+<li><p><strong>params</strong> (<a class="reference internal" href="#pioner.back.ai_device.AiParams" title="pioner.back.ai_device.AiParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AiParams</span></code></a>) – A class instance, containing all needed
+analog input parameters parsed from JSON or specified manually.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>RuntimeError</strong> – If the DAQ device doesn’t support analog outinput put or hardware paced analog input.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">uldaq.AiDevice</span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.get" title="Permalink to this definition"></a></dt>
+<dd><p>Provides explicit access to the uldaq.AiDevice.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AiDevice</span></code> class with properties and methods,
+provided by <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> library.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">class</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.get_buffer">
+<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ctypes.Array.&lt;class</span> <span class="pre">'float'&gt;</span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.get_buffer" title="Permalink to this definition"></a></dt>
+<dd><p>Provides explicit access to buffer with current obtained A/D values.
+Buffer is an 1D array of size number_of_channels * samples_per_channel.</p>
+<p>For example, in case of using channels 0-3, if ao_buffer is:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.5,</span> <span class="pre">2.0,</span> <span class="pre">0.0,</span> <span class="pre">1.5,</span> <span class="pre">3.0,</span> <span class="pre">0.0,</span> <span class="pre">2.5]</span></code>,
+data from each channel looks like:
+AO ch1: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">2.0,</span> <span class="pre">3.0]</span></code> &amp; AO ch2: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code> &amp; AO ch3: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[0.5,</span> <span class="pre">1.5,</span> <span class="pre">2.5]</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns an array of double precision floating point sample values.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">array[float]</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.scan">
+<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.scan" title="Permalink to this definition"></a></dt>
+<dd><p>Launches analog input scan with current parameters from <a class="reference internal" href="#pioner.back.ai_device.AiParams" title="pioner.back.ai_device.AiParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AiParams</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Scan rate in points per second</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.status">
+<span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">uldaq.ScanStatus</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">uldaq.TransferStatus</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.status" title="Permalink to this definition"></a></dt>
+<dd><p>Provides analog output scan and data transfer status.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">(uldaq.ScanStatus,</span> <span class="pre">uldaq.TransferStatus)</span></code> tuple
+with first element that can be IDLE = 0 or RUNNING = 1.
+The second element is a class containing properties that
+define the progress of a scan operation:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">current_scan_count</span></code>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">current_total_count</span></code> and
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">current_index</span></code>.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.stop" title="Permalink to this definition"></a></dt>
+<dd><p>Interrupts analog input scan.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ai_device.AiParams">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ai_device.</span></span><span class="sig-name descname"><span class="pre">AiParams</span></span><a class="headerlink" href="#pioner.back.ai_device.AiParams" title="Permalink to this definition"></a></dt>
+<dd><p>General class to represent main AI DAQ parameters.
+Deafult paramteres cannot be used to initialize uldaq.AiDevice,
+they need to be parsed from JSON file or specified manually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sample_rate</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – A/D sample rate in samples per channel per second.</p></li>
+<li><p><strong>range_id</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.Range</span></code>) – Normally 5 for -10 to +10 Volts range.
+Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.</p></li>
+<li><p><strong>low_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – First A/D channel in the scan.</p></li>
+<li><p><strong>high_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Last A/D channel in the scan.</p></li>
+<li><p><strong>input_mode</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AiInputMode</span></code>) – The input mode of the specified channels.
+Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.
+By default <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AiInputMode.SINGLE_ENDED</span></code> flag is used</p></li>
+<li><p><strong>scan_flags</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AOutScanFlag</span></code>) – One or more of the attributes (suitable for bit-wise operations)
+specifying the conditioning applied to the data before it is returned.
+Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.
+By default <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.AOutScanFlag.DEFAULT</span></code> flag is used</p></li>
+<li><p><strong>options</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.ScanOption</span></code>) – One or more of the attributes (suitable for bit-wise operations)
+specifying the conditioning applied to the data before it is returned.
 Refer to <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq</span></code> for additional info.
 By default <code class="xref py py-obj docutils literal notranslate"><span class="pre">uldaq.ScanOption.CONTINUOUS</span></code> option is used</p></li>
 </ul>

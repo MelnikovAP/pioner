@@ -1,10 +1,41 @@
 import logging
-from ctypes import Array
 from typing import Tuple
+from ctypes import Array
 import uldaq as ul
 
 
 class AiParams:
+    """General class to represent main AI DAQ parameters. 
+    Deafult paramteres cannot be used to initialize uldaq.AiDevice,
+    they need to be parsed from JSON file or specified manually.
+    
+    Parameters
+    ----------
+        sample_rate : :obj:`int`
+            A/D sample rate in samples per channel per second.
+        range_id : :obj:`uldaq.Range`
+            Normally 5 for -10 to +10 Volts range. 
+            Refer to :obj:`uldaq` for additional info.
+        low_channel : :obj:`int`
+            First A/D channel in the scan.
+        high_channel : :obj:`int`
+            Last A/D channel in the scan.
+        input_mode : :obj:`uldaq.AiInputMode`
+            The input mode of the specified channels.
+            Refer to :obj:`uldaq` for additional info.
+            By default :obj:`uldaq.AiInputMode.SINGLE_ENDED` flag is used
+        scan_flags : :obj:`uldaq.AOutScanFlag`
+            One or more of the attributes (suitable for bit-wise operations) 
+            specifying the conditioning applied to the data before it is returned.
+            Refer to :obj:`uldaq` for additional info.
+            By default :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
+        options : :obj:`uldaq.ScanOption`
+            One or more of the attributes (suitable for bit-wise operations) 
+            specifying the conditioning applied to the data before it is returned.
+            Refer to :obj:`uldaq` for additional info.
+            By default :obj:`uldaq.ScanOption.CONTINUOUS` option is used
+
+    """
     def __init__(self):
         self.sample_rate = -1  # Hz
         self.range_id = -1
@@ -19,18 +50,25 @@ class AiParams:
 
 
 class AiDeviceHandler:
-    """Wraps the analog-input uldaq.AiDevice."""
+    """Wraps the analog input :obj:`uldaq.AiDevice`.
+    Initializes AI DAQ device, all parameters and buffer to write data.
 
+    Parameters
+    ----------
+        ai_device_from_daq : :obj:`uldaq.AiDevice` 
+            A class instance, obtained from :obj:`uldaq.DaqDevice`.
+        params : :obj:`AiParams` 
+            A class instance, containing all needed 
+            analog input parameters parsed from JSON or specified manually.
+        
+    Raises
+    ------
+        :obj:`RuntimeError`
+            If the DAQ device doesn't support analog outinput put or hardware paced analog input.
+    
+    """
     def __init__(self, ai_device_from_daq: ul.AiDevice,
                  params: AiParams):
-        """Initializes AI device and all parameters.
-
-        Args:
-            ai_device_from_daq: uldaq.AiDevice obtained from uldaq.DaqDevice.
-            params: An AiParams instance, containing all needed analog-input parameters parsed from JSON.
-        Raises:
-            RuntimeError if the DAQ device doesn't support analog input or hardware paced analog input.
-        """
         self._ai_device = ai_device_from_daq
         self._params = params
         self._check_device()
@@ -56,21 +94,62 @@ class AiDeviceHandler:
         self._buffer = ul.create_float_buffer(channel_count, self._params.sample_rate)
 
     def get(self) -> ul.AiDevice:
-        """Provides explicit access to the uldaq.AiDevice."""
+        """Provides explicit access to the uldaq.AiDevice.
+        
+        Returns
+        ------- 
+            :obj:`class` 
+                :obj:`uldaq.AiDevice` class with properties and methods, 
+                provided by :obj:`uldaq` library.
+        """
         return self._ai_device                                   
 
     def get_buffer(self) -> Array[float]:
-        """Returns an array of double precision floating point sample values."""
+        """Provides explicit access to buffer with current obtained A/D values.
+        Buffer is an 1D array of size number_of_channels * samples_per_channel. 
+        
+        For example, in case of using channels 0-3, if ao_buffer is: 
+        :obj:`[1.0, 0.0, 0.5, 2.0, 0.0, 1.5, 3.0, 0.0, 2.5]`, 
+        data from each channel looks like: 
+        AO ch1: :obj:`[1.0, 2.0, 3.0]` & AO ch2: :obj:`[0.0, 0.0, 0.0]` & AO ch3: :obj:`[0.5, 1.5, 2.5]`
+        
+        Returns
+        ------- 
+            :obj:`array[float]` 
+                Returns an array of double precision floating point sample values.
+                
+        """
         return self._buffer
 
     def stop(self):
+        """Interrupts analog input scan."""
         self._ai_device.scan_stop()
   
     def status(self) -> Tuple[ul.ScanStatus, ul.TransferStatus]:
+        """Provides analog output scan and data transfer status.
+        
+        Returns
+        ------- 
+            :obj:`tuple` 
+                :obj:`(uldaq.ScanStatus, uldaq.TransferStatus)` tuple 
+                with first element that can be IDLE = 0 or RUNNING = 1. 
+                The second element is a class containing properties that 
+                define the progress of a scan operation:
+                :obj:`current_scan_count`, :obj:`current_total_count` and 
+                :obj:`current_index`.
+
+        """
         return self._ai_device.get_scan_status()
 
     # returns actual input scan rate
     def scan(self) -> float:
+        """Launches analog input scan with current parameters from :obj:`AiParams`.
+
+        Returns
+        ------- 
+            :obj:`float`
+                Scan rate in points per second
+        """
         analog_range = ul.Range(self._params.range_id)
         return self._ai_device.a_in_scan(self._params.low_channel, self._params.high_channel, 
                                          self._params.input_mode, analog_range, self._params.sample_rate,
