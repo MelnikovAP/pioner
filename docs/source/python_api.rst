@@ -23,9 +23,15 @@ ai_device.py module
     :members: 
     :undoc-members:
 
-nanocontrol_tango.py module
+ao_data_generators.py module
 -------------------------------------
-.. automodule:: pioner.back.nanocontrol_tango
+.. automodule:: pioner.back.ao_data_generators
+    :members: 
+    :undoc-members:
+
+experiment_manager.py module
+-------------------------------------
+.. automodule:: pioner.back.experiment_manager
     :members: 
     :undoc-members:
 
