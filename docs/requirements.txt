@@ -1,5 +1,3 @@
 sphinx==6.2.1
 myst-parser==2.0.0
-numpy==1.25.1
-pandas==2.0.3
 ppioner==0.0.7
