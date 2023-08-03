@@ -21,7 +21,7 @@ class DaqParams:
             to the device or calling :obj:`uldaq.DaqDevice.reset()`. 
             This function only applies to DAQ Ethernet devices.
             By default -1 used. 
-
+    
     """
     def __init__(self):
         self.interface_type = ul.InterfaceType.ANY

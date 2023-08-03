@@ -9,14 +9,28 @@ class AoParams:
     Deafult paramteres cannot be used to initialize uldaq.AoDevice,
     they need to be parsed from file or specified manually.
     
-    Args:
-        sample_rate (:obj:`int`): description.
-        range_id (:obj:`int`): description.
-        low_channel (:obj:`int`): description.
-        high_channel (:obj:`int`): description.
-        scan_flags (:obj:`int`): ul.AOutScanFlag description.
-        options (:obj:`int`): ul.ScanOption description.
-        
+    Parameters
+    ----------
+        sample_rate : :obj:`int`
+            Number of D/A samples to output.
+        range_id : :obj:`uldaq.Range`
+            Normally 5 for -10 to +10 Volts range. 
+            Refer to :obj:`uldaq` for additional info.
+        low_channel : :obj:`int`
+            First D/A channel in the scan.
+        high_channel : :obj:`int`
+            Last D/A channel in the scan.
+        scan_flags : :obj:`ul.AOutScanFlag`
+            One or more of the attributes (suitable for bit-wise operations) 
+            specifying the conditioning applied to the data.
+            Refer to :obj:`uldaq` for additional info.
+            By default :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
+        options : :obj:`ul.ScanOption`
+            One or more of the attributes (suitable for bit-wise operations) 
+            specifying the conditioning applied to the data.
+            Refer to :obj:`uldaq` for additional info.
+            By default :obj:`uldaq.ScanOption.CONTINUOUS` option is used
+
     """
     def __init__(self):
         self.sample_rate = -1  # Hz
@@ -31,15 +45,21 @@ class AoParams:
 
 
 class AoDeviceHandler:
-    """Wraps the analog output uldaq.AoDevice.
+    """Wraps the analog output :obj:`uldaq.AoDevice`.
     Initializes AO DAQ device and all parameters.
 
-    Args:
-        ao_device_from_daq (:obj:`ul.AoDevice`): uldaq.AoDevice obtained from uldaq.DaqDevice.
-        params (:obj:`AoParams`): An AoParams instance, containing all needed analog-output parameters parsed from JSON.
+    Parameters
+    ----------
+        ao_device_from_daq : :obj:`ul.AoDevice`
+            Class instance, obtained from :obj:`uldaq.DaqDevice`.
+        params : :obj:`AoParams` 
+            A class instance, containing all needed 
+            analog output parameters parsed from JSON or specified manually.
         
-    Raises:
-        RuntimeError if the DAQ device doesn't support analog output or hardware paced analog output.
+    Raises
+    ------
+        :obj:`RuntimeError`
+            If the DAQ device doesn't support analog output or hardware paced analog output.
     """
 
     def __init__(self, ao_device_from_daq: ul.AoDevice,
@@ -61,7 +81,14 @@ class AoDeviceHandler:
             raise RuntimeError(error_str)
 
     def get(self) -> ul.AoDevice:
-        """Provides explicit access to the uldaq.AoDevice."""
+        """Provides explicit access to the uldaq.AoDevice.
+        
+        Returns
+        ------- 
+            :obj:`class` 
+                :obj:`uldaq.AoDevice` class with properties and methods, 
+                provided by :obj:`uldaq` library.
+        """
         return self._ao_device
 
     def stop(self):
@@ -69,11 +96,23 @@ class AoDeviceHandler:
         self._ao_device.scan_stop()
 
     def status(self) -> Tuple[ul.ScanStatus, ul.TransferStatus]:
-        """Provides analog output scan and data transfer status"""
+        """Provides analog output scan and data transfer status
+        
+        Returns
+        ------- 
+            :obj:`tuple` 
+                :obj:`(uldaq.ScanStatus, uldaq.TransferStatus)` tuple 
+                with first element that can be IDLE = 0 or RUNNING = 1. 
+                The second element is a class containing properties that 
+                define the progress of a scan operation:
+                :obj:`current_scan_count`, :obj:`current_total_count` and 
+                :obj:`current_index`.
+
+        """
         return self._ao_device.get_scan_status()
 
     def scan(self, ao_buffer: Array[float]) -> float:
-        """Launches analog output scan with current (:obj:`AoParams`).
+        """Launches analog output scan with current parameters from :obj:`AoParams`.
         Voltage data (voltage profiles) is taken from assigned buffer - 
         an 1D array of size number_of_channels * samples_per_channel. 
         
@@ -83,11 +122,15 @@ class AoDeviceHandler:
         
         ao_buffer should be: :obj:`[1.0, 0.0, 0.5, 2.0, 0.0, 1.5, 3.0, 0.0, 2.5]`
 
-        Args:
-            ao_buffer (:obj:`Array[float]`): A buffer with double precision floating point sample values.
+        Args
+        ----
+            ao_buffer : :obj:`array[float]`
+                A buffer with double precision floating point sample values.
 
-        Returns:
-            scan rate in points per second, (:obj:`float`)
+        Returns
+        ------- 
+            :obj:`float`
+                Scan rate in points per second
         """
         analog_range = ul.Range(self._params.range_id)
         samples_per_channel = int((len(ao_buffer) / (self._params.high_channel - self._params.low_channel + 1)))
@@ -99,16 +142,22 @@ class AoDeviceHandler:
     def iso_mode(self, ao_channel:int, voltage:float) -> float:
         """Sets voltage to the specified AO channel. 
         
-        Note:
+        Note
+        ----
             The voltage remains on the channel until DAQ board released and disconnected.
 
-        Args:
-            ao_channel (:obj:`int`): AO channel number (usually from 0 to 3).
-            
-            voltage (:obj:`float`): voltage value, usually from 0 to 10.
+        Args
+        ----
+            ao_channel : :obj:`int`
+                AO channel number (usually from 0 to 3).
 
-        Returns:
-            scan rate in points per second, (:obj:`float`)
+            voltage : :obj:`float`
+                Voltage value, usually from 0 to 10.
+
+        Returns
+        -------
+            :obj:`float`
+                Scan rate in points per second
         """
         analog_range = ul.Range(self._params.range_id)
         return self._ao_device.a_out(ao_channel,
