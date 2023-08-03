@@ -84,6 +84,7 @@
  | <a href="#I"><strong>I</strong></a>
  | <a href="#L"><strong>L</strong></a>
  | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
  | <a href="#P"><strong>P</strong></a>
  | <a href="#Q"><strong>Q</strong></a>
  | <a href="#R"><strong>R</strong></a>
@@ -99,11 +100,19 @@
 </li>
       <li><a href="python_api.html#pioner.back.ai_device.AiParams">AiParams (class in pioner.back.ai_device)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler">AoDeviceHandler (class in pioner.back.ao_device)</a>
 </li>
       <li><a href="python_api.html#pioner.back.ao_device.AoParams">AoParams (class in pioner.back.ao_device)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.apply_calibration">apply_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration">apply_default_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.arm_fast_heat">arm_fast_heat() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.arm_iso_mode">arm_iso_mode() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -128,7 +137,11 @@
       <li><a href="usage.html#pioner.shared.utils.Dict2Class">Dict2Class (class in pioner.shared.utils)</a>
 </li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.disconnect">disconnect() (pioner.back.daq_device.DaqDeviceHandler method)</a>
+
+      <ul>
+        <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.disconnect">(pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -145,15 +158,21 @@
       </ul></li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.get_ai_device">get_ai_device() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.get_ao_device">get_ao_device() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.ai_device.AiDeviceHandler.get_buffer">get_buffer() (pioner.back.ai_device.AiDeviceHandler method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_current_calibration">get_current_calibration (pioner.back.nanocontrol_tango.NanoControl attribute)</a>
 </li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.get_descriptor">get_descriptor() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
       <li><a href="usage.html#pioner.shared.utils.Dict2Class.get_dict">get_dict() (pioner.shared.utils.Dict2Class method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_info">get_info (pioner.back.nanocontrol_tango.NanoControl attribute)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_sample_rate">get_sample_rate (pioner.back.nanocontrol_tango.NanoControl attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -161,12 +180,14 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.is_connected">is_connected() (pioner.back.daq_device.DaqDeviceHandler method)</a>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.init_device">init_device() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
-      <li><a href="usage.html#pioner.shared.utils.is_int">is_int() (in module pioner.shared.utils)</a>
+      <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.is_connected">is_connected() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="usage.html#pioner.shared.utils.is_int">is_int() (in module pioner.shared.utils)</a>
+</li>
       <li><a href="usage.html#pioner.shared.utils.is_int_or_raise">is_int_or_raise() (in module pioner.shared.utils)</a>
 </li>
       <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler.iso_mode">iso_mode() (pioner.back.ao_device.AoDeviceHandler method)</a>
@@ -178,6 +199,12 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="usage.html#pioner.shared.utils.list_bitwise_or">list_bitwise_or() (in module pioner.shared.utils)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.load_calibration">load_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.log_device_info">log_device_info() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -195,9 +222,19 @@
 </li>
         <li><a href="python_api.html#module-pioner.back.daq_device">pioner.back.daq_device</a>
 </li>
+        <li><a href="python_api.html#module-pioner.back.nanocontrol_tango">pioner.back.nanocontrol_tango</a>
+</li>
         <li><a href="usage.html#module-pioner.shared.utils">pioner.shared.utils</a>
 </li>
       </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl">NanoControl (class in pioner.back.nanocontrol_tango)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -218,13 +255,20 @@
         <li><a href="python_api.html#module-pioner.back.ao_device">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     pioner.back.daq_device
 
       <ul>
         <li><a href="python_api.html#module-pioner.back.daq_device">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    pioner.back.nanocontrol_tango
+
+      <ul>
+        <li><a href="python_api.html#module-pioner.back.nanocontrol_tango">module</a>
 </li>
       </ul></li>
       <li>
@@ -250,9 +294,15 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.release">release() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
+      <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.reset">reset() (pioner.back.daq_device.DaqDeviceHandler method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.reset">reset() (pioner.back.daq_device.DaqDeviceHandler method)</a>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.reset_sample_scan_rate">reset_sample_scan_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.run_fast_heat">run_fast_heat() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.run_iso_mode">run_iso_mode() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -266,30 +316,40 @@
         <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler.scan">(pioner.back.ao_device.AoDeviceHandler method)</a>
 </li>
       </ul></li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.set_connection">set_connection() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate">set_sample_scan_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.ai_device.AiDeviceHandler.status">status() (pioner.back.ai_device.AiDeviceHandler method)</a>
 
       <ul>
         <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler.status">(pioner.back.ao_device.AoDeviceHandler method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.ai_device.AiDeviceHandler.stop">stop() (pioner.back.ai_device.AiDeviceHandler method)</a>
 
       <ul>
         <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler.stop">(pioner.back.ao_device.AoDeviceHandler method)</a>
 </li>
       </ul></li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.stop_ai">stop_ai() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="usage.html#pioner.shared.utils.temperature_to_voltage">temperature_to_voltage() (in module pioner.shared.utils)</a>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.TangoClassClass">TangoClassClass (pioner.back.nanocontrol_tango.NanoControl attribute)</a>
+</li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.TangoClassName">TangoClassName (pioner.back.nanocontrol_tango.NanoControl attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="usage.html#pioner.shared.utils.temperature_to_voltage">temperature_to_voltage() (in module pioner.shared.utils)</a>
+</li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.try_connect">try_connect() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
   </ul></td>

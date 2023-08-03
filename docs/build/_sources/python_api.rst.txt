@@ -23,6 +23,12 @@ ai_device.py module
     :members: 
     :undoc-members:
 
+nanocontrol_tango.py module
+-------------------------------------
+.. automodule:: pioner.back.nanocontrol_tango
+    :members: 
+    :undoc-members:
+
 ---
 
 pioner.front
