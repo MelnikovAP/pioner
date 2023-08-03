@@ -44,8 +44,8 @@ html_logo = "_static/pioner-logo.png"
 autodoc_mock_imports = [
     'uldaq',
     'pytango',
-    # 'numpy',
-    # 'ctypes',
+    'numpy',
+    'ctypes',
     'typing',
     'logging',
 ]
