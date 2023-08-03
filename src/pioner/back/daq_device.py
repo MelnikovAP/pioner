@@ -12,14 +12,19 @@ class DaqParams:
     
     Parameters
     ----------
-        interface_type : :obj:`ul.InterfaceType`
-            Description
+        interface_type : :obj:`uldaq.InterfaceType`
+            USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7.
+            Refer to :obj:`uldaq` documentation.
+            By default, :obj:`uldaq.InterfaceType.ANY` is used.
         connection_code : :obj:`int`
-            Description
+            The connection code becomes active after cycling power 
+            to the device or calling :obj:`uldaq.DaqDevice.reset()`. 
+            This function only applies to DAQ Ethernet devices.
+            By default -1 used. 
 
     """
     def __init__(self):
-        self.interface_type = ul.InterfaceType.ANY  # USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7 from https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/api.html#uldaq.InterfaceType
+        self.interface_type = ul.InterfaceType.ANY
         self.connection_code = -1
 
     def __str__(self):
@@ -27,12 +32,19 @@ class DaqParams:
 
 
 class DaqDeviceHandler:
-    """ Class to handle connection to DAQ device with preset parameters
+    """ Class to handle connection to DAQ device with preset parameters.
+    On initiallization, looks for connected devices only via USB interface. 
+    Only one device is expected to be connected. 
     
-    Args
-    ------
+    Parameters
+    ----------
         params : :obj:`DaqParams`
             Basic parameters to initialize connection to DAQ device.
+    
+    Raises
+    -------
+        :obj:`RuntimeError`
+            If no devices connected, logs and raises error
 
     """
     def __init__(self, params: DaqParams):
@@ -40,10 +52,6 @@ class DaqDeviceHandler:
         self._init_daq_device()
 
     def _init_daq_device(self):
-        """ Looking for connected devices only with USB interface. 
-        Only one device expected to be connected. 
-        If no devices connected, logs and raise an error
-        """
         devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
         if not devices:
             error_str = "No DAQ devices found."
@@ -65,16 +73,24 @@ class DaqDeviceHandler:
         
         Returns
         -------- 
-            :obj:`ul.DaqDeviceDescriptor` 
+            :obj:`class`  
+                A class :obj:`uldaq.DaqDeviceDescriptor` with 
+                the following properties of connected device:
+                :obj:`product_name`, :obj:`product_id`, 
+                :obj:`property dev_interface`, 
+                :obj:`property dev_string`, 
+                :obj:`property unique_id`
+
         """
         return self._daq_device.get_descriptor()
 
     def is_connected(self) -> bool:
         """ Provides explicit access to the connection status of DAQ device.
         
-        Returns: 
+        Returns 
         ---------
             :obj:`bool` 
+                :obj:`True` if connected, :obj:`False` if not
         """
         return self._daq_device.is_connected()
 
@@ -100,10 +116,15 @@ class DaqDeviceHandler:
         Args
         ------  
             timeout : :obj:`int`
-                Timeout to give up connecting in seconds.  
+                Timeout to give up connecting in seconds. By default = 60 
             sleep_time : :obj:`int`
-                Sleeptime between connection attempts in seconds.  
+                Sleeptime between connection attempts in seconds. By default = 1 
 
+        Raises
+        -------
+            :obj:`TimeoutError`
+                If device can't be found via selected interface, 
+                logs and raises error
         """
         for _ in range(timeout):
             if not self.is_connected():
@@ -136,20 +157,24 @@ class DaqDeviceHandler:
         logging.info("DAQ DEVICE: DAQ device has been disconnected and released.")
 
     def get(self) -> ul.DaqDevice:
-        """ Provides explicit access to uldaq.daq_device.
+        """ Provides explicit access to :obj:`uldaq.daq_device`.
         
         Returns
         ------- 
-            :obj:`ul.DaqDevice` 
+            :obj:`class` 
+                :obj:`uldaq.DaqDevice` class with properties and methods, 
+                provided by :obj:`uldaq` library.
         """
         return self._daq_device
 
     def get_ai_device(self) -> ul.AiDevice:
-        """ Provides explicit access to uldaq.ai_device.
+        """ Provides explicit access to :obj:`uldaq.ai_device`.
         
         Returns
         -------
-            :obj:`ul.AiDevice`
+            :obj:`class` 
+                :obj:`uldaq.AiDevice` class with properties and methods, 
+                provided by :obj:`uldaq` library.
         """
         return self._daq_device.get_ai_device()
 
@@ -158,6 +183,8 @@ class DaqDeviceHandler:
         
         Returns
         ------- 
-            :obj:`ul.AoDevice`
+            :obj:`class` 
+                :obj:`uldaq.AoDevice` class with properties and methods, 
+                provided by :obj:`uldaq` library.
         """
         return self._daq_device.get_ao_device()
