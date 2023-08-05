@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, List
 import h5py
 import numpy as np
 
@@ -28,7 +28,7 @@ class FastHeat:
                  settings: BackSettings,
                  time_temp_volt_tables: dict,
                  calibration: Calibration,
-                 ai_channels: list[int],
+                 ai_channels: List[int],
                  FAST_HEAT_CUSTOM_FLAG=False):
 
         self._daq_device_handler = daq_device_handler
