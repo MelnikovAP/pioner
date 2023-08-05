@@ -41,12 +41,14 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 html_logo = "_static/pioner-logo.png"
 
+
+
 autodoc_mock_imports = [
     'uldaq',
     'pytango',
-    'numpy',
-    'ctypes',
-    'typing',
-    'logging',
+    # 'numpy',
+    # 'ctypes',
+    # 'typing',
+    # 'logging',
 ]
 

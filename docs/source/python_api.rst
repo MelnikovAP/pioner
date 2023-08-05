@@ -29,6 +29,12 @@ ao_data_generators.py module
     :members: 
     :undoc-members:
 
+experiment_manager.py module
+-------------------------------------
+.. automodule:: pioner.back.experiment_manager
+    :members: 
+    :undoc-members:
+
 ---
 
 pioner.front
