@@ -50,7 +50,7 @@ class ExperimentManager:
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
-    def _transform_ai_data(self, ai_channels: list[int], df) -> pd.DataFrame:
+    def _transform_ai_data(self, ai_channels: List[int], df) -> pd.DataFrame:
         channels_num = self._ai_params.high_channel - self._ai_params.low_channel + 1
         one_chan_len = int(len(df) / channels_num)
         multi_index = pd.MultiIndex.from_product([list(range(one_chan_len)), list(range(channels_num))])
