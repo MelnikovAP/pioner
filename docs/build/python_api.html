@@ -75,6 +75,18 @@
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.experiment_manager.ExperimentManager"><code class="docutils literal notranslate"><span class="pre">ExperimentManager</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.fastheat">fastheat.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.fastheat.FastHeat"><code class="docutils literal notranslate"><span class="pre">FastHeat</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.iso_mode">iso_mode.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.iso_mode.IsoMode"><code class="docutils literal notranslate"><span class="pre">IsoMode</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.nanocontrol_tango">nanocontrol_tango.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.nanocontrol_tango.NanoControl"><code class="docutils literal notranslate"><span class="pre">NanoControl</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a></li>
@@ -596,6 +608,198 @@ By default <code class="xref py py-obj docutils literal notranslate"><span class
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.get_ai_data">
 <span class="sig-name descname"><span class="pre">get_ai_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.get_ai_data" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pioner.back.fastheat">
+<span id="fastheat-py-module"></span><h3>fastheat.py module<a class="headerlink" href="#module-pioner.back.fastheat" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.fastheat.FastHeat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.fastheat.</span></span><span class="sig-name descname"><span class="pre">FastHeat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">daq_device_handler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><span class="pre">DaqDeviceHandler</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BackSettings</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_temp_volt_tables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Calibration</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ai_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FAST_HEAT_CUSTOM_FLAG</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.fastheat.FastHeat" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.fastheat.FastHeat.arm">
+<span class="sig-name descname"><span class="pre">arm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.fastheat.FastHeat.arm" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.fastheat.FastHeat.is_armed">
+<span class="sig-name descname"><span class="pre">is_armed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.fastheat.FastHeat.is_armed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.fastheat.FastHeat.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.fastheat.FastHeat.run" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pioner.back.iso_mode">
+<span id="iso-mode-py-module"></span><h3>iso_mode.py module<a class="headerlink" href="#module-pioner.back.iso_mode" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.iso_mode.</span></span><span class="sig-name descname"><span class="pre">IsoMode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">daq_device_handler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><span class="pre">DaqDeviceHandler</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BackSettings</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chan_temp_volt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Calibration</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.ai_stop">
+<span class="sig-name descname"><span class="pre">ai_stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.ai_stop" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.arm">
+<span class="sig-name descname"><span class="pre">arm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'int'&gt;,</span> <span class="pre">&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.arm" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.is_armed">
+<span class="sig-name descname"><span class="pre">is_armed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.is_armed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">do_ai</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.run" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pioner.back.nanocontrol_tango">
+<span id="nanocontrol-tango-py-module"></span><h3>nanocontrol_tango.py module<a class="headerlink" href="#module-pioner.back.nanocontrol_tango" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.nanocontrol_tango.</span></span><span class="sig-name descname"><span class="pre">NanoControl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cl</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl" title="Permalink to this definition"></a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.TangoClassClass">
+<span class="sig-name descname"><span class="pre">TangoClassClass</span></span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.TangoClassClass" title="Permalink to this definition"></a></dt>
+<dd><p>alias of <code class="xref py py-class docutils literal notranslate"><span class="pre">NanoControlClass</span></code></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.TangoClassName">
+<span class="sig-name descname"><span class="pre">TangoClassName</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'NanoControl'</span></em><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.TangoClassName" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.apply_calibration">
+<span class="sig-name descname"><span class="pre">apply_calibration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.apply_calibration" title="Permalink to this definition"></a></dt>
+<dd><p>‘apply_calibration’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration">
+<span class="sig-name descname"><span class="pre">apply_default_calibration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration" title="Permalink to this definition"></a></dt>
+<dd><p>‘apply_default_calibration’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.arm_fast_heat">
+<span class="sig-name descname"><span class="pre">arm_fast_heat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_temp_volt_tables_str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.arm_fast_heat" title="Permalink to this definition"></a></dt>
+<dd><p>‘arm_fast_heat’ TANGO command</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>time_temp_volt_tables_str</strong> (<em>str</em>) – (not documented)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.arm_iso_mode">
+<span class="sig-name descname"><span class="pre">arm_iso_mode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chan_temp_volt_str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.arm_iso_mode" title="Permalink to this definition"></a></dt>
+<dd><p>‘arm_iso_mode’ TANGO command</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>chan_temp_volt_str</strong> (<em>str</em>) – (not documented)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.disconnect">
+<span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.disconnect" title="Permalink to this definition"></a></dt>
+<dd><p>‘disconnect’ TANGO command</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_current_calibration">
+<span class="sig-name descname"><span class="pre">get_current_calibration</span></span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.get_current_calibration" title="Permalink to this definition"></a></dt>
+<dd><p>TANGO pipe</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_info">
+<span class="sig-name descname"><span class="pre">get_info</span></span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.get_info" title="Permalink to this definition"></a></dt>
+<dd><p>TANGO pipe</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_sample_rate">
+<span class="sig-name descname"><span class="pre">get_sample_rate</span></span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.get_sample_rate" title="Permalink to this definition"></a></dt>
+<dd><p>TANGO pipe</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.init_device">
+<span class="sig-name descname"><span class="pre">init_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.init_device" title="Permalink to this definition"></a></dt>
+<dd><p>Docstring for is_int function</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.load_calibration">
+<span class="sig-name descname"><span class="pre">load_calibration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">str_calib</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.load_calibration" title="Permalink to this definition"></a></dt>
+<dd><p>‘load_calibration’ TANGO command</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>str_calib</strong> (<em>str</em>) – (not documented)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.log_device_info">
+<span class="sig-name descname"><span class="pre">log_device_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.log_device_info" title="Permalink to this definition"></a></dt>
+<dd><p>‘log_device_info’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.reset_sample_scan_rate">
+<span class="sig-name descname"><span class="pre">reset_sample_scan_rate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.reset_sample_scan_rate" title="Permalink to this definition"></a></dt>
+<dd><p>‘reset_sample_scan_rate’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.run_fast_heat">
+<span class="sig-name descname"><span class="pre">run_fast_heat</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.run_fast_heat" title="Permalink to this definition"></a></dt>
+<dd><p>‘run_fast_heat’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.run_iso_mode">
+<span class="sig-name descname"><span class="pre">run_iso_mode</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.run_iso_mode" title="Permalink to this definition"></a></dt>
+<dd><p>‘run_iso_mode’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.set_connection">
+<span class="sig-name descname"><span class="pre">set_connection</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.set_connection" title="Permalink to this definition"></a></dt>
+<dd><p>‘set_connection’ TANGO command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate">
+<span class="sig-name descname"><span class="pre">set_sample_scan_rate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scan_rate</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate" title="Permalink to this definition"></a></dt>
+<dd><p>‘set_sample_scan_rate’ TANGO command</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>scan_rate</strong> (<em>int</em>) – (not documented)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.stop_ai">
+<span class="sig-name descname"><span class="pre">stop_ai</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.stop_ai" title="Permalink to this definition"></a></dt>
+<dd><p>‘stop_ai’ TANGO command</p>
+</dd></dl>
 
 </dd></dl>
 

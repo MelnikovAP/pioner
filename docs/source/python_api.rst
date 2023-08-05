@@ -35,6 +35,24 @@ experiment_manager.py module
     :members: 
     :undoc-members:
 
+fastheat.py module
+-------------------------------------
+.. automodule:: pioner.back.fastheat
+    :members: 
+    :undoc-members:
+
+iso_mode.py module
+-------------------------------------
+.. automodule:: pioner.back.iso_mode
+    :members: 
+    :undoc-members:
+
+nanocontrol_tango.py module
+-------------------------------------
+.. automodule:: pioner.back.nanocontrol_tango
+    :members: 
+    :undoc-members:
+
 ---
 
 pioner.front
