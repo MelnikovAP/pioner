@@ -95,7 +95,7 @@ class ExperimentManager:
         self._ao_device_handler.iso_mode(ao_channel, voltage)
 
 
-    def ai_continuous(self, ai_channels: list[int], do_save_data: bool):
+    def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
         # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
         # else: dump into dummy buffer file (for endless ai scan)
