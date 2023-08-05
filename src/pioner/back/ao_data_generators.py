@@ -1,4 +1,3 @@
-from ctypes import Array
 import uldaq as ul
 
 # TODO: add an interface class for different types of data generators
@@ -36,7 +35,7 @@ class PulseDataGenerator:
             for ch in range(self._low_channel, self._high_channel + 1):
                 self._buffer[i * self._channel_count + ch] = self._channel_voltages['ch' + str(ch)]
 
-    def get_buffer(self) -> Array[float]:
+    def get_buffer(self) -> [float]:
         return self._buffer
 
     def __str__(self):
@@ -83,7 +82,7 @@ class ScanDataGenerator:
             for ch in range(self._low_channel, self._high_channel + 1):
                 self._buffer[i * self._channel_count + ch] = self._voltage_profiles['ch' + str(ch)][i]
 
-    def get_buffer(self) -> Array[float]:
+    def get_buffer(self) -> [float]:
         return self._buffer
 
     def __str__(self):

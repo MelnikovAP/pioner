@@ -47,7 +47,6 @@ autodoc_mock_imports = [
     'uldaq',
     'pytango',
     # 'numpy',
-    # 'ctypes',
     # 'typing',
     # 'logging',
 ]

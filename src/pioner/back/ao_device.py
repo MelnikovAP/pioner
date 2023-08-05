@@ -1,6 +1,5 @@
 import logging
 from typing import Tuple
-from ctypes import Array
 import uldaq as ul
 
 
@@ -111,7 +110,7 @@ class AoDeviceHandler:
         """
         return self._ao_device.get_scan_status()
 
-    def scan(self, ao_buffer: Array[float]) -> float:
+    def scan(self, ao_buffer: [float]) -> float:
         """Launches analog output scan with current parameters from :obj:`AoParams`.
         Voltage data (voltage profiles) is taken from assigned buffer - 
         an 1D array of size number_of_channels * samples_per_channel. 
@@ -124,7 +123,7 @@ class AoDeviceHandler:
 
         Args
         ----
-            ao_buffer : :obj:`array[float]`
+            ao_buffer : :obj:`[float]`
                 A buffer with double precision floating point sample values.
 
         Returns

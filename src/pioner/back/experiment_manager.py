@@ -1,7 +1,6 @@
 import glob
 import logging
 import os
-from ctypes import Array
 from typing import List
 import pandas as pd
 import uldaq as ul
@@ -19,7 +18,7 @@ from pioner.back.daq_device import DaqDeviceHandler
 class ExperimentManager:
     _ai_device_handler: AiDeviceHandler
     _ao_device_handler: AoDeviceHandler
-    _ao_buffer: Array[float]
+    _ao_buffer: [float]
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: BackSettings):

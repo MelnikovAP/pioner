@@ -1,6 +1,5 @@
 import logging
 from typing import Tuple
-from ctypes import Array
 import uldaq as ul
 
 
@@ -104,7 +103,7 @@ class AiDeviceHandler:
         """
         return self._ai_device                                   
 
-    def get_buffer(self) -> Array[float]:
+    def get_buffer(self) -> [float]:
         """Provides explicit access to buffer with current obtained A/D values.
         Buffer is an 1D array of size number_of_channels * samples_per_channel. 
         
@@ -115,7 +114,7 @@ class AiDeviceHandler:
         
         Returns
         ------- 
-            :obj:`array[float]` 
+            :obj:`[float]` 
                 Returns an array of double precision floating point sample values.
                 
         """
