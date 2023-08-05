@@ -59,6 +59,17 @@ pioner.front
 ************
 Frontend, user interfaces part. GUI and command-line communication
 
+mainWindow.py module
+-------------------------------------
+.. automodule:: pioner.front.mainWindow
+    :members: 
+    :undoc-members:
+
+mainWindowUi.py module
+-------------------------------------
+.. automodule:: pioner.front.mainWindowUi
+    :members: 
+
 
 pioner.shared
 **************

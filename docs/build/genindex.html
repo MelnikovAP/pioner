@@ -94,6 +94,7 @@
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
  
@@ -115,15 +116,21 @@
 </li>
       <li><a href="python_api.html#pioner.back.experiment_manager.ExperimentManager.ao_set">ao_set() (pioner.back.experiment_manager.ExperimentManager method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.ao_device.AoDeviceHandler">AoDeviceHandler (class in pioner.back.ao_device)</a>
 </li>
       <li><a href="python_api.html#pioner.back.ao_device.AoParams">AoParams (class in pioner.back.ao_device)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.apply_calib">apply_calib() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.apply_calibration">apply_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.apply_default_calib">apply_default_calib() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration">apply_default_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.apply_sample_rate">apply_sample_rate() (pioner.front.mainWindow.mainWindow method)</a>
 </li>
       <li><a href="python_api.html#pioner.back.fastheat.FastHeat.arm">arm() (pioner.back.fastheat.FastHeat method)</a>
 
@@ -159,6 +166,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.closeEvent">closeEvent() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.connect">connect() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
   </ul></td>
@@ -171,14 +180,16 @@
 </li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqParams">DaqParams (class in pioner.back.daq_device)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.shared.utils.Dict2Class">Dict2Class (class in pioner.shared.utils)</a>, <a href="usage.html#pioner.shared.utils.Dict2Class">[1]</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.disconnect">disconnect() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 
       <ul>
         <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.disconnect">(pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+        <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.disconnect">(pioner.front.mainWindow.mainWindow method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -197,8 +208,12 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.fastheat.FastHeat">FastHeat (class in pioner.back.fastheat)</a>
 </li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.fh_arm">fh_arm() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.fh_run">fh_run() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.shared.settings.FrontSettings">FrontSettings (class in pioner.shared.settings)</a>
 </li>
   </ul></td>
@@ -229,6 +244,8 @@
         <li><a href="python_api.html#pioner.back.ao_data_generators.ScanDataGenerator.get_buffer">(pioner.back.ao_data_generators.ScanDataGenerator method)</a>
 </li>
       </ul></li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.get_calib_from_device">get_calib_from_device() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_current_calibration">get_current_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
@@ -242,6 +259,8 @@
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_info">get_info() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.get_sample_rate">get_sample_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.get_sample_rate_from_device">get_sample_rate_from_device() (pioner.front.mainWindow.mainWindow method)</a>
 </li>
       <li><a href="python_api.html#pioner.shared.settings.FrontSettings.get_server_settings">get_server_settings() (pioner.shared.settings.FrontSettings method)</a>
 </li>
@@ -297,9 +316,11 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.shared.utils.list_bitwise_or">list_bitwise_or() (in module pioner.shared.utils)</a>, <a href="usage.html#pioner.shared.utils.list_bitwise_or">[1]</a>
 </li>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.load_calibration">load_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.load_calibration">load_calibration() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.load_settings_from_file">load_settings_from_file() (pioner.front.mainWindow.mainWindow method)</a>
 </li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.log_device_info">log_device_info() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
@@ -309,6 +330,10 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow">mainWindow (class in pioner.front.mainWindow)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindowUi.mainWindowUi">mainWindowUi (class in pioner.front.mainWindowUi)</a>
+</li>
       <li>
     module
 
@@ -328,6 +353,10 @@
         <li><a href="python_api.html#module-pioner.back.iso_mode">pioner.back.iso_mode</a>
 </li>
         <li><a href="python_api.html#module-pioner.back.nanocontrol_tango">pioner.back.nanocontrol_tango</a>
+</li>
+        <li><a href="python_api.html#module-pioner.front.mainWindow">pioner.front.mainWindow</a>
+</li>
+        <li><a href="python_api.html#module-pioner.front.mainWindowUi">pioner.front.mainWindowUi</a>
 </li>
         <li><a href="python_api.html#module-pioner.shared.calibration">pioner.shared.calibration</a>
 </li>
@@ -397,8 +426,6 @@
         <li><a href="python_api.html#module-pioner.back.experiment_manager">module</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     pioner.back.fastheat
 
@@ -413,11 +440,27 @@
         <li><a href="python_api.html#module-pioner.back.iso_mode">module</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     pioner.back.nanocontrol_tango
 
       <ul>
         <li><a href="python_api.html#module-pioner.back.nanocontrol_tango">module</a>
+</li>
+      </ul></li>
+      <li>
+    pioner.front.mainWindow
+
+      <ul>
+        <li><a href="python_api.html#module-pioner.front.mainWindow">module</a>
+</li>
+      </ul></li>
+      <li>
+    pioner.front.mainWindowUi
+
+      <ul>
+        <li><a href="python_api.html#module-pioner.front.mainWindowUi">module</a>
 </li>
       </ul></li>
       <li>
@@ -448,6 +491,10 @@
         <li><a href="python_api.html#module-pioner.shared.utils">module</a>, <a href="usage.html#module-pioner.shared.utils">[1]</a>
 </li>
       </ul></li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.preload_settings">preload_settings() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.print_debug">print_debug() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.ao_data_generators.PulseDataGenerator">PulseDataGenerator (class in pioner.back.ao_data_generators)</a>
 </li>
   </ul></td>
@@ -470,10 +517,14 @@
 </li>
       <li><a href="python_api.html#pioner.back.daq_device.DaqDeviceHandler.reset">reset() (pioner.back.daq_device.DaqDeviceHandler method)</a>
 </li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.reset_sample_rate">reset_sample_rate() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.reset_sample_scan_rate">reset_sample_scan_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.reset_settings">reset_settings() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.fastheat.FastHeat.run">run() (pioner.back.fastheat.FastHeat method)</a>
 
       <ul>
@@ -484,12 +535,16 @@
 </li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.run_iso_mode">run_iso_mode() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.run_no_harware">run_no_harware() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.save_settings_to_file">save_settings_to_file() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.ai_device.AiDeviceHandler.scan">scan() (pioner.back.ai_device.AiDeviceHandler method)</a>
 
       <ul>
@@ -498,15 +553,27 @@
       </ul></li>
       <li><a href="python_api.html#pioner.back.ao_data_generators.ScanDataGenerator">ScanDataGenerator (class in pioner.back.ao_data_generators)</a>
 </li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.select_calibration_file">select_calibration_file() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.select_data_path">select_data_path() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.set_connection">set_connection() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+
+      <ul>
+        <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.set_connection">(pioner.front.mainWindow.mainWindow method)</a>
 </li>
+      </ul></li>
       <li><a href="python_api.html#pioner.shared.settings.FrontSettings.set_exp_settings">set_exp_settings() (pioner.shared.settings.FrontSettings method)</a>
-</li>
-      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate">set_sample_scan_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate">set_sample_scan_rate() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
       <li><a href="python_api.html#pioner.shared.settings.FrontSettings.set_server_settings">set_server_settings() (pioner.shared.settings.FrontSettings method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.set_temp_volt">set_temp_volt() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.show_help">show_help() (pioner.front.mainWindow.mainWindow method)</a>
 </li>
       <li><a href="python_api.html#pioner.back.ai_device.AiDeviceHandler.status">status() (pioner.back.ai_device.AiDeviceHandler method)</a>
 
@@ -521,6 +588,8 @@
 </li>
       </ul></li>
       <li><a href="python_api.html#pioner.back.nanocontrol_tango.NanoControl.stop_ai">stop_ai() (pioner.back.nanocontrol_tango.NanoControl method)</a>
+</li>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.sysOnButtonPressed">sysOnButtonPressed() (pioner.front.mainWindow.mainWindow method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -537,8 +606,20 @@
   </ul></td>
 </tr></table>
 
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.unset_temp_volt">unset_temp_volt() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python_api.html#pioner.front.mainWindow.mainWindow.view_calibraton_info">view_calibraton_info() (pioner.front.mainWindow.mainWindow method)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python_api.html#pioner.shared.utils.voltage_to_temperature">voltage_to_temperature() (in module pioner.shared.utils)</a>, <a href="usage.html#pioner.shared.utils.voltage_to_temperature">[1]</a>
 </li>

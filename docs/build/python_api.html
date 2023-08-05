@@ -89,7 +89,17 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pioner-front">pioner.front</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.front.mainWindow">mainWindow.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.front.mainWindow.mainWindow"><code class="docutils literal notranslate"><span class="pre">mainWindow</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.front.mainWindowUi">mainWindowUi.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.front.mainWindowUi.mainWindowUi"><code class="docutils literal notranslate"><span class="pre">mainWindowUi</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#pioner-shared">pioner.shared</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#module-pioner.shared.calibration">calibration.py module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pioner.shared.calibration.Calibration"><code class="docutils literal notranslate"><span class="pre">Calibration</span></code></a></li>
@@ -784,6 +794,144 @@ By default <code class="xref py py-obj docutils literal notranslate"><span class
 <section id="pioner-front">
 <h2>pioner.front<a class="headerlink" href="#pioner-front" title="Permalink to this heading"></a></h2>
 <p>Frontend, user interfaces part. GUI and command-line communication</p>
+<section id="module-pioner.front.mainWindow">
+<span id="mainwindow-py-module"></span><h3>mainWindow.py module<a class="headerlink" href="#module-pioner.front.mainWindow" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.front.mainWindow.</span></span><span class="sig-name descname"><span class="pre">mainWindow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.apply_calib">
+<span class="sig-name descname"><span class="pre">apply_calib</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.apply_calib" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.apply_default_calib">
+<span class="sig-name descname"><span class="pre">apply_default_calib</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.apply_default_calib" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.apply_sample_rate">
+<span class="sig-name descname"><span class="pre">apply_sample_rate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.apply_sample_rate" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.closeEvent">
+<span class="sig-name descname"><span class="pre">closeEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">QCloseEvent</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.closeEvent" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.disconnect">
+<span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">QMetaObject.Connection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.disconnect" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.fh_arm">
+<span class="sig-name descname"><span class="pre">fh_arm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.fh_arm" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.fh_run">
+<span class="sig-name descname"><span class="pre">fh_run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.fh_run" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.get_calib_from_device">
+<span class="sig-name descname"><span class="pre">get_calib_from_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.get_calib_from_device" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.get_sample_rate_from_device">
+<span class="sig-name descname"><span class="pre">get_sample_rate_from_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.get_sample_rate_from_device" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.load_settings_from_file">
+<span class="sig-name descname"><span class="pre">load_settings_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.load_settings_from_file" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.preload_settings">
+<span class="sig-name descname"><span class="pre">preload_settings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.preload_settings" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.print_debug">
+<span class="sig-name descname"><span class="pre">print_debug</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.print_debug" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.reset_sample_rate">
+<span class="sig-name descname"><span class="pre">reset_sample_rate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.reset_sample_rate" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.reset_settings">
+<span class="sig-name descname"><span class="pre">reset_settings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.reset_settings" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.run_no_harware">
+<span class="sig-name descname"><span class="pre">run_no_harware</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.run_no_harware" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.save_settings_to_file">
+<span class="sig-name descname"><span class="pre">save_settings_to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.save_settings_to_file" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.select_calibration_file">
+<span class="sig-name descname"><span class="pre">select_calibration_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.select_calibration_file" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.select_data_path">
+<span class="sig-name descname"><span class="pre">select_data_path</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.select_data_path" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.set_connection">
+<span class="sig-name descname"><span class="pre">set_connection</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.set_connection" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.set_temp_volt">
+<span class="sig-name descname"><span class="pre">set_temp_volt</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.set_temp_volt" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.show_help">
+<span class="sig-name descname"><span class="pre">show_help</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.show_help" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.sysOnButtonPressed">
+<span class="sig-name descname"><span class="pre">sysOnButtonPressed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.sysOnButtonPressed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.unset_temp_volt">
+<span class="sig-name descname"><span class="pre">unset_temp_volt</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.unset_temp_volt" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.front.mainWindow.mainWindow.view_calibraton_info">
+<span class="sig-name descname"><span class="pre">view_calibraton_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindow.mainWindow.view_calibraton_info" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-pioner.front.mainWindowUi">
+<span id="mainwindowui-py-module"></span><h3>mainWindowUi.py module<a class="headerlink" href="#module-pioner.front.mainWindowUi" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.front.mainWindowUi.mainWindowUi">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.front.mainWindowUi.</span></span><span class="sig-name descname"><span class="pre">mainWindowUi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.front.mainWindowUi.mainWindowUi" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
 </section>
 <section id="pioner-shared">
 <h2>pioner.shared<a class="headerlink" href="#pioner-shared" title="Permalink to this heading"></a></h2>
