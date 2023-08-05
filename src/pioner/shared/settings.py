@@ -1,11 +1,10 @@
 import json
-
 import os 
 
 try:
-    from back.ai_device import AiParams
-    from back.ao_device import AoParams
-    from back.daq_device import DaqParams
+    from pioner.back.ai_device import AiParams
+    from pioner.back.ao_device import AoParams
+    from pioner.back.daq_device import DaqParams
 except:
     pass
 

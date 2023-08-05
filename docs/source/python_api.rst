@@ -63,3 +63,27 @@ Frontend, user interfaces part. GUI and command-line communication
 pioner.shared
 **************
 Methods, common for backend and frontend parts.
+
+calibration.py module
+-------------------------------------
+.. automodule:: pioner.shared.calibration
+    :members: 
+    :undoc-members:
+
+constants.py module
+-------------------------------------
+.. automodule:: pioner.shared.constants
+    :members: 
+    :undoc-members:
+
+settings.py module
+-------------------------------------
+.. automodule:: pioner.shared.settings
+    :members: 
+    :undoc-members:
+
+utils.py module
+-------------------------------------
+.. automodule:: pioner.shared.utils
+    :members: 
+    :undoc-members:
