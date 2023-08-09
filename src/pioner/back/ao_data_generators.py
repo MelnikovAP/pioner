@@ -1,11 +1,30 @@
+from typing import List
+
 import uldaq as ul
 
 # TODO: add an interface class for different types of data generators
 
 
 class PulseDataGenerator:
-    # This class generates the buffer from dictionary, some kind of 2D array
-    # like {'ch0': float, 'ch3': float}. Unused channels are being set to 0.
+    """Class to generate buffer from dictionary.
+    Dictionary should have the following format: 
+    :obj:`{'ch0': float, 'ch3': float}`. 
+    Unused channels are being set to 0.
+    
+    
+    Parameters
+    ----------
+        channel_voltages : :obj:`dict`
+            Number of D/A samples to output.
+        duration : :obj:`int`
+            Voltage pulse duration in seconds.
+        low_channel : :obj:`int`
+            First D/A channel in the scan.
+        high_channel : :obj:`int`
+            Last D/A channel in the scan.
+
+    """
+        
     # TODO: generate sin on reference channel
      
     def __init__(self, channel_voltages: dict, duration: int,
@@ -35,7 +54,14 @@ class PulseDataGenerator:
             for ch in range(self._low_channel, self._high_channel + 1):
                 self._buffer[i * self._channel_count + ch] = self._channel_voltages['ch' + str(ch)]
 
-    def get_buffer(self) -> [float]:
+    def get_buffer(self) -> List[float]:
+        """Provides explicit access to generated buffer.
+        
+        Returns
+        ------- 
+            :obj:`[float]` 
+                List of floats - 1D buffer array
+        """
         return self._buffer
 
     def __str__(self):

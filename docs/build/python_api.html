@@ -56,6 +56,11 @@
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.daq_device.DaqParams"><code class="docutils literal notranslate"><span class="pre">DaqParams</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ao_data_generators">ao_data_generators.py module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_data_generators.PulseDataGenerator"><code class="docutils literal notranslate"><span class="pre">PulseDataGenerator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_data_generators.ScanDataGenerator"><code class="docutils literal notranslate"><span class="pre">ScanDataGenerator</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ao_device">ao_device.py module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_device.AoDeviceHandler"><code class="docutils literal notranslate"><span class="pre">AoDeviceHandler</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_device.AoParams"><code class="docutils literal notranslate"><span class="pre">AoParams</span></code></a></li>
@@ -64,11 +69,6 @@
 <li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ai_device">ai_device.py module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.ai_device.AiDeviceHandler"><code class="docutils literal notranslate"><span class="pre">AiDeviceHandler</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#pioner.back.ai_device.AiParams"><code class="docutils literal notranslate"><span class="pre">AiParams</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.ao_data_generators">ao_data_generators.py module</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_data_generators.PulseDataGenerator"><code class="docutils literal notranslate"><span class="pre">PulseDataGenerator</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="#pioner.back.ao_data_generators.ScanDataGenerator"><code class="docutils literal notranslate"><span class="pre">ScanDataGenerator</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pioner.back.experiment_manager">experiment_manager.py module</a><ul>
@@ -328,6 +328,52 @@ By default -1 used.</p></li>
 </dd></dl>
 
 </section>
+<section id="module-pioner.back.ao_data_generators">
+<span id="ao-data-generators-py-module"></span><h3>ao_data_generators.py module<a class="headerlink" href="#module-pioner.back.ao_data_generators" title="Permalink to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ao_data_generators.PulseDataGenerator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">PulseDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">channel_voltages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.PulseDataGenerator" title="Permalink to this definition"></a></dt>
+<dd><p>Class to generate buffer from dictionary.
+Dictionary should have the following format:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{'ch0':</span> <span class="pre">float,</span> <span class="pre">'ch3':</span> <span class="pre">float}</span></code>.
+Unused channels are being set to 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>channel_voltages</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Number of D/A samples to output.</p></li>
+<li><p><strong>duration</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Voltage pulse duration in seconds.</p></li>
+<li><p><strong>low_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – First D/A channel in the scan.</p></li>
+<li><p><strong>high_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Last D/A channel in the scan.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_data_generators.PulseDataGenerator.get_buffer">
+<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pioner.back.ao_data_generators.PulseDataGenerator.get_buffer" title="Permalink to this definition"></a></dt>
+<dd><p>Provides explicit access to generated buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of floats - 1D buffer array</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">[float]</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">ScanDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voltage_profiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator" title="Permalink to this definition"></a></dt>
+<dd><dl class="py method">
+<dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator.get_buffer">
+<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator.get_buffer" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
 <section id="module-pioner.back.ao_device">
 <span id="ao-device-py-module"></span><h3>ao_device.py module<a class="headerlink" href="#module-pioner.back.ao_device" title="Permalink to this heading"></a></h3>
 <dl class="py class">
@@ -388,7 +434,7 @@ provided by <code class="xref py py-obj docutils literal notranslate"><span clas
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.ao_device.AoDeviceHandler.scan">
-<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">ao_buffer:</span> <span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_buffer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="Permalink to this definition"></a></dt>
 <dd><p>Launches analog output scan with current parameters from <a class="reference internal" href="#pioner.back.ao_device.AoParams" title="pioner.back.ao_device.AoParams"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AoParams</span></code></a>.
 Voltage data (voltage profiles) is taken from assigned buffer -
 an 1D array of size number_of_channels * samples_per_channel.</p>
@@ -397,7 +443,7 @@ an 1D array of size number_of_channels * samples_per_channel.</p>
 <p>ao_buffer should be: <code class="xref py py-obj docutils literal notranslate"><span class="pre">[1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.5,</span> <span class="pre">2.0,</span> <span class="pre">0.0,</span> <span class="pre">1.5,</span> <span class="pre">3.0,</span> <span class="pre">0.0,</span> <span class="pre">2.5]</span></code></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>ao_buffer</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">[float]</span></code>) – A buffer with double precision floating point sample values.</p>
+<dd class="field-odd"><p><strong>ao_buffer</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">List[float]</span></code>) – A buffer with double precision floating point sample values.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>Scan rate in points per second</p>
@@ -499,7 +545,7 @@ provided by <code class="xref py py-obj docutils literal notranslate"><span clas
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.ai_device.AiDeviceHandler.get_buffer">
-<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.get_buffer" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pioner.back.ai_device.AiDeviceHandler.get_buffer" title="Permalink to this definition"></a></dt>
 <dd><p>Provides explicit access to buffer with current obtained A/D values.
 Buffer is an 1D array of size number_of_channels * samples_per_channel.</p>
 <p>For example, in case of using channels 0-3, if ao_buffer is:
@@ -511,7 +557,7 @@ AO ch1: <code class="xref py py-obj docutils literal notranslate"><span class="p
 <dd class="field-odd"><p>Returns an array of double precision floating point sample values.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">[float]</span></code></p>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">List[float]</span></code></p>
 </dd>
 </dl>
 </dd></dl>
@@ -585,29 +631,6 @@ By default <code class="xref py py-obj docutils literal notranslate"><span class
 </ul>
 </dd>
 </dl>
-</dd></dl>
-
-</section>
-<section id="module-pioner.back.ao_data_generators">
-<span id="ao-data-generators-py-module"></span><h3>ao_data_generators.py module<a class="headerlink" href="#module-pioner.back.ao_data_generators" title="Permalink to this heading"></a></h3>
-<dl class="py class">
-<dt class="sig sig-object py" id="pioner.back.ao_data_generators.PulseDataGenerator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">PulseDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">channel_voltages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.PulseDataGenerator" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
-<dt class="sig sig-object py" id="pioner.back.ao_data_generators.PulseDataGenerator.get_buffer">
-<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.ao_data_generators.PulseDataGenerator.get_buffer" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
-<dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">ScanDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voltage_profiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
-<dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator.get_buffer">
-<span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator.get_buffer" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 </section>

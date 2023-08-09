@@ -11,6 +11,12 @@ daq_device.py module
     :members: 
     :undoc-members:
 
+ao_data_generators.py module
+-------------------------------------
+.. automodule:: pioner.back.ao_data_generators
+    :members: 
+    :undoc-members:
+
 ao_device.py module
 -------------------------------------
 .. automodule:: pioner.back.ao_device
@@ -20,12 +26,6 @@ ao_device.py module
 ai_device.py module
 -------------------------------------
 .. automodule:: pioner.back.ai_device
-    :members: 
-    :undoc-members:
-
-ao_data_generators.py module
--------------------------------------
-.. automodule:: pioner.back.ao_data_generators
     :members: 
     :undoc-members:
 
