@@ -50,8 +50,12 @@
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="python_api.html">Python API</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">For developers</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#optional">Optional</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#for-testing-tango-on-windows">For testing Tango on Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-structure">Package structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-commands">Build commands</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hybrid-documentation-build-notes">Hybrid documentation build notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-git-notes">Optional GIT notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tango-notes">Tango notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-hints-and-notes">Additional hints and notes</a></li>
 </ul>
 </li>
 </ul>
@@ -82,52 +86,177 @@
              
   <section id="for-developers">
 <h1>For developers<a class="headerlink" href="#for-developers" title="Permalink to this heading"></a></h1>
-<p>Refer to the UL documentation:
-https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html</p>
-<p>python -m venv .env
-source .env/bin/activate
-pip install –upgrade pip
-pip install build</p>
-<p>python -m build
-pip install -e .
-pip install -e “.[gui]”
-pip install -e “.[server]”</p>
-<section id="optional">
-<h2>Optional<a class="headerlink" href="#optional" title="Permalink to this heading"></a></h2>
-<ul class="simple">
-<li><p>Configure git:</p></li>
-</ul>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git config --global user.name &quot;username&quot;
-$ git config --global user.email &quot;email&quot;
+<section id="package-structure">
+<h2>Package structure<a class="headerlink" href="#package-structure" title="Permalink to this heading"></a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span> <span class="n">package</span> <span class="n">main</span> <span class="n">folder</span>
+    <span class="o">-</span> <span class="o">.</span><span class="n">env</span>                  <span class="c1"># python3 environment</span>
+    <span class="o">-</span> <span class="n">data</span>                  <span class="c1"># folder to save experimental and test data</span>
+    <span class="o">-</span> <span class="n">dist</span>                  <span class="c1"># buit packages to upload to PyPi.org</span>
+    <span class="o">-</span> <span class="n">docs</span>  
+        <span class="o">-</span> <span class="n">build</span>
+            <span class="o">...</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">html</span>      <span class="c1"># can be used to view docs locally after building</span>
+            <span class="o">...</span>
+        <span class="o">-</span> <span class="n">source</span>            <span class="c1"># source documentation</span>
+            <span class="o">...</span>
+            <span class="o">-</span> <span class="n">_static</span>       <span class="c1"># figures and logos for docs</span>
+            <span class="o">-</span> <span class="o">...</span>           <span class="c1"># *.md and *.rst files with documentation code</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">py</span>         <span class="c1"># Sphinx file with docs build settings</span>
+            <span class="o">...</span> 
+        <span class="o">...</span>
+        <span class="n">requirements</span><span class="o">.</span><span class="n">txt</span>    <span class="c1"># requirements to build documentation</span>
+        <span class="o">...</span>
+    <span class="o">-</span> <span class="n">settings</span>  <span class="c1"># folder with *.json files - calibrations and settings</span>
+    <span class="o">-</span> <span class="n">src</span>                   <span class="c1"># source code. refer to API docs</span>
+        <span class="o">-</span> <span class="n">pioner</span>
+            <span class="o">-</span> <span class="n">assets</span>        <span class="c1"># figures and logos for GUI</span>
+                <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="c1"># points that this folder should be included in build</span>
+                <span class="o">...</span>
+            <span class="o">-</span> <span class="n">back</span>          <span class="c1"># backend server part</span>
+                <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="c1"># points that this folder should be included in build</span>
+                <span class="o">...</span>
+            <span class="o">-</span> <span class="n">front</span>         <span class="c1"># frontend part with GUI</span>
+                <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="c1"># points that this folder should be included in build</span>
+                <span class="o">...</span>
+            <span class="o">-</span> <span class="n">settings</span>      <span class="c1"># default settings and calibrations in *.json files</span>
+                <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="c1"># points that this folder should be included in build</span>
+                <span class="o">...</span>
+            <span class="o">-</span> <span class="n">shared</span>        <span class="c1"># code shared between front and back</span>
+                <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span> <span class="c1"># points that this folder should be included in build</span>
+                <span class="o">...</span>
+            <span class="fm">__init__</span><span class="o">.</span><span class="n">py</span>     <span class="c1"># points that this folder should be included in build</span>
+            <span class="o">...</span>
+    <span class="o">.</span><span class="n">readthedocs</span><span class="o">.</span><span class="n">yaml</span>       <span class="c1"># configuration file to sync with readthedocs</span>
+    <span class="n">LICENSE</span>                 <span class="c1"># license file, MIT</span>
+    <span class="n">pyproject</span><span class="o">.</span><span class="n">toml</span>          <span class="c1"># configuration file for build</span>
+    <span class="n">README</span><span class="o">.</span><span class="n">md</span>               <span class="c1"># github description page</span>
 </pre></div>
 </div>
-<ul class="simple">
-<li><p>If mistake with acces to USB:
-https://askubuntu.com/questions/978552/how-do-i-make-libusb-work-as-non-root
-$ sudo nano /etc/udev/rules.d/90-usbpermission.rules
-add there: SUBSYSTEM==“usb”,GROUP=“users”,MODE=“0666”</p></li>
-</ul>
 </section>
-<section id="for-testing-tango-on-windows">
-<h2>For testing Tango on Windows<a class="headerlink" href="#for-testing-tango-on-windows" title="Permalink to this heading"></a></h2>
+<section id="build-commands">
+<h2>Build commands<a class="headerlink" href="#build-commands" title="Permalink to this heading"></a></h2>
+<p>First install build library to the selected working environment:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m venv .env
+$ source .env/bin/activate
+$ pip install --upgrade pip
+$ pip install build 
+</pre></div>
+</div>
+<p>To build and install current package locally to the selected envirionment, use commands (from the directory with configured <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> file):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python -m build
+$ pip install -e . # in editable mode (develop mode)
+$ pip install -e &quot;.[gui]&quot; # if there is subpackage named &quot;gui&quot;
+$ pip install -e &quot;.[server]&quot; # if there is subpackage named &quot;server&quot;
+</pre></div>
+</div>
+<p>To upload to PyPi.org:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install twine
+$ twine upload dist/*
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="hybrid-documentation-build-notes">
+<h2>Hybrid documentation build notes<a class="headerlink" href="#hybrid-documentation-build-notes" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://sphinx-tutorial.readthedocs.io/cheatsheet/">RST cheatsheet</a> &amp; <a class="reference external" href="https://www.markdownguide.org/cheat-sheet/">Markdown cheatsheet</a><br />
+To use *.rst and *.md files with autodocumentation function, install:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install sphinx
+$ pip install myst-parser
+</pre></div>
+</div>
+<p>To access to package structure during docs building, add to <code class="docutils literal notranslate"><span class="pre">conf.py</span></code> in the beginning:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;../&#39;</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;../..&#39;</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;../../src/&#39;</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;../../src/pioner/&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>To activate *.md support and autodocumentation with Numpy/Google style add to <code class="docutils literal notranslate"><span class="pre">conf.py</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">extensions</span> <span class="o">=</span> <span class="p">[</span> 
+    <span class="s1">&#39;myst_parser&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;sphinx.ext.doctest&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;sphinx.ext.autodoc&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;sphinx.ext.napoleon&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>To activate readthedocs theme on local docs build add to <code class="docutils literal notranslate"><span class="pre">conf.py</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">html_theme</span> <span class="o">=</span> <span class="s1">&#39;sphinx_rtd_theme&#39;</span>
+</pre></div>
+</div>
+<p><strong>NOTE</strong><br />
+For proper integration with readthedocs.io all the dependencies of the package should be included into <code class="docutils literal notranslate"><span class="pre">docs/requirements.txt</span> <span class="pre">file</span></code></p>
+<p>If some packages cannot be installed during readthedocs build add to <code class="docutils literal notranslate"><span class="pre">conf.py</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">autodoc_mock_imports</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;uldaq&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;pytango&#39;</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>To use autodocumentation use docstrings in the code as described <a class="reference external" href="https://sphinxcontrib-napoleon.readthedocs.io/en/latest/">here</a></p>
+<p>To build docs locally use the command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sphinx-build docs/source docs/build
+</pre></div>
+</div>
+<p>and open <code class="docutils literal notranslate"><span class="pre">docs/build/index.html</span></code> to view documentation.</p>
+</section>
+<hr class="docutils" />
+<section id="optional-git-notes">
+<h2>Optional GIT notes<a class="headerlink" href="#optional-git-notes" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/MelnikovAP/pioner">Source code on GitHub</a><br />
+To configure git use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git config --global user.name &quot;username&quot;
+$ git config --global user.email &quot;email&quot;
+$ git clone https://github.com/MelnikovAP/pioner pioner
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="tango-notes">
+<h2>Tango notes<a class="headerlink" href="#tango-notes" title="Permalink to this heading"></a></h2>
+<p>For testing Tango on Windows:</p>
 <ul class="simple">
 <li><p>Install Java from <a class="reference external" href="https://www.java.com/en/download/">here</a></p></li>
 <li><p>Install Tango from <a class="reference external" href="https://www.tango-controls.org/downloads/">here</a></p></li>
-<li><p>Set enviroment variable TANGO_HOST=’raspberrypi:10000’</p></li>
-<li><p>Add to path C:\Program Files\tango\bin</p></li>
+<li><p>Set enviroment variable <code class="docutils literal notranslate"><span class="pre">TANGO_HOST='raspberrypi:10000'</span></code></p></li>
+<li><p>Add to path <code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files\tango\bin</span></code></p></li>
 </ul>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">numpy</span> <span class="n">six</span> <span class="n">Sphinx</span> <span class="n">pytango</span> 
+<p>For full featured use of Tango on Raspberry Pi (to launch Jive &amp; Astor) install Java 8 on Debian following <a class="reference external" href="https://linuxize.com/post/install-java-on-debian-10/">procedures</a></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install numpy six Sphinx pytango 
 </pre></div>
 </div>
-<p>???
-https://anaconda.org/tango-controls/repo</p>
-<p>think about auto installation on raspberry using script</p>
-<p>Installing Java 8 on Debian (to launch jive):
-https://linuxize.com/post/install-java-on-debian-10/</p>
-<p>There could be a problem with X11 forwarding on VScode.<br />
-To fix id generate ssh key with: ssh-keygen -p -m PEM<br />
-and install vscode extension on pi<br />
-and add to ~/.bashrc &amp; ~/.profile the following: export DISPLAY=”localhost:10.0$DISPLAY”</p>
+</section>
+<hr class="docutils" />
+<section id="additional-hints-and-notes">
+<h2>Additional hints and notes<a class="headerlink" href="#additional-hints-and-notes" title="Permalink to this heading"></a></h2>
+<p>If mistake with acces to USB use following <a class="reference external" href="https://askubuntu.com/questions/978552/how-do-i-make-libusb-work-as-non-root">solution</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sudo nano /etc/udev/rules.d/90-usbpermission.rules
+</pre></div>
+</div>
+<p>add there:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>SUBSYSTEM==“usb”,GROUP=“users”,MODE=“0666”
+</pre></div>
+</div>
+<hr class="docutils" />
+<p>TO DO: think about auto installation on Raspberry using script
+or using script &amp; <a class="reference external" href="https://anaconda.org/tango-controls/repo">Anaconda libs</a></p>
+<hr class="docutils" />
+<p>There could be a problem with X11 forwarding on VS Code.<br />
+To fix id generate ssh key with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ssh-keygen -p -m PEM 
+</pre></div>
+</div>
+<p>Install vscode extension on pi (from VS Code desktop application after connecting via ssh)<br />
+Add to <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">~/.profile</span></code> the following:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">DISPLAY</span><span class="o">=</span><span class="s2">&quot;localhost:10.0$DISPLAY&quot;</span>
+</pre></div>
+</div>
+<hr class="docutils" />
+<p>For uldaq API refer to the <a class="reference external" href="https://www.mccdaq.com/PDFs/Manuals/UL-Linux/python/index.html">UL documentation</a></p>
 </section>
 </section>
 
