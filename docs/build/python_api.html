@@ -333,14 +333,14 @@ By default -1 used.</p></li>
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.ao_data_generators.PulseDataGenerator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">PulseDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">channel_voltages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.PulseDataGenerator" title="Permalink to this definition"></a></dt>
-<dd><p>Class to generate buffer from dictionary.
-Dictionary should have the following format:
-<code class="xref py py-obj docutils literal notranslate"><span class="pre">{'ch0':</span> <span class="pre">float,</span> <span class="pre">'ch3':</span> <span class="pre">float}</span></code>.
-Unused channels are being set to 0.</p>
+<dd><p>Class to generate linear buffer from dictionary.
+Used in pulse mode.
+Unused channels in selected channel range are being set to 0.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>channel_voltages</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Number of D/A samples to output.</p></li>
+<li><p><strong>channel_voltages</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Dictionary should have the following format:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{'ch0':</span> <span class="pre">float,</span> <span class="pre">'ch3':</span> <span class="pre">float}</span></code>.</p></li>
 <li><p><strong>duration</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Voltage pulse duration in seconds.</p></li>
 <li><p><strong>low_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – First D/A channel in the scan.</p></li>
 <li><p><strong>high_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Last D/A channel in the scan.</p></li>
@@ -366,10 +366,32 @@ Unused channels are being set to 0.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.ao_data_generators.</span></span><span class="sig-name descname"><span class="pre">ScanDataGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voltage_profiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
+<dd><p>Class to generate linar buffer from dictionary.
+Used in scan mode with applying custom profiles to different channels.
+Unused channels in selected channel range are being set to 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>voltage_profiles</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Dictionary should have the following format:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{'ch0':</span> <span class="pre">[float],</span> <span class="pre">'ch3':</span> <span class="pre">[float]}</span></code>.</p></li>
+<li><p><strong>low_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – First D/A channel in the scan.</p></li>
+<li><p><strong>high_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – Last D/A channel in the scan.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.ao_data_generators.ScanDataGenerator.get_buffer">
 <span class="sig-name descname"><span class="pre">get_buffer</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.ao_data_generators.ScanDataGenerator.get_buffer" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Provides explicit access to generated buffer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of floats - 1D buffer array</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">[float]</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 
@@ -639,30 +661,102 @@ By default <code class="xref py py-obj docutils literal notranslate"><span class
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.experiment_manager.</span></span><span class="sig-name descname"><span class="pre">ExperimentManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">daq_device_handler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><span class="pre">DaqDeviceHandler</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.shared.settings.BackSettings" title="pioner.shared.settings.BackSettings"><span class="pre">BackSettings</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
+<dd><p>Class to control experiment, manage AO/AI and buffer handle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>daq_device_handler</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.daq_device.DaqDeviceHandler</span></code>) – DaqDeviceHandler class instance to handle connection
+to DAQ device. Parameters of DAQ device should be preset
+from settings file while initializing of DaqDeviceHandler class instance</p></li>
+<li><p><strong>settings</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.BackSettings</span></code>) – BackSettings class instance after parsing
+of the configuration file with all
+necessary acquisition parameters.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.ai_continuous">
 <span class="sig-name descname"><span class="pre">ai_continuous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ai_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_save_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.ai_continuous" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to launch AI in continuous scan mode.
+Reading is made with circular buffer, devided in two halfs.
+Buffer length = 1 s. The first 0.5 s data points (low half buffer)
+are being read while new data points are being recorded to the
+second 0.5 s buffer (high half buffer). Contrary, when writing
+points to the first 0.5 s cycle buffer (low half buffer), data
+is read from the second part of the buffer (high half buffer).
+Uses <a class="reference internal" href="#pioner.back.ai_device.AiDeviceHandler.scan" title="pioner.back.ai_device.AiDeviceHandler.scan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.ai_device.AiDeviceHandler.scan</span></code></a> to start
+aquisition.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ai_channels</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">List[int]</span></code>) – AI channels list to read (usually from 0 to 15).</p></li>
+<li><p><strong>do_save_data</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code>) – if <code class="xref py py-obj docutils literal notranslate"><span class="pre">True</span></code>, saves all the data to separate <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.hdf</span></code> files.
+Used for fast finite AI/AO scans.
+If if <code class="xref py py-obj docutils literal notranslate"><span class="pre">False</span></code>, saves all the data to one <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.hdf</span></code> file,
+continuousely overwriting data. Used for long or infinite AI/AO scans.
+Data can be accessed later using
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.experiment_manager.get_ai_data</span></code> method.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop">
 <span class="sig-name descname"><span class="pre">ai_continuous_stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to stop AI during continuous scan, using
+<a class="reference internal" href="#pioner.back.ai_device.AiDeviceHandler.stop" title="pioner.back.ai_device.AiDeviceHandler.stop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.ai_device.AiDeviceHandler.stop</span></code></a>.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.ao_scan">
 <span class="sig-name descname"><span class="pre">ao_scan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voltage_profiles</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.ao_scan" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to launch AO scan with predefined voltage profiles on channels.
+Makes AO buffer using <a class="reference internal" href="#pioner.back.ao_data_generators.ScanDataGenerator" title="pioner.back.ao_data_generators.ScanDataGenerator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.ao_data_generators.ScanDataGenerator</span></code></a>
+and AoDeviceHandler instance using pared settings. To launch the scan uses
+<a class="reference internal" href="#pioner.back.ao_device.AoDeviceHandler.scan" title="pioner.back.ao_device.AoDeviceHandler.scan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.ao_device.AoDeviceHandler.scan</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>voltage_profiles</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Dictionary should have the following format:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{'ch0':</span> <span class="pre">[float],</span> <span class="pre">'ch3':</span> <span class="pre">[float]}</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.ao_set">
 <span class="sig-name descname"><span class="pre">ao_set</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ao_channel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">voltage</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.ao_set" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to set and hold voltage on selected AO channel, uses
+<a class="reference internal" href="#pioner.back.ao_device.AoDeviceHandler.iso_mode" title="pioner.back.ao_device.AoDeviceHandler.iso_mode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.ao_device.AoDeviceHandler.iso_mode</span></code></a></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The voltage remains on the channel until DAQ board released and disconnected.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ao_channel</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>) – AO channel number (usually from 0 to 3).</p></li>
+<li><p><strong>voltage</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>) – Voltage value, usually from 0 to 10.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.experiment_manager.ExperimentManager.get_ai_data">
 <span class="sig-name descname"><span class="pre">get_ai_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="headerlink" href="#pioner.back.experiment_manager.ExperimentManager.get_ai_data" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Reads raw buffer from <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.hdf</span></code> file. Note: Pandas l
+ibrary is used to read / write datasets.
+Array in file is already transformed from 1D to 2D array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns Pandas array: <code class="xref py py-obj docutils literal notranslate"><span class="pre">['channel</span> <span class="pre">#':[float]</span> <span class="pre">...</span> <span class="pre">'channel</span> <span class="pre">#':[float]]</span></code></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pd.DataFrame</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 </dd></dl>
 

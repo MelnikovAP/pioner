@@ -16,9 +16,20 @@ from pioner.back.daq_device import DaqDeviceHandler
 
 
 class ExperimentManager:
-    _ai_device_handler: AiDeviceHandler
-    _ao_device_handler: AoDeviceHandler
-    _ao_buffer: [float]
+    """Class to control experiment, manage AO/AI and buffer handle.
+    
+    Parameters
+    ----------
+        daq_device_handler : :obj:`pioner.daq_device.DaqDeviceHandler`
+            DaqDeviceHandler class instance to handle connection 
+            to DAQ device. Parameters of DAQ device should be preset
+            from settings file while initializing of DaqDeviceHandler class instance
+        
+        settings : :obj:`pioner.shared.BackSettings`
+            BackSettings class instance after parsing 
+            of the configuration file with all 
+            necessary acquisition parameters.
+    """
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: BackSettings):
@@ -47,6 +58,17 @@ class ExperimentManager:
                 pass
 
     def get_ai_data(self) -> pd.DataFrame:
+        """Reads raw buffer from :obj:`*.hdf` file. Note: Pandas l
+        ibrary is used to read / write datasets.
+        Array in file is already transformed from 1D to 2D array. 
+        
+        Returns
+        ------- 
+            :obj:`pd.DataFrame` 
+                Returns Pandas array: :obj:`['channel #':[float] ... 'channel #':[float]]`
+                
+        """
+                
         df = pd.DataFrame(pd.read_hdf(RAW_DATA_FILE_REL_PATH, key='dataset'))
         return df
 
@@ -62,6 +84,18 @@ class ExperimentManager:
 
     # for limited scans (one AO buffer will be applied)
     def ao_scan(self, voltage_profiles):
+        """Method to launch AO scan with predefined voltage profiles on channels. 
+        Makes AO buffer using :obj:`pioner.back.ao_data_generators.ScanDataGenerator` 
+        and AoDeviceHandler instance using pared settings. To launch the scan uses 
+        :obj:`pioner.back.ao_device.AoDeviceHandler.scan`
+        
+        Args
+        ----------
+            voltage_profiles : :obj:`dict`
+                Dictionary should have the following format: 
+                :obj:`{'ch0': [float], 'ch3': [float]}`. 
+                
+        """
         logging.info("EXPERIMENT_MANAGER: AO SCAN mode. Wait until scan is finished.\n")
         self._ao_params.options = ul.ScanOption.BLOCKIO  # 2
         
@@ -84,6 +118,23 @@ class ExperimentManager:
 
     # for setting voltage
     def ao_set(self, ao_channel, voltage):
+        """Method to set and hold voltage on selected AO channel, uses 
+        :obj:`pioner.back.ao_device.AoDeviceHandler.iso_mode`
+        
+        Note
+        ----
+            The voltage remains on the channel until DAQ board released and disconnected.
+        
+        Args
+        ----------
+            ao_channel : :obj:`int`
+                AO channel number (usually from 0 to 3).
+
+            voltage : :obj:`float`
+                Voltage value, usually from 0 to 10.
+                
+        """
+                
         logging.info("EXPERIMENT_MANAGER: AO STATIC (SET) mode.\n")
         self._ao_params.options = ul.ScanOption.DEFAULTIO  # 0
         self._ao_device_handler = AoDeviceHandler(self._daq_device_handler.get_ao_device(),
@@ -96,9 +147,30 @@ class ExperimentManager:
 
 
     def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
-        # AI buffer is 1 s and AI is made in loop. AO buffer equals to AO profile length.
-        # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
-        # else: dump into dummy buffer file (for endless ai scan)
+        """Method to launch AI in continuous scan mode. 
+        Reading is made with circular buffer, devided in two halfs. 
+        Buffer length = 1 s. The first 0.5 s data points (low half buffer) 
+        are being read while new data points are being recorded to the 
+        second 0.5 s buffer (high half buffer). Contrary, when writing 
+        points to the first 0.5 s cycle buffer (low half buffer), data 
+        is read from the second part of the buffer (high half buffer). 
+        Uses :obj:`pioner.back.ai_device.AiDeviceHandler.scan` to start 
+        aquisition.
+        
+        Args
+        ----------
+            ai_channels : :obj:`List[int]`
+                AI channels list to read (usually from 0 to 15).
+
+            do_save_data : :obj:`bool`
+                if :obj:`True`, saves all the data to separate :obj:`*.hdf` files. 
+                Used for fast finite AI/AO scans.
+                If if :obj:`False`, saves all the data to one :obj:`*.hdf` file, 
+                continuousely overwriting data. Used for long or infinite AI/AO scans.
+                Data can be accessed later using 
+                :obj:`pioner.back.experiment_manager.get_ai_data` method. 
+                
+        """
         
         self._ai_params.options = ul.ScanOption.CONTINUOUS  # 8
         self._ai_device_handler = AiDeviceHandler(self._daq_device_handler.get_ai_device(),
@@ -119,6 +191,9 @@ class ExperimentManager:
         logging.info('EXPERIMENT_MANAGER: Continuous AI finished.')
 
     def ai_continuous_stop(self):
+        """Method to stop AI during continuous scan, using 
+        :obj:`pioner.back.ai_device.AiDeviceHandler.stop`.
+        """
         self._ai_device_handler.stop()
         
     def _read_data_loop(self, do_save_data: bool):

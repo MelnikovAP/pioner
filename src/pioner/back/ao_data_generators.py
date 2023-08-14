@@ -6,16 +6,16 @@ import uldaq as ul
 
 
 class PulseDataGenerator:
-    """Class to generate buffer from dictionary.
-    Dictionary should have the following format: 
-    :obj:`{'ch0': float, 'ch3': float}`. 
-    Unused channels are being set to 0.
+    """Class to generate linear buffer from dictionary.
+    Used in pulse mode.
+    Unused channels in selected channel range are being set to 0.
     
     
     Parameters
     ----------
         channel_voltages : :obj:`dict`
-            Number of D/A samples to output.
+            Dictionary should have the following format: 
+            :obj:`{'ch0': float, 'ch3': float}`. 
         duration : :obj:`int`
             Voltage pulse duration in seconds.
         low_channel : :obj:`int`
@@ -69,9 +69,22 @@ class PulseDataGenerator:
 
 
 class ScanDataGenerator:
-    # The buffer for AO device of daqboard should be linear.
-    # This class generates the linear buffer from dictionary, some kind of 2D array
-    # like {'ch0': [.......], 'ch3': [........]}. Unused channels are being set to 0.
+    """Class to generate linar buffer from dictionary.
+    Used in scan mode with applying custom profiles to different channels.
+    Unused channels in selected channel range are being set to 0.
+    
+    
+    Parameters
+    ----------
+        voltage_profiles : :obj:`dict`
+            Dictionary should have the following format: 
+            :obj:`{'ch0': [float], 'ch3': [float]}`. 
+        low_channel : :obj:`int`
+            First D/A channel in the scan.
+        high_channel : :obj:`int`
+            Last D/A channel in the scan.
+
+    """
 
     def __init__(self, voltage_profiles: dict,
                  low_channel: int, high_channel: int):
@@ -109,6 +122,13 @@ class ScanDataGenerator:
                 self._buffer[i * self._channel_count + ch] = self._voltage_profiles['ch' + str(ch)][i]
 
     def get_buffer(self) -> [float]:
+        """Provides explicit access to generated buffer.
+        
+        Returns
+        ------- 
+            :obj:`[float]` 
+                List of floats - 1D buffer array
+        """
         return self._buffer
 
     def __str__(self):
