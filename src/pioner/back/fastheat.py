@@ -12,17 +12,44 @@ from pioner.back.experiment_manager import ExperimentManager
 
 
 class FastHeat:
-    # receives time_temp_volt_tables as dict :
-    # {"ch0": {"time":[list], "temp":[list]}, 
-    # "ch1": {"time":[list], "temp":[list]},
-    # "ch2": {"time":[list], "temp":[list]}, 
-    # "ch3": {"time":[list], "temp":[list]}, }
-    # voltage can be used instead of temperature ("volt" instead of "temp")
-    # if "volt" - no calibration applied
-    # if "temp" - calibration applied
-    # raw_ai_data transfroms to exp_ai_data with respect to calibration
-    # raw_ai_data without calibration transformation can be accessed from RAW_DATA_FILE_REL_PATH
-    # only data from specified ai_channels will be saved. For normal fast heating it is [0,1,3,4,5]
+    """Class to launch fast heating with sampling rate 
+    up to 100000 points per second for each AI channel.
+    After scan is finished, raw data is transfromed 
+    with respect to calibration and saved to file (only
+    data from specified AI channels)
+    
+    Parameters
+    ----------
+        daq_device_handler : :obj:`pioner.daq_device.DaqDeviceHandler`
+            DaqDeviceHandler class instance to handle connection 
+            to DAQ device. Parameters of DAQ device should be preset
+            from settings file while initializing of DaqDeviceHandler class instance
+        
+        settings : :obj:`pioner.shared.BackSettings`
+            BackSettings class instance after parsing 
+            of the configuration file with all 
+            necessary acquisition parameters.
+        
+        calibration : :obj:`pioner.shared.calibration.Calibration`
+            Calibration class instance, parsed from 
+            :obj:`*.json` calibration file with 
+            :obj:`pioner.shared.calibration.Calibration.read` method
+
+        time_temp_volt_tables : :obj:`dict`
+            Dictionary should have the following structure:
+            :obj:`{"ch0": {"time":[list], "temp":[list]},  
+            "ch1": {"time":[list], "volt":[list]},  
+            ...`. If "volt" is used, no calibration will be applied.
+            If "temp" is used, calibration will be applied.
+
+        ai_channels : :obj:`List[int]`
+            AI channels list to read. Only data from specified 
+            AI channels will be saved. For normal fast heating it is [0,1,3,4,5]
+
+        FAST_HEAT_CUSTOM_FLAG : :obj:`bool`
+            By default is :obj:`False`. If :obj:`False`, calibration coefficients
+            will be applied. :obj:`True` is used only for expert mode.
+    """
 
     def __init__(self, daq_device_handler: DaqDeviceHandler,
                  settings: BackSettings,
@@ -43,6 +70,11 @@ class FastHeat:
 
 
     def arm(self):
+        """
+        Method to prepare scan. It interpolates vlotage profiles and 
+        applies calibration coefficients to transform target temperature on heaters
+        to voltage on AO channels.
+        """
         for chan, table in self._time_temp_volt_tables.items():
             key = list(table.keys())
             key.remove('time')
@@ -53,9 +85,25 @@ class FastHeat:
                 self._voltage_profiles[chan] = temperature_to_voltage(self._voltage_profiles[chan], self._calibration)
 
     def is_armed(self) -> bool:
+        """
+        Method to check if fast heat mode is prepared and voltage profiles are correct.
+
+        Returns
+        ---------
+        :obj:`bool` 
+            Returns :obj:`True` or :obj:`False` depending on state. 
+        """
         return bool(self._voltage_profiles)
 
     def run(self):
+        """
+        Method to launch scan after preparation step (arming).
+        Uses methods :obj:`pioner.back.experiment_manager.ExperimentManager.ao_scan`
+        and :obj:`pioner.back.experiment_manager.ExperimentManager.ai_continuous`
+        to launch AO and AI scans. Saves experimental data after applying calibration
+        and adds experiment information to :obj:`*.hdf` file.
+        """
+                
         with ExperimentManager(self._daq_device_handler,
                                self._settings) as em:
             em.ao_scan(self._voltage_profiles)
