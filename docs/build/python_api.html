@@ -784,8 +784,8 @@ necessary acquisition parameters.</p></li>
 <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.json</span></code> calibration file with
 <a class="reference internal" href="#pioner.shared.calibration.Calibration.read" title="pioner.shared.calibration.Calibration.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.calibration.Calibration.read</span></code></a> method</p></li>
 <li><p><strong>time_temp_volt_tables</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Dictionary should have the following structure:
-<code class="xref py py-obj docutils literal notranslate"><span class="pre">{&quot;ch0&quot;:</span> <span class="pre">{&quot;time&quot;:[list],</span> <span class="pre">&quot;temp&quot;:[list]},</span>
-<span class="pre">&quot;ch1&quot;:</span> <span class="pre">{&quot;time&quot;:[list],</span> <span class="pre">&quot;volt&quot;:[list]},</span>
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{&quot;ch0&quot;:</span> <span class="pre">{&quot;time&quot;:[float],</span> <span class="pre">&quot;temp&quot;:[float]},</span>
+<span class="pre">&quot;ch1&quot;:</span> <span class="pre">{&quot;time&quot;:[float],</span> <span class="pre">&quot;volt&quot;:[float]},</span>
 <span class="pre">...</span></code>. If “volt” is used, no calibration will be applied.
 If “temp” is used, calibration will be applied.</p></li>
 <li><p><strong>ai_channels</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">List[int]</span></code>) – AI channels list to read. Only data from specified
@@ -835,25 +835,67 @@ and adds experiment information to <code class="xref py py-obj docutils literal 
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.iso_mode.</span></span><span class="sig-name descname"><span class="pre">IsoMode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">daq_device_handler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><span class="pre">DaqDeviceHandler</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.shared.settings.BackSettings" title="pioner.shared.settings.BackSettings"><span class="pre">BackSettings</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">chan_temp_volt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pioner.shared.calibration.Calibration" title="pioner.shared.calibration.Calibration"><span class="pre">Calibration</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
+<dd><p>Class to launch isothermal mode with predefined
+settings without saving AI data. The applied temperature / voltage
+will be maintained util user sets it manually to 0 (could be done
+with the same IsoMode methods) or disconnects DAQ device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>daq_device_handler</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.daq_device.DaqDeviceHandler</span></code>) – DaqDeviceHandler class instance to handle connection
+to DAQ device. Parameters of DAQ device should be preset
+from settings file while initializing of DaqDeviceHandler class instance</p></li>
+<li><p><strong>settings</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.BackSettings</span></code>) – BackSettings class instance after parsing
+of the configuration file with all
+necessary acquisition parameters.</p></li>
+<li><p><strong>calibration</strong> (<a class="reference internal" href="#pioner.shared.calibration.Calibration" title="pioner.shared.calibration.Calibration"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.calibration.Calibration</span></code></a>) – Calibration class instance, parsed from
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">*.json</span></code> calibration file with
+<a class="reference internal" href="#pioner.shared.calibration.Calibration.read" title="pioner.shared.calibration.Calibration.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.calibration.Calibration.read</span></code></a> method</p></li>
+<li><p><strong>chan_temp_volt</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>) – Dictionary should have the following structure:
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">{&quot;ch0&quot;:</span> <span class="pre">{&quot;temp&quot;:[float]},</span>
+<span class="pre">&quot;ch1&quot;:</span> <span class="pre">{&quot;volt&quot;:[float]},</span>
+<span class="pre">...</span></code>. If “volt” is used, no calibration will be applied.
+If “temp” is used, calibration will be applied.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.ai_stop">
 <span class="sig-name descname"><span class="pre">ai_stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.ai_stop" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to stop AI using method
+<a class="reference internal" href="#pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop" title="pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop</span></code></a></p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.arm">
 <span class="sig-name descname"><span class="pre">arm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">[&lt;class</span> <span class="pre">'int'&gt;,</span> <span class="pre">&lt;class</span> <span class="pre">'float'&gt;]</span></span></span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.arm" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to prepare isotherm.
+Applies calibration coefficients to transform target temperature on heaters
+to voltage on AO channels.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.is_armed">
 <span class="sig-name descname"><span class="pre">is_armed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.is_armed" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to check if isothermal mode is prepared and voltage values are correct.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns <code class="xref py py-obj docutils literal notranslate"><span class="pre">True</span></code> or <code class="xref py py-obj docutils literal notranslate"><span class="pre">False</span></code> depending on state.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.iso_mode.IsoMode.run">
 <span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">do_ai</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.iso_mode.IsoMode.run" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Method to start isotherm after preparation step (arming).
+Uses methods <a class="reference internal" href="#pioner.back.experiment_manager.ExperimentManager.ao_set" title="pioner.back.experiment_manager.ExperimentManager.ao_set"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.experiment_manager.ExperimentManager.ao_set</span></code></a>
+and <a class="reference internal" href="#pioner.back.experiment_manager.ExperimentManager.ai_continuous" title="pioner.back.experiment_manager.ExperimentManager.ai_continuous"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.experiment_manager.ExperimentManager.ai_continuous</span></code></a>
+to launch AO and AI scans. Does not saves experimental data.</p>
+</dd></dl>
 
 </dd></dl>
 

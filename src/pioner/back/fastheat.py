@@ -37,8 +37,8 @@ class FastHeat:
 
         time_temp_volt_tables : :obj:`dict`
             Dictionary should have the following structure:
-            :obj:`{"ch0": {"time":[list], "temp":[list]},  
-            "ch1": {"time":[list], "volt":[list]},  
+            :obj:`{"ch0": {"time":[float], "temp":[float]},  
+            "ch1": {"time":[float], "volt":[float]},  
             ...`. If "volt" is used, no calibration will be applied.
             If "temp" is used, calibration will be applied.
 
