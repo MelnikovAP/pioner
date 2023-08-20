@@ -196,9 +196,9 @@ class NanoControl(Device):
         Args
         ------              
             time_temp_volt_tables_str : :obj:`str`
-            Dictionary :obj:`time_temp_volt_tables`, 
-            accepted by :obj:`pioner.back.fastheat.FastHeat` should be 
-            converted into string before passing as an argument.
+                Dictionary :obj:`time_temp_volt_tables`, 
+                accepted by :obj:`pioner.back.fastheat.FastHeat` should be 
+                converted into string before passing as an argument.
         """
         self._time_temp_volt_tables = json.loads(time_temp_volt_tables_str)
         self._fh = FastHeat(self._daq_device_handler, self._settings,
@@ -234,9 +234,9 @@ class NanoControl(Device):
         Args
         ------              
             chan_temp_volt_str : :obj:`str`
-            Dictionary :obj:`chan_temp_volt`, 
-            accepted by :obj:`pioner.back.iso_mode.IsoModes` should be 
-            converted into string before passing as an argument.
+                Dictionary :obj:`chan_temp_volt`, 
+                accepted by :obj:`pioner.back.iso_mode.IsoModes` should be 
+                converted into string before passing as an argument.
         """
         self._chan_temp_volt = json.loads(chan_temp_volt_str)
         self._im = IsoMode(self._daq_device_handler, self._settings,
