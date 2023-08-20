@@ -905,15 +905,22 @@ to launch AO and AI scans. Does not saves experimental data.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pioner.back.nanocontrol_tango.</span></span><span class="sig-name descname"><span class="pre">NanoControl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl" title="Permalink to this definition"></a></dt>
-<dd><dl class="py method">
+<dd><p>General class to control DAQ device using TANGO server.
+To launch server manually use the coomand
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">python</span> <span class="pre">nanocontrol_tango.py</span> <span class="pre">NanoControl</span></code></p>
+<dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.apply_calibration">
 <span class="sig-name descname"><span class="pre">apply_calibration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.apply_calibration" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">command</span></code> method to apply custom temperature-voltage calibration.
+Reads calibration coefficients from <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.json</span></code> file.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration">
 <span class="sig-name descname"><span class="pre">apply_default_calibration</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.apply_default_calibration" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">command</span></code> method to apply default temperature-voltage calibration.
+Reads calibration coefficients from <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.json</span></code> file.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.arm_fast_heat">
@@ -928,7 +935,10 @@ to launch AO and AI scans. Does not saves experimental data.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.disconnect">
 <span class="sig-name descname"><span class="pre">disconnect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.disconnect" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">command</span></code> method to disconnsect DAQ device
+using method <a class="reference internal" href="#pioner.back.nanocontrol_tango.NanoControl.disconnect" title="pioner.back.nanocontrol_tango.NanoControl.disconnect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">disconnect</span></code></a> of <a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.daq_device.DaqDeviceHandler</span></code></a>.
+Logs result.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_current_calibration">
@@ -938,7 +948,16 @@ to launch AO and AI scans. Does not saves experimental data.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_info">
 <span class="sig-name descname"><span class="pre">get_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.get_info" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">pipe</span></code> method to get information of the software.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">{developer:'str',</span> <span class="pre">contact:'str',</span> <span class="pre">model:'str',</span> <span class="pre">version_number:'float'}</span></code></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.get_sample_rate">
@@ -948,18 +967,29 @@ to launch AO and AI scans. Does not saves experimental data.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.init_device">
 <span class="sig-name descname"><span class="pre">init_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.init_device" title="Permalink to this definition"></a></dt>
-<dd><p>Docstring for is_int function</p>
+<dd><p>Method to initialize the server and apply default
+configuration settings.</p>
+<ul class="simple">
+<li><p>sets path for logging</p></li>
+<li><p>sets path for data saving</p></li>
+<li><p>applies default calibration</p></li>
+<li><p>parses <code class="xref py py-obj docutils literal notranslate"><span class="pre">*json</span></code> settings file</p></li>
+<li><p>makes <a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.daq_device.DaqDeviceHandler</span></code></a> instance with parsed settings</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.load_calibration">
 <span class="sig-name descname"><span class="pre">load_calibration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">str_calib</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.load_calibration" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.log_device_info">
-<span class="sig-name descname"><span class="pre">log_device_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.log_device_info" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">command</span></code> method to load temperature-voltage calibration.
+Loads calibration coefficients from string and writes them to <code class="xref py py-obj docutils literal notranslate"><span class="pre">*.json</span></code> file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>str_calib</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code>) – Calibration coefficients in string format. For more information refer to
+<a class="reference internal" href="#pioner.shared.calibration.Calibration.get_str" title="pioner.shared.calibration.Calibration.get_str"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.shared.calibration.Calibration.get_str</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.reset_sample_scan_rate">
@@ -979,7 +1009,10 @@ to launch AO and AI scans. Does not saves experimental data.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.set_connection">
 <span class="sig-name descname"><span class="pre">set_connection</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pioner.back.nanocontrol_tango.NanoControl.set_connection" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<dd><p>Tango <code class="xref py py-obj docutils literal notranslate"><span class="pre">command</span></code> method to set connection to avaliable DAQ device
+using method <code class="xref py py-obj docutils literal notranslate"><span class="pre">try_connect</span></code> of <a class="reference internal" href="#pioner.back.daq_device.DaqDeviceHandler" title="pioner.back.daq_device.DaqDeviceHandler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pioner.back.daq_device.DaqDeviceHandler</span></code></a>.
+Logs result even in case of error.</p>
+</dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pioner.back.nanocontrol_tango.NanoControl.set_sample_scan_rate">
