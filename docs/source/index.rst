@@ -25,6 +25,7 @@ It offers:
 
    about
    installation
+   bliss
    usage
    python_api
    for_developers
