@@ -7,7 +7,7 @@ import uldaq as ul
 
 class DaqParams:
     """General class to represent main DAQ parameters.
-    Deafult paramteres cannot be used to initialize :obj:`uldaq.DaqDevice`,
+    Default parameters cannot be used to initialize :obj:`uldaq.DaqDevice`,
     they need to be parsed from file or specified manually.
     
     Parameters
@@ -33,7 +33,7 @@ class DaqParams:
 
 class DaqDeviceHandler:
     """ Class to handle connection to DAQ device with preset parameters.
-    On initiallization, looks for connected devices only via USB interface. 
+    On initialization, looks for connected devices only via USB interface.
     Only one device is expected to be connected. 
     
     Parameters
@@ -111,14 +111,14 @@ class DaqDeviceHandler:
         """ Uses basic method :obj:`connect` to connect to DAQ device 
         via USB interface using timeout. 
         No action if device is already connected. 
-        Logs success/unsuccess result. 
+        Logs success/fail result.
 
         Args
         ------  
             timeout : :obj:`int`
-                Timeout to give up connecting in seconds. By default = 60 
+                Timeout to give up connecting in seconds. By default = 60
             sleep_time : :obj:`int`
-                Sleeptime between connection attempts in seconds. By default = 1 
+                Sleep time between connection attempts in seconds. By default = 1
 
         Raises
         -------

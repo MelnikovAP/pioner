@@ -69,7 +69,7 @@ class PulseDataGenerator:
 
 
 class ScanDataGenerator:
-    """Class to generate linar buffer from dictionary.
+    """Class to generate linear buffer from dictionary.
     Used in scan mode with applying custom profiles to different channels.
     Unused channels in selected channel range are being set to 0.
     

@@ -5,7 +5,7 @@ import uldaq as ul
 
 class AiParams:
     """General class to represent main AI DAQ parameters. 
-    Deafult paramteres cannot be used to initialize uldaq.AiDevice,
+    Default parameters cannot be used to initialize uldaq.AiDevice,
     they need to be parsed from JSON file or specified manually.
     
     Parameters
@@ -22,17 +22,17 @@ class AiParams:
         input_mode : :obj:`uldaq.AiInputMode`
             The input mode of the specified channels.
             Refer to :obj:`uldaq` for additional info.
-            By default :obj:`uldaq.AiInputMode.SINGLE_ENDED` flag is used
+            By default, :obj:`uldaq.AiInputMode.SINGLE_ENDED` flag is used
         scan_flags : :obj:`uldaq.AOutScanFlag`
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data before it is returned.
             Refer to :obj:`uldaq` for additional info.
-            By default :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
+            By default, :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
         options : :obj:`uldaq.ScanOption`
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data before it is returned.
             Refer to :obj:`uldaq` for additional info.
-            By default :obj:`uldaq.ScanOption.CONTINUOUS` option is used
+            By default, :obj:`uldaq.ScanOption.CONTINUOUS` option is used
 
     """
     def __init__(self):
@@ -63,7 +63,7 @@ class AiDeviceHandler:
     Raises
     ------
         :obj:`RuntimeError`
-            If the DAQ device doesn't support analog outinput put or hardware paced analog input.
+            If the DAQ device doesn't support analog input put or hardware paced analog input.
     
     """
     def __init__(self, ai_device_from_daq: ul.AiDevice,

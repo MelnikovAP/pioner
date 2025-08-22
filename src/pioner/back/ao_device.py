@@ -5,7 +5,7 @@ import uldaq as ul
 
 class AoParams:
     """General class to represent main AO DAQ parameters. 
-    Deafult paramteres cannot be used to initialize uldaq.AoDevice,
+    Default parameters cannot be used to initialize uldaq.AoDevice,
     they need to be parsed from JSON file or specified manually.
     
     Parameters
@@ -23,12 +23,12 @@ class AoParams:
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data.
             Refer to :obj:`uldaq` for additional info.
-            By default :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
+            By default, :obj:`uldaq.AOutScanFlag.DEFAULT` flag is used
         options : :obj:`uldaq.ScanOption`
             One or more of the attributes (suitable for bit-wise operations) 
             specifying the conditioning applied to the data.
             Refer to :obj:`uldaq` for additional info.
-            By default :obj:`uldaq.ScanOption.CONTINUOUS` option is used
+            By default, :obj:`uldaq.ScanOption.CONTINUOUS` option is used
 
     """
     def __init__(self):
@@ -160,6 +160,6 @@ class AoDeviceHandler:
         """
         analog_range = ul.Range(self._params.range_id)
         return self._ao_device.a_out(ao_channel,
-                                    analog_range, 
-                                    self._params.scan_flags,
-                                    voltage)
+                                     analog_range,
+                                     self._params.scan_flags,
+                                     voltage)

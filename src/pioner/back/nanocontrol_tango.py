@@ -14,7 +14,7 @@ from pioner.back.iso_mode import IsoMode
 
 class NanoControl(Device):
     """General class to control DAQ device using TANGO server.
-    To launch server manually use the coomand 
+    To launch server manually use the command
     :obj:`python nanocontrol_tango.py NanoControl`
     """
     _fh: FastHeat
@@ -56,7 +56,7 @@ class NanoControl(Device):
 
     @command
     def set_connection(self):
-        """ Tango :obj:`command` method to set connection to avaliable DAQ device 
+        """ Tango :obj:`command` method to set connection to available DAQ device
         using method :obj:`try_connect` of :obj:`pioner.back.daq_device.DaqDeviceHandler`.
         Logs result even in case of error.
         """
@@ -73,7 +73,7 @@ class NanoControl(Device):
 
     @command
     def disconnect(self):
-        """ Tango :obj:`command` method to disconnsect DAQ device 
+        """ Tango :obj:`command` method to disconnect DAQ device
         using method :obj:`disconnect` of :obj:`pioner.back.daq_device.DaqDeviceHandler`.
         Logs result.
         """
@@ -144,7 +144,7 @@ class NanoControl(Device):
         ---------
             :obj:`dict` 
                 Uses :obj:`pioner.shared.calibration.Calibration.get_str` 
-                and transforms string to dictionary. Use key :obj:`calib` to acces calibration
+                and transforms string to dictionary. Use key :obj:`calib` to access calibration
         """
         self.__calib_dict = 'calib', dict(calib=self._calibration.get_str())
         return self.__calib_dict
@@ -158,7 +158,7 @@ class NanoControl(Device):
         Returns
         ---------
             :obj:`dict` 
-                Use key :obj:`sr` to acces sampling rate
+                Use key :obj:`sr` to access sampling rate
         """
         self.__sr = 'sr', dict(sr=self._settings.ai_params.sample_rate)
         return self.__sr
@@ -227,7 +227,7 @@ class NanoControl(Device):
     # Iso (set) mode
     @command(dtype_in=str)
     def arm_iso_mode(self, chan_temp_volt_str):
-        """ Tango :obj:`command` method to prepare (arm) isotherm / isovoltage mode.
+        """ Tango :obj:`command` method to prepare (arm) isotherm / iso-voltage mode.
         Makes :obj:`pioner.back.iso_mode.IsoMode` instance and uses
         :obj:`pioner.back.iso_mode.IsoMode.arm` method. Logs result.
             
@@ -246,7 +246,7 @@ class NanoControl(Device):
 
     @command
     def run_iso_mode(self):
-        """ Tango :obj:`command` method to apply (run) fast isotherm / isovoltage mode.
+        """ Tango :obj:`command` method to apply (run) fast isotherm / iso-voltage mode.
         Checks if iso mode is prepared correctly (armed) and uses
         :obj:`pioner.back.iso_mode.IsoMode.run` method. Logs result.
         """

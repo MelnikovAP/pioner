@@ -34,8 +34,8 @@ class IsoMode:
 
         chan_temp_volt : :obj:`dict`
             Dictionary should have the following structure:
-            :obj:`{"ch0": {"temp":[float]},  
-            "ch1": {"volt":[float]},  
+            :obj:`{"ch0": {"temp":[float]}},
+            "ch1": {"volt":[float]},
             ...`. If "volt" is used, no calibration will be applied.
             If "temp" is used, calibration will be applied.
     """
@@ -81,7 +81,7 @@ class IsoMode:
         Method to start isotherm after preparation step (arming).
         Uses methods :obj:`pioner.back.experiment_manager.ExperimentManager.ao_set`
         and :obj:`pioner.back.experiment_manager.ExperimentManager.ai_continuous`
-        to launch AO and AI scans. Does not saves experimental data.
+        to launch AO and AI scans. Does not save experimental data.
         """
         with ExperimentManager(self._daq_device_handler,
                                self._settings) as self.em:

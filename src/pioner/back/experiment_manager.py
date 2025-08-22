@@ -58,8 +58,8 @@ class ExperimentManager:
                 pass
 
     def get_ai_data(self) -> pd.DataFrame:
-        """Reads raw buffer from :obj:`*.hdf` file. Note: Pandas l
-        ibrary is used to read / write datasets.
+        """Reads raw buffer from :obj:`*.hdf` file. Note: Pandas
+        library is used to read / write datasets.
         Array in file is already transformed from 1D to 2D array. 
         
         Returns
@@ -148,14 +148,14 @@ class ExperimentManager:
 
     def ai_continuous(self, ai_channels: List[int], do_save_data: bool):
         """Method to launch AI in continuous scan mode. 
-        Reading is made with circular buffer, devided in two halfs. 
+        Reading is made with circular buffer, divided into two halves.
         Buffer length = 1 s. The first 0.5 s data points (low half buffer) 
         are being read while new data points are being recorded to the 
         second 0.5 s buffer (high half buffer). Contrary, when writing 
         points to the first 0.5 s cycle buffer (low half buffer), data 
         is read from the second part of the buffer (high half buffer). 
         Uses :obj:`pioner.back.ai_device.AiDeviceHandler.scan` to start 
-        aquisition.
+        acquisition.
         
         Args
         ----------
@@ -165,8 +165,8 @@ class ExperimentManager:
             do_save_data : :obj:`bool`
                 if :obj:`True`, saves all the data to separate :obj:`*.hdf` files. 
                 Used for fast finite AI/AO scans.
-                If if :obj:`False`, saves all the data to one :obj:`*.hdf` file, 
-                continuousely overwriting data. Used for long or infinite AI/AO scans.
+                If :obj:`False`, saves all the data to one :obj:`*.hdf` file,
+                continuously overwriting data. Used for long or infinite AI/AO scans.
                 Data can be accessed later using 
                 :obj:`pioner.back.experiment_manager.get_ai_data` method. 
                 
@@ -197,7 +197,7 @@ class ExperimentManager:
         self._ai_device_handler.stop()
         
     def _read_data_loop(self, do_save_data: bool):
-        # if do_save_data: svae all in separate buffers (for finit ai/ao scan)
+        # if do_save_data: save all in separate buffers (for finite ai/ao scan)
         # else: dump into dummy buffer file (for endless ai scan)
         try:
             tmp_ai_data = self._ai_device_handler.get_buffer()
@@ -211,7 +211,7 @@ class ExperimentManager:
                 buffers_num = int(len(self._ao_buffer) / (self._ao_params.sample_rate * channels_num))
                 logging.info('EXPERIMENT_MANAGER: Finite ai scan with data saving started.')
             else:
-                buffers_num = 1 # just big number for quazi-infinite loop 
+                buffers_num = 1 # just a big number for quasi-infinite loop
                 # TODO: change later to separate thread process in order to be able stop the scan
                 # with tango command
                 logging.info('EXPERIMENT_MANAGER: Infinite ai scan with data overwriting started.')

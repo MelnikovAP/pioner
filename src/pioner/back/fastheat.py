@@ -14,7 +14,7 @@ from pioner.back.experiment_manager import ExperimentManager
 class FastHeat:
     """Class to launch fast heating with sampling rate 
     up to 100000 points per second for each AI channel.
-    After scan is finished, raw data is transfromed 
+    After scan is finished, raw data is transformed
     with respect to calibration and saved to file (only
     data from specified AI channels)
     
@@ -71,7 +71,7 @@ class FastHeat:
 
     def arm(self):
         """
-        Method to prepare scan. It interpolates vlotage profiles and 
+        Method to prepare scan. It interpolates voltage profiles and
         applies calibration coefficients to transform target temperature on heaters
         to voltage on AO channels.
         """
