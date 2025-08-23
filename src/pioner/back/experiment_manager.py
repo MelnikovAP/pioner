@@ -3,7 +3,9 @@ import logging
 import os
 from typing import List
 import pandas as pd
-import uldaq as ul
+
+# Use mock uldaq for development without hardware
+from .mock_uldaq import uldaq as ul
 
 from pioner.shared.constants import *
 from pioner.shared.settings import BackSettings
