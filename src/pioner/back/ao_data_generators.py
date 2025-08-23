@@ -1,6 +1,9 @@
 from typing import List
 
-import uldaq as ul
+import logging
+
+# Use mock uldaq for development without hardware
+from .mock_uldaq import uldaq as ul
 
 # TODO: add an interface class for different types of data generators
 

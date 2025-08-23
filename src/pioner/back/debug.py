@@ -1,18 +1,16 @@
 import sys
 import numpy as np
+from scipy import interpolate
 
 import time
 
-from pioner.shared.constants import *
-from pioner.shared.settings import BackSettings
-from pioner.shared.calibration import Calibration
-from pioner.shared.utils import temperature_to_voltage
+from pioner.shared import constants, settings, calibration, utils
 from pioner.back.daq_device import DaqDeviceHandler
 from pioner.back.fastheat import FastHeat
 
 def debug_time_temp_table():
     time_temp_table = {
-        'time'.TIME: [0, 50, 450, 550, 950, 1000],
+        'time': [0, 50, 450, 550, 950, 1000],
         'temperature': [0, 0, 5, 5, 0, 0]
     }
 
@@ -34,23 +32,23 @@ def debug_time_temp_table():
     temp_program_points = interpolation(time_program_points)
     # print("temp upd: \n{}".format(temp_program_points))
 
-    calibration = Calibration()
-    calibration.read('./calibration.json')
-    # print(calibration.safe_voltage, calibration.max_temp, calibration.min_temp)
+    cal = calibration.Calibration()
+    cal.read('./calibration.json')
+    # print(cal.safe_voltage, cal.max_temp, cal.min_temp)
 
-    volt_program_points = temperature_to_voltage(temp_program_points, calibration)
+    volt_program_points = utils.temperature_to_voltage(temp_program_points, cal)
     # print("voltage: \n{}".format(volt_program_points))
 
 def debug_fast_heat():
 
-    calibration = Calibration()
-    calibration.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
-    settings = BackSettings(SETTINGS_FILE_REL_PATH)
-    daq_device_handler = DaqDeviceHandler(settings.daq_params)
-    print("DAQ settings: ", settings.daq_params)
-    print("AI settings: ", settings.ai_params)
-    print("AO settings: ", settings.ao_params)
-    print("Calibration: ", calibration.comment)
+    cal = calibration.Calibration()
+    cal.read(constants.DEFAULT_CALIBRATION_FILE_REL_PATH)
+    settings_obj = settings.BackSettings(constants.SETTINGS_FILE_REL_PATH)
+    daq_device_handler = DaqDeviceHandler(settings_obj.daq_params)
+    print("DAQ settings: ", settings_obj.daq_params)
+    print("AI settings: ", settings_obj.ai_params)
+    print("AO settings: ", settings_obj.ao_params)
+    print("Calibration: ", cal.comment)
     
     daq_device_handler.try_connect()
     descriptor = daq_device_handler.get_descriptor()
@@ -65,8 +63,8 @@ def debug_fast_heat():
     # ax1.plot(time_temp_table['ch1']['time'], time_temp_table['ch1']['temp'])
     # plt.show()
 
-    fh = FastHeat(daq_device_handler, settings,
-                    time_temp_table, calibration,
+    fh = FastHeat(daq_device_handler, settings_obj,
+                    time_temp_table, cal,
                     ai_channels = [0,1,3,4,5],
                     FAST_HEAT_CUSTOM_FLAG=False)
     print("LOG: Fast heating armed.")

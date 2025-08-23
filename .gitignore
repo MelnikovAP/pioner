@@ -10,3 +10,11 @@ dist
 data/raw_data/*
 
 logs/*
+
+# Python packaging artifacts
+*.egg-info/
+.eggs/
+*.egg
+build/
+dist/
+pip-wheel-metadata/

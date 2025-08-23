@@ -1,7 +1,8 @@
 import json
 import logging
 import os
-import uldaq as ul
+# Use mock uldaq for development without hardware
+from .mock_uldaq import uldaq as ul
 from tango.server import AttrWriteType, Device, attribute, command, pipe
 
 from pioner.shared.constants import *

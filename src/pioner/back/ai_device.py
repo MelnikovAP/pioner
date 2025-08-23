@@ -1,6 +1,8 @@
 import logging
 from typing import Tuple, List
-import uldaq as ul
+
+# Use mock uldaq for development without hardware
+from .mock_uldaq import uldaq as ul
 
 
 class AiParams:

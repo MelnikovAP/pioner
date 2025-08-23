@@ -13,6 +13,7 @@ src/pioner/back/debug.py
 src/pioner/back/experiment_manager.py
 src/pioner/back/fastheat.py
 src/pioner/back/iso_mode.py
+src/pioner/back/mock_uldaq.py
 src/pioner/back/nanocontrol_tango.py
 src/pioner/front/SetProg_widget.py
 src/pioner/front/__init__.py
