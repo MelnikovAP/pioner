@@ -8,7 +8,7 @@ import logging
 # Try to import real uldaq first
 try:
     import uldaq as real_uldaq
-    UDAQ_AVAILABLE = True
+    DAQ_AVAILABLE = True
     logging.info("Real uldaq hardware detected - using actual DAQ hardware")
     
     # Use the real uldaq module
@@ -16,9 +16,8 @@ try:
     
 except (ImportError, OSError) as e:
     # Fall back to mock hardware
-    UDAQ_AVAILABLE = False
+    DAQ_AVAILABLE = False
     logging.warning(f"Real uldaq not available ({e}) - using MOCK hardware for development/testing")
-    logging.warning("This is normal for development without hardware or missing drivers")
     
     # Create mock classes for development/testing without hardware
     class InterfaceType:
@@ -74,6 +73,8 @@ except (ImportError, OSError) as e:
         def __init__(self, descriptor):
             self._descriptor = descriptor
             self._connected = False
+            self._released = False
+            self._reset = False
             logging.info("Mock DAQ device initialized")
         
         def get_descriptor(self):
@@ -90,8 +91,19 @@ except (ImportError, OSError) as e:
             self._connected = False
             logging.info("Mock DAQ device disconnected")
         
+        def release(self):
+            self._released = True
+            self._connected = False
+            logging.info("Mock DAQ device released")
+        
+        def reset(self):
+            self._reset = True
+            self._connected = False
+            logging.info("Mock DAQ device reset")
+        
         def quit(self):
             self.disconnect()
+            self.release()
         
         def get_ai_device(self):
             return MockAiDevice()
@@ -99,35 +111,127 @@ except (ImportError, OSError) as e:
         def get_ao_device(self):
             return MockAoDevice()
 
-    class MockAiDevice:
-        """Mock AI (Analog Input) device."""
-        def __init__(self):
-            logging.info("Mock AI device initialized")
-        
-        def connect(self):
-            logging.info("Mock AI device connected")
-        
-        def disconnect(self):
-            logging.info("Mock AI device disconnected")
-        
-        def get_info(self):
-            return MockAiInfo()
-
     class MockAiInfo:
         """Mock AI device info."""
         def get_num_chans_by_mode(self, mode):
             return 8  # Mock 8 channels
+        
+        def has_pacer(self):
+            return True  # Mock device supports pacing
+
+    class MockAoInfo:
+        """Mock AO device info."""
+        def has_pacer(self):
+            return True  # Mock device supports pacing
+
+    class MockAiDevice:
+        """Mock AI (Analog Input) device."""
+        def __init__(self):
+            self._connected = False
+            self._scanning = False
+            self._scan_count = 0
+            self._total_count = 0
+            self._current_index = 0
+            logging.info("Mock AI device initialized")
+        
+        def connect(self):
+            self._connected = True
+            logging.info("Mock AI device connected")
+        
+        def disconnect(self):
+            self._connected = False
+            logging.info("Mock AI device disconnected")
+        
+        def get_info(self):
+            return MockAiInfo()
+        
+        def scan_stop(self):
+            """Stop analog input scan."""
+            self._scanning = False
+            logging.info("Mock AI device scan stopped")
+        
+        def get_scan_status(self):
+            """Get scan and transfer status."""
+            if self._scanning:
+                scan_status = ScanStatus.RUNNING
+                transfer_status = MockTransferStatus(
+                    current_scan_count=self._scan_count,
+                    current_total_count=self._total_count,
+                    current_index=self._current_index
+                )
+            else:
+                scan_status = ScanStatus.STOPPED
+                transfer_status = MockTransferStatus(0, 0, 0)
+            
+            return (scan_status, transfer_status)
+        
+        def a_in_scan(self, low_channel, high_channel, input_mode, analog_range, 
+                      sample_rate, samples_per_channel, options, scan_flags, buffer):
+            """Start analog input scan."""
+            self._scanning = True
+            self._scan_count = 0
+            self._total_count = samples_per_channel
+            self._current_index = 0
+            logging.info(f"Mock AI device scan started: channels {low_channel}-{high_channel}, rate {sample_rate}")
+            return sample_rate  # Return the actual scan rate
 
     class MockAoDevice:
         """Mock AO (Analog Output) device."""
         def __init__(self):
+            self._connected = False
+            self._scanning = False
+            self._scan_count = 0
+            self._total_count = 0
+            self._current_index = 0
             logging.info("Mock AO device initialized")
         
         def connect(self):
+            self._connected = True
             logging.info("Mock AO device connected")
         
         def disconnect(self):
+            self._connected = False
             logging.info("Mock AO device disconnected")
+        
+        def get_info(self):
+            return MockAoInfo()
+        
+        def scan_stop(self):
+            """Stop analog output scan."""
+            self._scanning = False
+            logging.info("Mock AO device scan stopped")
+        
+        def get_scan_status(self):
+            """Get scan and transfer status."""
+            if self._scanning:
+                scan_status = ScanStatus.RUNNING
+                transfer_status = MockTransferStatus(
+                    current_scan_count=self._scan_count,
+                    current_total_count=self._total_count,
+                    current_index=self._current_index
+                )
+            else:
+                scan_status = ScanStatus.STOPPED
+                transfer_status = MockTransferStatus(0, 0, 0)
+            
+            return (scan_status, transfer_status)
+        
+        def a_out_scan(self, low_channel, high_channel, analog_range, 
+                       samples_per_channel, sample_rate, options, scan_flags, ao_buffer):
+            """Start analog output scan."""
+            self._scanning = True
+            self._scan_count = 0
+            self._total_count = samples_per_channel
+            self._current_index = 0
+            logging.info(f"Mock AO device scan started: channels {low_channel}-{high_channel}, rate {sample_rate}")
+            return sample_rate  # Return the actual scan rate
+
+    class MockTransferStatus:
+        """Mock transfer status class."""
+        def __init__(self, current_scan_count, current_total_count, current_index):
+            self.current_scan_count = current_scan_count
+            self.current_total_count = current_total_count
+            self.current_index = current_index
 
     def get_daq_device_inventory(interface_type, max_devices):
         """Mock function to get DAQ device inventory."""
@@ -140,9 +244,20 @@ except (ImportError, OSError) as e:
         return DaqDeviceDescriptor()
 
     def create_float_buffer(channel_count, sample_rate):
-        """Mock function to create float buffer."""
+        """Mock function to create float buffer with validation."""
+        # Add input validation to prevent vulnerabilities
+        if channel_count <= 0 or sample_rate <= 0:
+            raise ValueError("channel_count and sample_rate must be positive")
+        
+        if channel_count > 1000 or sample_rate > 1000000:
+            raise ValueError("Values too large for mock device (max: 1000 channels, 1M samples)")
+        
+        buffer_size = channel_count * sample_rate
+        if buffer_size > 10000000:  # 10M samples max
+            raise ValueError("Buffer size too large for mock device")
+        
         logging.info(f"Mock: Creating float buffer with {channel_count} channels, {sample_rate} samples")
-        return [0.0] * channel_count * sample_rate
+        return [0.0] * buffer_size
 
     # Create mock uldaq module
     class MockUldaq:
@@ -175,4 +290,5 @@ except (ImportError, OSError) as e:
     uldaq = MockUldaq()
 
 # Export the status for other modules to check
-__all__ = ['uldaq', 'UDAQ_AVAILABLE']
+# (to avoid import of internal entities)
+__all__ = ['uldaq', 'DAQ_AVAILABLE']

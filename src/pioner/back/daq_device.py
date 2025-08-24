@@ -2,7 +2,7 @@ import logging
 import time
 
 # Use smart uldaq import that auto-detects hardware
-from .mock_uldaq import uldaq as ul, UDAQ_AVAILABLE
+from .mock_uldaq import uldaq as ul, DAQ_AVAILABLE
 
 # TODO: add an abstract class for device + add a mock device for testing
 
@@ -54,9 +54,8 @@ class DaqDeviceHandler:
         self._init_daq_device()
 
     def _init_daq_device(self):
-        if not UDAQ_AVAILABLE:
-            logging.warning("DAQ DEVICE: Running with MOCK hardware - no real DAQ device will be used")
-            logging.warning("DAQ DEVICE: This is normal for development/testing without hardware")
+        if not DAQ_AVAILABLE:
+            logging.warning("DAQ DEVICE: Running with MOCK hardware - no real DAQ device will be used.")
         
         devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
         if not devices:
