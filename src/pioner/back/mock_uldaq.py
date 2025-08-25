@@ -264,13 +264,13 @@ class DaqDevice:
         self._operation_count = 0
 
         logger.info("Mock DAQ device initialized with security context")
-
+    
     def get_descriptor(self):
         return self._descriptor
-
+    
     def is_connected(self):
         return self._state == DeviceState.CONNECTED
-
+    
     def connect(self, connection_code=None):
         # Validate security context
         if not security_manager.validate_access("connect", self._security_context):
@@ -284,7 +284,7 @@ class DaqDevice:
 
         # Secure logging - no sensitive data
         logger.info("Mock DAQ device connected successfully")
-
+    
     def disconnect(self):
         if not security_manager.validate_access("disconnect", self._security_context):
             raise RuntimeError("Access denied: security validation failed")
@@ -308,16 +308,16 @@ class DaqDevice:
 
         self._state = DeviceState.DISCONNECTED
         logger.info("Mock DAQ device reset")
-
+    
     def quit(self):
         self.disconnect()
         self.release()
-
+    
     def get_ai_device(self):
         if self._state != DeviceState.CONNECTED:
             raise RuntimeError("Device not connected")
         return MockAiDevice(self._security_context)
-
+    
     def get_ao_device(self):
         if self._state != DeviceState.CONNECTED:
             raise RuntimeError("Device not connected")
@@ -375,14 +375,14 @@ class MockAiDevice:
         self._last_operation = 0.0
 
         logger.info("Mock AI device initialized with security context")
-
+    
     def connect(self):
         if not security_manager.validate_access("ai_connect", self._security_context):
             raise RuntimeError("Access denied: security validation failed")
 
         self._state = DeviceState.CONNECTED
         logger.info("Mock AI device connected")
-
+    
     def disconnect(self):
         if not security_manager.validate_access(
             "ai_disconnect", self._security_context
@@ -396,14 +396,14 @@ class MockAiDevice:
             self.scan_stop()
 
         logger.info("Mock AI device disconnected")
-
+    
     def get_info(self):
         return MockAiInfo()
 
     @property
     def status(self):
         """Status property with state validation."""
-        if not self._state == DeviceState.CONNECTED:
+        if self._state != DeviceState.CONNECTED:
             return ScanStatus.STOPPED
         return self.get_scan_status()[0]
 
@@ -559,14 +559,14 @@ class MockAoDevice:
         self._last_operation = 0.0
 
         logger.info("Mock AO device initialized with security context")
-
+    
     def connect(self):
         if not security_manager.validate_access("ao_connect", self._security_context):
             raise RuntimeError("Access denied: security validation failed")
 
         self._state = DeviceState.CONNECTED
         logger.info("Mock AO device connected")
-
+    
     def disconnect(self):
         if not security_manager.validate_access(
             "ao_disconnect", self._security_context
@@ -587,7 +587,7 @@ class MockAoDevice:
     @property
     def status(self):
         """Status property with state validation."""
-        if not self._state == DeviceState.CONNECTED:
+        if self._state != DeviceState.CONNECTED:
             return ScanStatus.STOPPED
         return self.get_scan_status()[0]
 
@@ -730,6 +730,33 @@ class MockAoDevice:
         # Secure logging - no sensitive parameters
         logger.info("Mock AO device ISO mode set successfully")
         return voltage
+    
+    def a_out(self, ao_channel, analog_range, scan_flags, voltage):
+        """Set voltage on AO channel with comprehensive validation."""
+        if not security_manager.validate_access("ao_a_out", self._security_context):
+            raise RuntimeError("Access denied: security validation failed")
+        
+        # Comprehensive input validation
+        if not isinstance(ao_channel, int):
+            raise ValueError("AO channel must be an integer")
+        if ao_channel < 0 or ao_channel > 3:
+            raise ValueError("AO channel must be 0-3 for mock device")
+        if not isinstance(analog_range, Range):
+            raise ValueError("Invalid analog range")
+        if not isinstance(scan_flags, int) or scan_flags < 0:
+            raise ValueError("Invalid scan flags")
+        if not isinstance(voltage, (int, float)):
+            raise ValueError("Voltage must be a number")
+        if voltage < -10 or voltage > 10:
+            raise ValueError("Voltage must be between -10V and +10V for mock device")
+        
+        # Check if device is available
+        if self._state != DeviceState.CONNECTED:
+            raise RuntimeError("Device not connected")
+        
+        # Secure logging - no sensitive parameters
+        logger.info("Mock AO device voltage set successfully")
+        return voltage
 
 
 class MockTransferStatus:
@@ -816,24 +843,24 @@ def _get_net_daq_device_descriptor_impl(host, port):
     return DaqDeviceDescriptor()
 
 
-def create_float_buffer(channel_count, sample_rate):
+def create_float_buffer(channel_count, samples_per_channel):
     """Mock function to create float buffer with strict security limits."""
     # Comprehensive input validation to prevent vulnerabilities
-    if not isinstance(channel_count, int) or not isinstance(sample_rate, int):
-        raise ValueError("channel_count and sample_rate must be integers")
+    if not isinstance(channel_count, int) or not isinstance(samples_per_channel, int):
+        raise ValueError("channel_count and samples_per_channel must be integers")
 
-    if channel_count <= 0 or sample_rate <= 0:
-        raise ValueError("channel_count and sample_rate must be positive")
+    if channel_count <= 0 or samples_per_channel <= 0:
+        raise ValueError("channel_count and samples_per_channel must be positive")
 
     # Strict limits to prevent memory exhaustion
     if channel_count > MAX_CHANNELS:
         raise ValueError(f"Too many channels (max: {MAX_CHANNELS})")
-    if sample_rate > MAX_SAMPLE_RATE:
-        raise ValueError(f"Sample rate too high (max: {MAX_SAMPLE_RATE})")
+    if samples_per_channel > MAX_SCAN_COUNT:
+        raise ValueError(f"Samples per channel too high (max: {MAX_SCAN_COUNT})")
 
     # Calculate buffer size with overflow protection
     try:
-        buffer_size = channel_count * sample_rate
+        buffer_size = channel_count * samples_per_channel
         if buffer_size <= 0 or buffer_size > MAX_SCAN_COUNT:
             raise ValueError("Buffer size calculation overflow")
     except OverflowError:
@@ -843,7 +870,7 @@ def create_float_buffer(channel_count, sample_rate):
         raise ValueError(f"Buffer size too large (max: {MAX_BUFFER_SIZE // 8} samples)")
 
     logger.info(
-        f"Mock: Creating secure float buffer with {channel_count} channels, {sample_rate} samples"
+        f"Mock: Creating secure float buffer with {channel_count} channels, {samples_per_channel} samples per channel"
     )
     return [0.0] * buffer_size
 
@@ -863,15 +890,15 @@ class MockUldaq:
     ScanStatus = ScanStatus()
     TransferStatus = TransferStatus()
     Range = Range
-
+    
     @staticmethod
     def get_daq_device_inventory(interface_type, max_devices):
         return get_daq_device_inventory(interface_type, max_devices)
-
+    
     @staticmethod
     def DaqDevice(descriptor):
         return DaqDevice(descriptor)
-
+    
     @staticmethod
     def create_float_buffer(channel_count, sample_rate):
         return create_float_buffer(channel_count, sample_rate)
