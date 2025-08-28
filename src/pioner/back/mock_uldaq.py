@@ -65,8 +65,12 @@ class SecurityManager:
                 try:
                     time.sleep(300)  # Clean up every 5 minutes
                     self._cleanup_expired_sessions()
+                except KeyboardInterrupt:
+                    logger.info("Cleanup timer interrupted")
+                    break
                 except Exception as e:
-                    logger.error(f"Session cleanup error: {e}")
+                    logger.error(f"Session cleanup error: {e}", exc_info=True)
+                    # Continue running despite errors to prevent complete failure
 
         cleanup_thread = threading.Thread(target=cleanup_old_sessions, daemon=True)
         cleanup_thread.start()
@@ -222,9 +226,29 @@ class Range:
     """Mock range class with validation."""
 
     def __init__(self, range_id: int):
-        if not isinstance(range_id, int) or range_id < 0 or range_id > 10:
+        if not isinstance(range_id, int):
+            raise TypeError("Range ID must be an integer")
+        if range_id < 0 or range_id > 10:
             raise ValueError("Range ID must be integer 0-10")
         self.range_id = range_id
+    
+    def __str__(self):
+        """String representation for debugging."""
+        return f"Range({self.range_id})"
+    
+    def __repr__(self):
+        """Detailed representation for debugging."""
+        return self.__str__()
+    
+    def __eq__(self, other):
+        """Equality comparison."""
+        if not isinstance(other, Range):
+            return False
+        return self.range_id == other.range_id
+    
+    def __hash__(self):
+        """Hashable for use in sets/dicts."""
+        return hash(self.range_id)
 
 
 class DaqDeviceDescriptor:
@@ -236,6 +260,10 @@ class DaqDeviceDescriptor:
         self.dev_interface = "USB"
         self.dev_string = "Mock Device"
         self.unique_id = "MOCK_001"
+    
+    def __getattr__(self, name):
+        """Prevent AttributeError for undefined attributes."""
+        raise AttributeError(f"DaqDeviceDescriptor object has no attribute '{name}'")
 
     def __str__(self):
         return f"Mock DAQ Device (ID: {self.product_id})"
@@ -251,9 +279,12 @@ class DaqDevice:
         if not isinstance(descriptor, DaqDeviceDescriptor):
             raise ValueError("Invalid descriptor type")
 
-        # Validate descriptor is properly initialized
-        if not hasattr(descriptor, "product_name") or not descriptor.product_name:
-            raise ValueError("Invalid descriptor: missing or empty product_name")
+        # Validate descriptor is properly initialized with more robust checks
+        if not hasattr(descriptor, "product_name"):
+            raise AttributeError("Descriptor missing 'product_name' attribute")
+        
+        if not descriptor.product_name or not isinstance(descriptor.product_name, str):
+            raise ValueError("Descriptor product_name must be a non-empty string")
 
         self._descriptor = descriptor
         self._state = DeviceState.DISCONNECTED
@@ -326,10 +357,15 @@ class DaqDevice:
     def __del__(self):
         """Secure cleanup on destruction."""
         try:
-            if hasattr(self, "_security_context") and self._security_context.session_id:
+            if hasattr(self, "_security_context") and hasattr(self._security_context, "session_id") and self._security_context.session_id:
                 security_manager.cleanup_session(self._security_context.session_id)
         except Exception as e:
-            logger.error(f"Error during device cleanup: {e}")
+            # Use a try-except to prevent errors during cleanup
+            try:
+                logger.error(f"Error during device cleanup: {e}")
+            except:
+                # If even logging fails, just pass silently
+                pass
 
 
 class MockAiInfo:
@@ -348,6 +384,10 @@ class MockAiInfo:
 
     def has_pacer(self):
         return True  # Mock device supports pacing
+    
+    def __getattr__(self, name):
+        """Prevent AttributeError for undefined attributes."""
+        raise AttributeError(f"MockAiInfo object has no attribute '{name}'")
 
 
 class MockAoInfo:
@@ -355,6 +395,10 @@ class MockAoInfo:
 
     def has_pacer(self):
         return True  # Mock device supports pacing
+    
+    def __getattr__(self, name):
+        """Prevent AttributeError for undefined attributes."""
+        raise AttributeError(f"MockAoInfo object has no attribute '{name}'")
 
 
 class MockAiDevice:
@@ -439,9 +483,9 @@ class MockAiDevice:
         if self._scanning:
             scan_status = ScanStatus.RUNNING
             transfer_status = MockTransferStatus(
-                current_scan_count=self._scan_count,
-                current_total_count=self._total_count,
-                current_index=self._current_index,
+                self._scan_count,
+                self._total_count,
+                self._current_index,
             )
         else:
             scan_status = ScanStatus.STOPPED
@@ -541,6 +585,19 @@ class MockAiDevice:
         logger.info("Mock AI device scan started successfully")
         return sample_rate
 
+    def __del__(self):
+        """Secure cleanup on destruction."""
+        try:
+            if hasattr(self, "_scanning") and self._scanning:
+                self.scan_stop()
+        except Exception as e:
+            # Use a try-except to prevent errors during cleanup
+            try:
+                logger.error(f"Error during AI device cleanup: {e}")
+            except:
+                # If even logging fails, just pass silently
+                pass
+
 
 class MockAoDevice:
     """Mock AO (Analog Output) device with security hardening."""
@@ -623,9 +680,9 @@ class MockAoDevice:
         if self._scanning:
             scan_status = ScanStatus.RUNNING
             transfer_status = MockTransferStatus(
-                current_scan_count=self._scan_count,
-                current_total_count=self._total_count,
-                current_index=self._current_index,
+                self._scan_count,
+                self._total_count,
+                self._current_index,
             )
         else:
             scan_status = ScanStatus.STOPPED
@@ -758,6 +815,19 @@ class MockAoDevice:
         logger.info("Mock AO device voltage set successfully")
         return voltage
 
+    def __del__(self):
+        """Secure cleanup on destruction."""
+        try:
+            if hasattr(self, "_scanning") and self._scanning:
+                self.scan_stop()
+        except Exception as e:
+            # Use a try-except to prevent errors during cleanup
+            try:
+                logger.error(f"Error during AO device cleanup: {e}")
+            except:
+                # If even logging fails, just pass silently
+                pass
+
 
 class MockTransferStatus:
     """Mock transfer status class with validation."""
@@ -784,6 +854,18 @@ class MockTransferStatus:
         self.current_scan_count = current_scan_count
         self.current_total_count = current_total_count
         self.current_index = current_index
+    
+    def __getattr__(self, name):
+        """Prevent AttributeError for undefined attributes."""
+        raise AttributeError(f"MockTransferStatus object has no attribute '{name}'")
+    
+    def __str__(self):
+        """String representation for debugging."""
+        return f"MockTransferStatus(scan_count={self.current_scan_count}, total_count={self.current_total_count}, index={self.current_index})"
+    
+    def __repr__(self):
+        """Detailed representation for debugging."""
+        return self.__str__()
 
 
 def get_daq_device_inventory(interface_type, max_devices):
@@ -869,10 +951,16 @@ def create_float_buffer(channel_count, samples_per_channel):
     if buffer_size > MAX_BUFFER_SIZE // 8:  # 8 bytes per float64
         raise ValueError(f"Buffer size too large (max: {MAX_BUFFER_SIZE // 8} samples)")
 
+    # Additional safety check for memory allocation
+    try:
+        buffer = [0.0] * buffer_size
+    except MemoryError:
+        raise RuntimeError("Insufficient memory to allocate buffer")
+
     logger.info(
         f"Mock: Creating secure float buffer with {channel_count} channels, {samples_per_channel} samples per channel"
     )
-    return [0.0] * buffer_size
+    return buffer
 
 
 # Create mock uldaq module
@@ -890,6 +978,14 @@ class MockUldaq:
     ScanStatus = ScanStatus()
     TransferStatus = TransferStatus()
     Range = Range
+    
+    def __getattr__(self, name):
+        """Prevent AttributeError for undefined attributes."""
+        raise AttributeError(f"MockUldaq module has no attribute '{name}'")
+    
+    def __getitem__(self, key):
+        """Prevent KeyError for undefined keys."""
+        raise KeyError(f"MockUldaq module has no key '{key}'")
     
     @staticmethod
     def get_daq_device_inventory(interface_type, max_devices):
