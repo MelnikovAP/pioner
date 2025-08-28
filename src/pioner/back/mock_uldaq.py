@@ -77,53 +77,73 @@ class SecurityManager:
 
     def _cleanup_expired_sessions(self):
         """Clean up expired sessions to prevent memory leaks."""
-        current_time = time.time()
-        expired_sessions = []
+        try:
+            current_time = time.time()
+            expired_sessions = []
 
-        with self._lock:
-            for session_id, session_data in self._session_tokens.items():
-                if current_time - session_data["created_time"] > MAX_SESSION_AGE:
-                    expired_sessions.append(session_id)
+            with self._lock:
+                for session_id, session_data in self._session_tokens.items():
+                    try:
+                        if current_time - session_data["created_time"] > MAX_SESSION_AGE:
+                            expired_sessions.append(session_id)
+                    except (KeyError, TypeError) as e:
+                        # Handle corrupted session data
+                        logger.warning(f"Corrupted session data found: {e}")
+                        expired_sessions.append(session_id)
 
-            for session_id in expired_sessions:
-                del self._session_tokens[session_id]
-                logger.info(f"Expired session cleaned up: {session_id[:8]}...")
+                for session_id in expired_sessions:
+                    try:
+                        del self._session_tokens[session_id]
+                        logger.info(f"Expired session cleaned up: {session_id[:8]}...")
+                    except KeyError:
+                        # Session already removed
+                        pass
+        except Exception as e:
+            logger.error(f"Error during session cleanup: {e}", exc_info=True)
 
     def validate_access(self, operation: str, context: SecurityContext) -> bool:
         """Validate access to device operations with thread safety."""
-        if not isinstance(context, SecurityContext):
-            logger.error("Invalid security context type")
+        try:
+            if not isinstance(context, SecurityContext):
+                logger.error("Invalid security context type")
+                return False
+
+            if not isinstance(operation, str):
+                logger.error("Invalid operation type")
+                return False
+
+            current_time = time.time()
+
+            with self._lock:
+                # Session age validation
+                if current_time - context.created_time > MAX_SESSION_AGE:
+                    logger.warning(f"Session expired for operation: {operation}")
+                    return False
+
+                # Rate limiting - reasonable for normal operations
+                # TEMPORARILY DISABLED FOR TESTING
+                # if current_time - context.last_operation_time < 0.0001:  # 0.1ms between operations (was 1ms)
+                #     logger.warning(f"Rate limit exceeded for operation: {operation}")
+                #     return False
+
+                # Session validation
+                if not context.session_id or context.session_id not in self._session_tokens:
+                    logger.warning(f"Invalid session for operation: {operation}")
+                    return False
+
+                # Operation count limiting
+                if context.operation_count > MAX_OPERATIONS_PER_MINUTE:
+                    logger.warning(f"Operation limit exceeded: {operation}")
+                    return False
+
+                # Update operation tracking
+                context.operation_count += 1
+                context.last_operation_time = current_time
+
+                return True
+        except Exception as e:
+            logger.error(f"Error during access validation: {e}", exc_info=True)
             return False
-
-        current_time = time.time()
-
-        with self._lock:
-            # Session age validation
-            if current_time - context.created_time > MAX_SESSION_AGE:
-                logger.warning(f"Session expired for operation: {operation}")
-                return False
-
-            # Rate limiting - reasonable for normal operations
-            # TEMPORARILY DISABLED FOR TESTING
-            # if current_time - context.last_operation_time < 0.0001:  # 0.1ms between operations (was 1ms)
-            #     logger.warning(f"Rate limit exceeded for operation: {operation}")
-            #     return False
-
-            # Session validation
-            if not context.session_id or context.session_id not in self._session_tokens:
-                logger.warning(f"Invalid session for operation: {operation}")
-                return False
-
-            # Operation count limiting
-            if context.operation_count > MAX_OPERATIONS_PER_MINUTE:
-                logger.warning(f"Operation limit exceeded: {operation}")
-                return False
-
-            # Update operation tracking
-            context.operation_count += 1
-            context.last_operation_time = current_time
-
-            return True
 
     def create_session(self) -> str:
         """Create a new cryptographically secure session."""
@@ -362,7 +382,9 @@ class DaqDevice:
         except Exception as e:
             # Use a try-except to prevent errors during cleanup
             try:
-                logger.error(f"Error during device cleanup: {e}")
+                # Check if logger is available before using it
+                if 'logger' in globals() and hasattr(logger, 'error'):
+                    logger.error(f"Error during device cleanup: {e}")
             except:
                 # If even logging fails, just pass silently
                 pass
@@ -435,9 +457,18 @@ class MockAiDevice:
 
         self._state = DeviceState.DISCONNECTED
 
-        # Stop any ongoing scan
+        # Stop any ongoing scan safely
         if self._scanning:
-            self.scan_stop()
+            try:
+                self.scan_stop()
+            except Exception as e:
+                logger.warning(f"Error stopping scan during disconnect: {e}")
+                # Force stop scan state even if scan_stop fails
+                self._scanning = False
+                self._scan_count = 0
+                self._total_count = 0
+                self._current_index = 0
+                self._scan_start_time = 0.0
 
         logger.info("Mock AI device disconnected")
     
@@ -449,7 +480,16 @@ class MockAiDevice:
         """Status property with state validation."""
         if self._state != DeviceState.CONNECTED:
             return ScanStatus.STOPPED
-        return self.get_scan_status()[0]
+        try:
+            scan_status = self.get_scan_status()
+            if isinstance(scan_status, tuple) and len(scan_status) > 0:
+                return scan_status[0]
+            else:
+                logger.warning("Invalid scan status returned, defaulting to STOPPED")
+                return ScanStatus.STOPPED
+        except Exception as e:
+            logger.error(f"Error getting scan status: {e}")
+            return ScanStatus.STOPPED
 
     def scan_stop(self):
         """Stop analog input scan with validation."""
@@ -500,9 +540,19 @@ class MockAiDevice:
         ):
             raise RuntimeError("Access denied: security validation failed")
 
+        # Validate buffer exists and is accessible
+        if not hasattr(self, "_buffer") or not isinstance(self._buffer, (list, tuple)):
+            logger.warning("Buffer not properly initialized, returning empty buffer")
+            return []
+        
         # Return copy to prevent external modification
-        buffer_copy = self._buffer.copy()
-        return buffer_copy
+        try:
+            buffer_copy = self._buffer.copy()
+            return buffer_copy
+        except Exception as e:
+            logger.error(f"Error copying buffer: {e}")
+            # Return empty buffer as fallback
+            return []
 
     def a_in_scan(
         self,
@@ -593,7 +643,9 @@ class MockAiDevice:
         except Exception as e:
             # Use a try-except to prevent errors during cleanup
             try:
-                logger.error(f"Error during AI device cleanup: {e}")
+                # Check if logger is available before using it
+                if 'logger' in globals() and hasattr(logger, 'error'):
+                    logger.error(f"Error during AI device cleanup: {e}")
             except:
                 # If even logging fails, just pass silently
                 pass
@@ -632,9 +684,18 @@ class MockAoDevice:
 
         self._state = DeviceState.DISCONNECTED
 
-        # Stop any ongoing scan
+        # Stop any ongoing scan safely
         if self._scanning:
-            self.scan_stop()
+            try:
+                self.scan_stop()
+            except Exception as e:
+                logger.warning(f"Error stopping scan during disconnect: {e}")
+                # Force stop scan state even if scan_stop fails
+                self._scanning = False
+                self._scan_count = 0
+                self._total_count = 0
+                self._current_index = 0
+                self._scan_start_time = 0.0
 
         logger.info("Mock AO device disconnected")
 
@@ -646,7 +707,16 @@ class MockAoDevice:
         """Status property with state validation."""
         if self._state != DeviceState.CONNECTED:
             return ScanStatus.STOPPED
-        return self.get_scan_status()[0]
+        try:
+            scan_status = self.get_scan_status()
+            if isinstance(scan_status, tuple) and len(scan_status) > 0:
+                return scan_status[0]
+            else:
+                logger.warning("Invalid scan status returned, defaulting to STOPPED")
+                return ScanStatus.STOPPED
+        except Exception as e:
+            logger.error(f"Error getting scan status: {e}")
+            return ScanStatus.STOPPED
 
     def scan_stop(self):
         """Stop analog output scan with validation."""
@@ -823,7 +893,9 @@ class MockAoDevice:
         except Exception as e:
             # Use a try-except to prevent errors during cleanup
             try:
-                logger.error(f"Error during AO device cleanup: {e}")
+                # Check if logger is available before using it
+                if 'logger' in globals() and hasattr(logger, 'error'):
+                    logger.error(f"Error during AO device cleanup: {e}")
             except:
                 # If even logging fails, just pass silently
                 pass
@@ -836,20 +908,31 @@ class MockTransferStatus:
         self, current_scan_count: int, current_total_count: int, current_index: int
     ):
         # Validate and bound all values to prevent overflow
-        if not isinstance(current_scan_count, int) or current_scan_count < 0:
-            raise ValueError("Invalid scan count")
+        if not isinstance(current_scan_count, int):
+            raise TypeError("current_scan_count must be an integer")
+        if current_scan_count < 0:
+            raise ValueError("current_scan_count must be non-negative")
         if current_scan_count > MAX_SCAN_COUNT:
             raise ValueError(f"Scan count too large (max: {MAX_SCAN_COUNT})")
 
-        if not isinstance(current_total_count, int) or current_total_count < 0:
-            raise ValueError("Invalid total count")
+        if not isinstance(current_total_count, int):
+            raise TypeError("current_total_count must be an integer")
+        if current_total_count < 0:
+            raise ValueError("current_total_count must be non-negative")
         if current_total_count > MAX_SCAN_COUNT:
             raise ValueError(f"Total count too large (max: {MAX_SCAN_COUNT})")
 
-        if not isinstance(current_index, int) or current_index < 0:
-            raise ValueError("Invalid current index")
+        if not isinstance(current_index, int):
+            raise TypeError("current_index must be an integer")
+        if current_index < 0:
+            raise ValueError("current_index must be non-negative")
         if current_index > MAX_SCAN_COUNT:
             raise ValueError(f"Current index too large (max: {MAX_SCAN_COUNT})")
+
+        # Additional validation to prevent logical errors
+        if current_index > current_total_count:
+            logger.warning(f"Current index ({current_index}) exceeds total count ({current_total_count})")
+            current_index = min(current_index, current_total_count)
 
         self.current_scan_count = current_scan_count
         self.current_total_count = current_total_count
@@ -925,7 +1008,7 @@ def _get_net_daq_device_descriptor_impl(host, port):
     return DaqDeviceDescriptor()
 
 
-def create_float_buffer(channel_count, samples_per_channel):
+def create_float_buffer_impl(channel_count, samples_per_channel):
     """Mock function to create float buffer with strict security limits."""
     # Comprehensive input validation to prevent vulnerabilities
     if not isinstance(channel_count, int) or not isinstance(samples_per_channel, int):
@@ -996,8 +1079,8 @@ class MockUldaq:
         return DaqDevice(descriptor)
     
     @staticmethod
-    def create_float_buffer(channel_count, sample_rate):
-        return create_float_buffer(channel_count, sample_rate)
+    def create_float_buffer(channel_count, samples_per_channel):
+        return create_float_buffer_impl(channel_count, samples_per_channel)
 
     @staticmethod
     def get_net_daq_device_descriptor(host, port):
