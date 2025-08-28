@@ -84,8 +84,15 @@ class SecurityManager:
             with self._lock:
                 for session_id, session_data in self._session_tokens.items():
                     try:
+                        # Only clean up sessions that are truly expired and not in use
                         if current_time - session_data["created_time"] > MAX_SESSION_AGE:
-                            expired_sessions.append(session_id)
+                            # Check if session is still active (has recent operations)
+                            if "last_operation_time" in session_data:
+                                last_op_time = session_data["last_operation_time"]
+                                if current_time - last_op_time > MAX_SESSION_AGE:
+                                    expired_sessions.append(session_id)
+                            else:
+                                expired_sessions.append(session_id)
                     except (KeyError, TypeError) as e:
                         # Handle corrupted session data
                         logger.warning(f"Corrupted session data found: {e}")
@@ -139,6 +146,11 @@ class SecurityManager:
                 # Update operation tracking
                 context.operation_count += 1
                 context.last_operation_time = current_time
+                
+                # Update session data with operation timing
+                if context.session_id in self._session_tokens:
+                    self._session_tokens[context.session_id]["last_operation_time"] = current_time
+                    self._session_tokens[context.session_id]["operation_count"] = context.operation_count
 
                 return True
         except Exception as e:
@@ -153,6 +165,7 @@ class SecurityManager:
         with self._lock:
             self._session_tokens[session_id] = {
                 "created_time": time.time(),
+                "last_operation_time": time.time(),
                 "operation_count": 0,
             }
 
@@ -313,6 +326,10 @@ class DaqDevice:
         self._security_context.created_time = time.time()
         self._last_operation = 0.0
         self._operation_count = 0
+        
+        # Initialize sub-device references
+        self._ai_device = None
+        self._ao_device = None
 
         logger.info("Mock DAQ device initialized with security context")
     
@@ -349,9 +366,13 @@ class DaqDevice:
 
         self._state = DeviceState.DISCONNECTED
 
-        # Cleanup resources
+        # Don't automatically cleanup sub-device sessions - let them manage their own lifecycle
+        # This prevents the session race condition where sub-devices become unusable
+        logger.info("Mock DAQ device released (sub-devices maintain their sessions)")
+
+        # Cleanup main device session
         security_manager.cleanup_session(self._security_context.session_id)
-        logger.info("Mock DAQ device released and resources cleaned up")
+        logger.info("Mock DAQ device session cleaned up")
 
     def reset(self):
         if not security_manager.validate_access("reset", self._security_context):
@@ -367,27 +388,28 @@ class DaqDevice:
     def get_ai_device(self):
         if self._state != DeviceState.CONNECTED:
             raise RuntimeError("Device not connected")
-        return MockAiDevice(self._security_context)
+        # Create new security context for AI device to prevent session conflicts
+        ai_security_context = SecurityContext()
+        ai_security_context.session_id = security_manager.create_session()
+        ai_security_context.created_time = time.time()
+        self._ai_device = MockAiDevice(ai_security_context)
+        return self._ai_device
     
     def get_ao_device(self):
         if self._state != DeviceState.CONNECTED:
             raise RuntimeError("Device not connected")
-        return MockAoDevice(self._security_context)
+        # Create new security context for AO device to prevent session conflicts
+        ao_security_context = SecurityContext()
+        ao_security_context.session_id = security_manager.create_session()
+        ao_security_context.created_time = time.time()
+        self._ao_device = MockAoDevice(ao_security_context)
+        return self._ao_device
 
     def __del__(self):
         """Secure cleanup on destruction."""
-        try:
-            if hasattr(self, "_security_context") and hasattr(self._security_context, "session_id") and self._security_context.session_id:
-                security_manager.cleanup_session(self._security_context.session_id)
-        except Exception as e:
-            # Use a try-except to prevent errors during cleanup
-            try:
-                # Check if logger is available before using it
-                if 'logger' in globals() and hasattr(logger, 'error'):
-                    logger.error(f"Error during device cleanup: {e}")
-            except:
-                # If even logging fails, just pass silently
-                pass
+        # Don't clean up sessions in destructor - let security manager handle it
+        # This prevents race conditions and unpredictable cleanup timing
+        pass
 
 
 class MockAiInfo:
@@ -472,6 +494,24 @@ class MockAiDevice:
 
         logger.info("Mock AI device disconnected")
     
+    def release(self):
+        """Release the AI device and cleanup its session."""
+        try:
+            # Cleanup the device's session
+            if hasattr(self, "_security_context") and hasattr(self._security_context, "session_id"):
+                security_manager.cleanup_session(self._security_context.session_id)
+                logger.info("Mock AI device session cleaned up")
+        except Exception as e:
+            logger.warning(f"Error cleaning up AI device session: {e}")
+        
+        # Reset state
+        self._state = DeviceState.DISCONNECTED
+        self._scanning = False
+        self._scan_count = 0
+        self._total_count = 0
+        self._current_index = 0
+        self._scan_start_time = 0.0
+
     def get_info(self):
         return MockAiInfo()
 
@@ -637,18 +677,9 @@ class MockAiDevice:
 
     def __del__(self):
         """Secure cleanup on destruction."""
-        try:
-            if hasattr(self, "_scanning") and self._scanning:
-                self.scan_stop()
-        except Exception as e:
-            # Use a try-except to prevent errors during cleanup
-            try:
-                # Check if logger is available before using it
-                if 'logger' in globals() and hasattr(logger, 'error'):
-                    logger.error(f"Error during AI device cleanup: {e}")
-            except:
-                # If even logging fails, just pass silently
-                pass
+        # Don't clean up sessions in destructor - let security manager handle it
+        # This prevents race conditions and unpredictable cleanup timing
+        pass
 
 
 class MockAoDevice:
@@ -698,6 +729,24 @@ class MockAoDevice:
                 self._scan_start_time = 0.0
 
         logger.info("Mock AO device disconnected")
+
+    def release(self):
+        """Release the AO device and cleanup its session."""
+        try:
+            # Cleanup the device's session
+            if hasattr(self, "_security_context") and hasattr(self._security_context, "session_id"):
+                security_manager.cleanup_session(self._security_context.session_id)
+                logger.info("Mock AO device session cleaned up")
+        except Exception as e:
+            logger.warning(f"Error cleaning up AO device session: {e}")
+        
+        # Reset state
+        self._state = DeviceState.DISCONNECTED
+        self._scanning = False
+        self._scan_count = 0
+        self._total_count = 0
+        self._current_index = 0
+        self._scan_start_time = 0.0
 
     def get_info(self):
         return MockAoInfo()
@@ -887,18 +936,9 @@ class MockAoDevice:
 
     def __del__(self):
         """Secure cleanup on destruction."""
-        try:
-            if hasattr(self, "_scanning") and self._scanning:
-                self.scan_stop()
-        except Exception as e:
-            # Use a try-except to prevent errors during cleanup
-            try:
-                # Check if logger is available before using it
-                if 'logger' in globals() and hasattr(logger, 'error'):
-                    logger.error(f"Error during AO device cleanup: {e}")
-            except:
-                # If even logging fails, just pass silently
-                pass
+        # Don't clean up sessions in destructor - let security manager handle it
+        # This prevents race conditions and unpredictable cleanup timing
+        pass
 
 
 class MockTransferStatus:
