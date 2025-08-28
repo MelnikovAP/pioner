@@ -1008,7 +1008,7 @@ def _get_net_daq_device_descriptor_impl(host, port):
     return DaqDeviceDescriptor()
 
 
-def create_float_buffer_impl(channel_count, samples_per_channel):
+def _create_float_buffer_impl(channel_count, samples_per_channel):
     """Mock function to create float buffer with strict security limits."""
     # Comprehensive input validation to prevent vulnerabilities
     if not isinstance(channel_count, int) or not isinstance(samples_per_channel, int):
@@ -1080,7 +1080,7 @@ class MockUldaq:
     
     @staticmethod
     def create_float_buffer(channel_count, samples_per_channel):
-        return create_float_buffer_impl(channel_count, samples_per_channel)
+        return _create_float_buffer_impl(channel_count, samples_per_channel)
 
     @staticmethod
     def get_net_daq_device_descriptor(host, port):
