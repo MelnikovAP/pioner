@@ -1,6 +1,8 @@
 import logging
 from typing import Tuple, List
-import uldaq as ul
+
+# Use mock uldaq for development without hardware
+from .mock_uldaq import uldaq as ul
 
 
 class AiParams:
@@ -90,7 +92,10 @@ class AiDeviceHandler:
 
     def _init_buffer(self):
         channel_count = self._params.high_channel - self._params.low_channel + 1
-        self._buffer = ul.create_float_buffer(channel_count, self._params.sample_rate)
+        # For continuous scanning, create a buffer sized for 1 second of data
+        # This is a reasonable default that can be adjusted based on actual scan parameters
+        samples_per_channel = max(1000, self._params.sample_rate)  # At least 1 second worth of data
+        self._buffer = ul.create_float_buffer(channel_count, samples_per_channel)
 
     def get(self) -> ul.AiDevice:
         """Provides explicit access to the uldaq.AiDevice.
