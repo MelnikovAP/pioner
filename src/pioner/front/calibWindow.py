@@ -369,7 +369,7 @@ class calibWindow(qt.QDialog):
         self.amplcorBoxInput1.setText(str(round(self.parent().calibration.ac0, 10)))
         self.amplcorBoxInput2.setText(str(round(self.parent().calibration.ac1, 10)))
         self.amplcorBoxInput3.setText(str(round(self.parent().calibration.ac2, 10)))
-        self.amplcorBoxInput4.setText(str(round(self.parent().calibration.ac2, 10)))
+        self.amplcorBoxInput4.setText(str(round(self.parent().calibration.ac3, 10)))
 
 
     def read_calib_input_fields(self):  

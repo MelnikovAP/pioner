@@ -1,22 +1,37 @@
-# Import and re-export all modules from the shared directory
-from . import constants
-from . import settings
-from . import calibration
-from . import utils
+"""Shared utilities: calibration, settings, constants, modulation, helpers."""
 
-# Re-export commonly used classes and functions
-from .constants import *
-from .settings import BackSettings
-from .calibration import Calibration
-from .utils import temperature_to_voltage
+from . import calibration, constants, modulation, settings, utils
+from .calibration import Calibration, HardwareCalibration
+from .constants import *  # re-export legacy constants
+from .modulation import ModulationParams, apply_modulation, lockin_demodulate
+from .settings import BackSettings, FrontSettings, JsonReader
+from .utils import (
+    Dict2Class,
+    is_int,
+    is_int_or_raise,
+    list_bitwise_or,
+    temperature_to_voltage,
+    voltage_to_temperature,
+)
 
-# Make all modules available as attributes
 __all__ = [
-    'constants',
-    'settings', 
-    'calibration',
-    'utils',
-    'BackSettings',
-    'Calibration',
-    'temperature_to_voltage'
+    "calibration",
+    "constants",
+    "modulation",
+    "settings",
+    "utils",
+    "BackSettings",
+    "FrontSettings",
+    "JsonReader",
+    "Calibration",
+    "HardwareCalibration",
+    "ModulationParams",
+    "apply_modulation",
+    "lockin_demodulate",
+    "Dict2Class",
+    "is_int",
+    "is_int_or_raise",
+    "list_bitwise_or",
+    "temperature_to_voltage",
+    "voltage_to_temperature",
 ]

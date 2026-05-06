@@ -1,50 +1,30 @@
-"""Backwards-compatible shim around :class:`pioner.back.modes.FastHeat`.
+"""Slow heating mode (DC ramp + AC modulation) -- thin facade.
 
-Existing call sites (Tango server, scripts in ``docs/``) instantiated
-``FastHeat`` directly with positional arguments and a ``FAST_HEAT_CUSTOM_FLAG``
-boolean. This module forwards those calls to the unified mode hierarchy in
-:mod:`pioner.back.modes` and writes the legacy ``exp_data.h5`` file when
-``run()`` is called.
+The backend used by the GUI / Tango layer instantiates ``SlowMode`` the same
+way it instantiates :class:`pioner.back.fastheat.FastHeat`. This module is a
+1:1 forward to :class:`pioner.back.modes.SlowMode` and additionally writes
+the legacy HDF5 layout under ``EXP_DATA_FILE_REL_PATH`` for the result viewer.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import h5py
 import numpy as np
 
 from pioner.shared.calibration import Calibration
 from pioner.shared.constants import EXP_DATA_FILE_REL_PATH
+from pioner.shared.modulation import ModulationParams
 from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.modes import DEFAULT_AI_CHANNELS, FastHeat as _FastHeatMode
+from pioner.back.modes import DEFAULT_AI_CHANNELS, SlowMode as _SlowMode
 
 logger = logging.getLogger(__name__)
 
 
-class FastHeat:
-    """Legacy facade for the fast heating mode.
-
-    Parameters
-    ----------
-    daq_device_handler:
-        An already-connected :class:`DaqDeviceHandler`.
-    settings:
-        Parsed :class:`BackSettings`.
-    time_temp_volt_tables:
-        ``{"chN": {"time": [...], "temp": [...]}}`` (or ``"volt"``).
-    calibration:
-        Active calibration.
-    ai_channels:
-        Subset of AI channels to keep in the output. Defaults to the canonical
-        ``[0, 1, 3, 4, 5]`` used by the rest of the code base.
-    FAST_HEAT_CUSTOM_FLAG:
-        If ``True``, do not run the calibration step. Kept for the GUI's
-        "expert" mode.
-    """
-
+class SlowMode:
     def __init__(
         self,
         daq_device_handler: DaqDeviceHandler,
@@ -52,20 +32,22 @@ class FastHeat:
         time_temp_volt_tables: Dict[str, dict],
         calibration: Calibration,
         ai_channels: List[int] = list(DEFAULT_AI_CHANNELS),
-        FAST_HEAT_CUSTOM_FLAG: bool = False,
+        modulation: Optional[ModulationParams] = None,
+        modulation_channel: str = "ch1",
     ) -> None:
-        self._mode = _FastHeatMode(
+        self._mode = _SlowMode(
             daq_device_handler,
             settings,
             calibration,
             time_temp_volt_tables,
             ai_channels=ai_channels,
+            modulation=modulation,
+            modulation_channel=modulation_channel,
         )
         self._daq_device_handler = daq_device_handler
         self._settings = settings
         self._calibration = calibration
         self._time_temp_volt_tables = time_temp_volt_tables
-        self._FAST_HEAT_CUSTOM_FLAG = bool(FAST_HEAT_CUSTOM_FLAG)
         self._ai_data = None
 
     def arm(self) -> None:
@@ -80,15 +62,21 @@ class FastHeat:
         self._save_data()
         self._add_info_to_file()
 
-    # ------------------------------------------------------------------
-    # Disk I/O kept identical to the historical layout
-    # ------------------------------------------------------------------
     def _save_data(self) -> None:
         if self._ai_data is None:
             return
         with h5py.File(EXP_DATA_FILE_REL_PATH, "w") as f:
             data = f.create_group("data")
-            for col in ("time", "Taux", "Thtr", "Uref", "temp", "temp-hr"):
+            for col in (
+                "time",
+                "Taux",
+                "Thtr",
+                "Uref",
+                "temp",
+                "temp-hr",
+                "temp-hr_amp",
+                "temp-hr_phase",
+            ):
                 if col in self._ai_data:
                     data.create_dataset(col, data=np.asarray(self._ai_data[col]))
 
@@ -107,4 +95,4 @@ class FastHeat:
                 profiles.create_dataset(chan, data=np.asarray(profile))
 
 
-__all__ = ["FastHeat"]
+__all__ = ["SlowMode"]

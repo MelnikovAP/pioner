@@ -47,6 +47,24 @@ iso_mode.py module
     :members: 
     :undoc-members:
 
+slow_mode.py module
+-------------------------------------
+.. automodule:: pioner.back.slow_mode
+    :members:
+    :undoc-members:
+
+modes.py module
+-------------------------------------
+.. automodule:: pioner.back.modes
+    :members:
+    :undoc-members:
+
+mock_uldaq.py module
+-------------------------------------
+.. automodule:: pioner.back.mock_uldaq
+    :members:
+    :undoc-members:
+
 nanocontrol_tango.py module
 -------------------------------------
 .. automodule:: pioner.back.nanocontrol_tango
@@ -97,4 +115,10 @@ utils.py module
 -------------------------------------
 .. automodule:: pioner.shared.utils
     :members: 
+    :undoc-members:
+
+modulation.py module
+-------------------------------------
+.. automodule:: pioner.shared.modulation
+    :members:
     :undoc-members:

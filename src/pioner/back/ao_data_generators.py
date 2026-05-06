@@ -1,160 +1,125 @@
-from typing import List
+"""Helpers that flatten per-channel voltage profiles into a single AO buffer.
 
-import logging
+The MCC DAQ ``a_out_scan`` expects an interleaved buffer where channel
+samples cycle the fastest::
 
-# Use mock uldaq for development without hardware
+    [ch0_t0, ch1_t0, ..., chN_t0, ch0_t1, ch1_t1, ...]
+
+This module contains two generators:
+
+* :class:`ScanDataGenerator` — given a dictionary
+  ``{"ch0": [...], "ch1": [...]}``, builds the interleaved buffer with the
+  required channel range (unused channels are filled with zeros).
+* :class:`PulseDataGenerator` — convenience generator for a constant per-
+  channel voltage held for a fixed duration. Mostly historical; we keep it
+  for the GUI's pulse demo.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, Iterable, List, Sequence
+
+import numpy as np
+
 from .mock_uldaq import uldaq as ul
 
-# TODO: add an interface class for different types of data generators
 
-
-class PulseDataGenerator:
-    """Class to generate linear buffer from dictionary.
-    Used in pulse mode.
-    Unused channels in selected channel range are being set to 0.
-    
-    
-    Parameters
-    ----------
-        channel_voltages : :obj:`dict`
-            Dictionary should have the following format: 
-            :obj:`{'ch0': float, 'ch3': float}`. 
-        duration : :obj:`int`
-            Voltage pulse duration in seconds.
-        low_channel : :obj:`int`
-            First D/A channel in the scan.
-        high_channel : :obj:`int`
-            Last D/A channel in the scan.
-
-    """
-        
-    # TODO: generate sin on reference channel
-     
-    def __init__(self, channel_voltages: dict, duration: int,
-                 low_channel: int, high_channel: int):
-        self._channel_voltages = channel_voltages
-        self._low_channel = low_channel
-        self._high_channel = high_channel
-        self._channel_count = self._high_channel - self._low_channel + 1
-
-        self._buffer_size = duration  # in points
-        self._create_buffer()
-        self._fill_buffer()
-
-    def _create_buffer(self):
-        self._buffer = ul.create_float_buffer(self._channel_count, self._buffer_size)
-
-    def _fill_buffer(self):
-        ch_list = list(range(self._low_channel, self._high_channel + 1))
-        ch_list = ['ch' + str(i) for i in ch_list]
-
-        for i in ch_list:
-            if i not in list(self._channel_voltages.keys()):
-                self._channel_voltages[i] = 0.
-        
-        print(self._channel_voltages['ch' + str(1)])
-        for i in range(self._buffer_size):
-            for ch in range(self._low_channel, self._high_channel + 1):
-                self._buffer[i * self._channel_count + ch] = self._channel_voltages['ch' + str(ch)]
-
-    def get_buffer(self) -> List[float]:
-        """Provides explicit access to generated buffer.
-        
-        Returns
-        ------- 
-            :obj:`[float]` 
-                List of floats - 1D buffer array
-        """
-        return self._buffer
-
-    def __str__(self):
-        return str(vars(self))
+def _channel_keys(low: int, high: int) -> List[str]:
+    return [f"ch{i}" for i in range(low, high + 1)]
 
 
 class ScanDataGenerator:
-    """Class to generate linear buffer from dictionary.
-    Used in scan mode with applying custom profiles to different channels.
-    Unused channels in selected channel range are being set to 0.
-    
-    
-    Parameters
-    ----------
-        voltage_profiles : :obj:`dict`
-            Dictionary should have the following format: 
-            :obj:`{'ch0': [float], 'ch3': [float]}`. 
-        low_channel : :obj:`int`
-            First D/A channel in the scan.
-        high_channel : :obj:`int`
-            Last D/A channel in the scan.
+    """Build an AO buffer from a dict of per-channel voltage arrays."""
 
-    """
+    def __init__(
+        self,
+        voltage_profiles: Dict[str, Sequence[float]],
+        low_channel: int,
+        high_channel: int,
+    ) -> None:
+        if low_channel > high_channel:
+            raise ValueError("low_channel must be <= high_channel")
+        if not voltage_profiles:
+            raise ValueError("voltage_profiles is empty")
 
-    def __init__(self, voltage_profiles: dict,
-                 low_channel: int, high_channel: int):
-        self._voltage_profiles = voltage_profiles
-        self._low_channel = low_channel
-        self._high_channel = high_channel
-        self._channel_count = self._high_channel - self._low_channel + 1
-        self._buffer_size = len(list(self._voltage_profiles.items())[0][1])
+        lengths = {len(v) for v in voltage_profiles.values()}
+        if len(lengths) > 1:
+            raise ValueError(
+                "Cannot build AO buffer: channel profiles have different lengths "
+                f"({lengths})"
+            )
+        self._buffer_size = lengths.pop()
+        if self._buffer_size <= 0:
+            raise ValueError("Channel profiles must have at least one sample")
 
-        self._create_buffer()
-        self._fill_buffer()
+        self._low = low_channel
+        self._high = high_channel
+        self._n_chans = high_channel - low_channel + 1
 
-    def _create_buffer(self):
-        self._buffer = ul.create_float_buffer(self._channel_count, self._buffer_size)
+        # Materialise dense channel arrays, defaulting absent ones to zeros.
+        self._profiles: Dict[str, np.ndarray] = {}
+        for key in _channel_keys(low_channel, high_channel):
+            data = voltage_profiles.get(key)
+            if data is None:
+                self._profiles[key] = np.zeros(self._buffer_size, dtype=float)
+            else:
+                arr = np.asarray(data, dtype=float)
+                if arr.ndim != 1:
+                    raise ValueError(f"Profile '{key}' must be 1-D")
+                self._profiles[key] = arr
 
-    def _fill_buffer(self):
-        lens = list(map(len, self._voltage_profiles.values()))
-        if len(set(lens)) > 1:
-            raise ValueError("Cannot load analog output buffer. Channel profiles have different length.")
+        # Reject unknown channels early so the user sees a clear error.
+        unknown = set(voltage_profiles) - set(self._profiles)
+        if unknown:
+            raise ValueError(
+                f"voltage_profiles contains channels outside [{low_channel}, "
+                f"{high_channel}]: {sorted(unknown)}"
+            )
 
-        lens_with_bf = lens.copy()
-        lens_with_bf.append(self._buffer_size)
-        if len(set(lens_with_bf)) > 1:
-            raise ValueError("Cannot load analog output buffer. "
-                             "One of the channel profile has length, different from buffer size.")
-        ch_list = list(range(self._low_channel, self._high_channel + 1))
-        ch_list = ['ch' + str(i) for i in ch_list]
-        
-        for i in ch_list:
-            if i not in self._voltage_profiles.keys():
-                self._voltage_profiles[i] = [0.] * self._buffer_size
+        self._buffer = self._build_buffer()
 
-        for i in range(self._buffer_size):
-            for ch in range(self._low_channel, self._high_channel + 1):
-                self._buffer[i * self._channel_count + ch] = self._voltage_profiles['ch' + str(ch)][i]
+    def _build_buffer(self) -> List[float]:
+        buf = ul.create_float_buffer(self._n_chans, self._buffer_size)
+        # Build the interleaved buffer in numpy, then push it into ``buf``.
+        # ``buf`` is a Python list (mock) or a ctypes float array (real
+        # uldaq); both support slice assignment from a Python list.
+        matrix = np.column_stack([
+            self._profiles[k] for k in _channel_keys(self._low, self._high)
+        ])  # shape: (samples, channels)
+        flat = matrix.reshape(-1).tolist()
+        try:
+            buf[:] = flat
+        except (TypeError, ValueError):
+            # Older ctypes arrays may not accept full-slice assignment;
+            # fall back to per-element assignment.
+            for i, value in enumerate(flat):
+                buf[i] = float(value)
+        return buf
 
-    def get_buffer(self) -> [float]:
-        """Provides explicit access to generated buffer.
-        
-        Returns
-        ------- 
-            :obj:`[float]` 
-                List of floats - 1D buffer array
-        """
+    def get_buffer(self) -> List[float]:
         return self._buffer
 
-    def __str__(self):
-        return str(vars(self))
+
+class PulseDataGenerator:
+    """Hold a constant per-channel voltage for ``duration`` samples."""
+
+    def __init__(
+        self,
+        channel_voltages: Dict[str, float],
+        duration: int,
+        low_channel: int,
+        high_channel: int,
+    ) -> None:
+        if duration <= 0:
+            raise ValueError("duration must be > 0 samples")
+        flat: Dict[str, Sequence[float]] = {}
+        for key in _channel_keys(low_channel, high_channel):
+            value = float(channel_voltages.get(key, 0.0))
+            flat[key] = [value] * duration
+        self._inner = ScanDataGenerator(flat, low_channel, high_channel)
+
+    def get_buffer(self) -> List[float]:
+        return self._inner.get_buffer()
 
 
-if __name__ == '__main__':
-    try:
-        from numpy import linspace
-
-        local_voltage_profiles = {
-            'ch0': 2,
-            'ch2': 1
-        }
-        ao_data_generator = PulseDataGenerator(local_voltage_profiles, 100, 0, 3)
-        buffer = ao_data_generator.get_buffer()
-
-        import matplotlib.pyplot as plt
-        plt.plot(buffer[::4])
-        plt.plot(buffer[1::4])
-        plt.plot(buffer[2::4])
-        plt.plot(buffer[3::4])
-        plt.show()
-
-    except BaseException as e:
-        print(e)
+__all__ = ["ScanDataGenerator", "PulseDataGenerator"]

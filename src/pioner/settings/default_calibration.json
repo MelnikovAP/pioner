@@ -41,6 +41,11 @@
 		},
 		"R heater": 1700.0,
 		"R guard": 2300.0,
-		"Heater safe voltage": 9.0
+		"Heater safe voltage": 9.0,
+		"Hardware": {
+			"Gain Utpl": 11.0,
+			"Gain Umod": 121.0,
+			"AD595 low correction": [2.6843, 1.2709, 0.0042867, 3.4944e-05]
+		}
 	}
 }

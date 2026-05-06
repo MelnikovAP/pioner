@@ -1,1 +1,3 @@
-version = "0.0.1"
+"""PIONER chip-nanocalorimetry control software (formerly Nanocal)."""
+
+__version__ = "0.1.0"

@@ -1,15 +1,38 @@
-import json
-import os 
+"""JSON-backed configuration parsers for the back-end and the front-end.
 
+Two settings flavours live in the same file because they share most of the
+schema:
+
+* :class:`BackSettings` — used by the Tango device server. It needs DAQ
+  params (``DaqParams`` / ``AiParams`` / ``AoParams``) which themselves
+  depend on ``uldaq`` and therefore are imported lazily.
+* :class:`FrontSettings` — used by the Qt GUI; it does not need any DAQ
+  bindings, only Tango / HTTP host strings and modulation defaults.
+"""
+
+import json
+import logging
+import os
+
+# DAQ parameter classes are needed only by ``BackSettings``. Importing them
+# requires (mock) ``uldaq``, so we tolerate failures silently and re-raise
+# something more useful at instantiation time.
 try:
     from pioner.back.ai_device import AiParams
     from pioner.back.ao_device import AoParams
     from pioner.back.daq_device import DaqParams
-except:
-    pass
+    _DAQ_PARAMS_AVAILABLE = True
+    _DAQ_PARAMS_IMPORT_ERROR: Exception | None = None
+except Exception as exc:  # pragma: no cover - depends on host
+    _DAQ_PARAMS_AVAILABLE = False
+    _DAQ_PARAMS_IMPORT_ERROR = exc
+    logging.getLogger(__name__).debug(
+        "DAQ params not importable (%s); BackSettings will fail until uldaq is installed.",
+        exc,
+    )
 
 from pioner.shared.utils import is_int_or_raise, list_bitwise_or
-from pioner.shared.constants import *
+from pioner.shared.constants import *  # noqa: F401,F403 - intentional re-export of field names
 
 
 class JsonReader:
@@ -26,13 +49,16 @@ class JsonReader:
         """
         self._json = dict()
         if not os.path.exists(path):
-            raise ValueError("Settings file doesn't exist.")
-        if not os.path.splitext(path)[-1] != JSON_EXTENSION:
-            raise ValueError("Settings file doesn't have '{}' extension.".format(JSON_EXTENSION))
-        with open(path, 'r') as f:
+            raise ValueError(f"Settings file '{path}' does not exist.")
+        ext = os.path.splitext(path)[-1].lower().lstrip(".")
+        if ext != JSON_EXTENSION:
+            raise ValueError(
+                f"Settings file '{path}' must have '.{JSON_EXTENSION}' extension."
+            )
+        with open(path, 'r', encoding="utf-8") as f:
             self._json = json.load(f)
         if not self._json:
-            raise ValueError("Empty settings file defined.")
+            raise ValueError(f"Settings file '{path}' is empty.")
 
     def json(self):
         """Provides access to the read dictionary."""
@@ -52,6 +78,12 @@ class BackSettings:
         Raises:
             ValueError if any field doesn't exist.
         """
+        if not _DAQ_PARAMS_AVAILABLE:
+            raise RuntimeError(
+                "BackSettings needs the DAQ params modules (pioner.back.ai_device etc.); "
+                f"failed to import them: {_DAQ_PARAMS_IMPORT_ERROR}."
+            )
+
         json_dict = JsonReader(path).json()
         if DAQ_SETTINGS_FIELD not in json_dict:
             raise ValueError("No '{}' field found in the settings file.".format(DAQ_SETTINGS_FIELD))
@@ -74,7 +106,19 @@ class BackSettings:
         self.parse_daq_params()
         self.parse_ai_params()
         self.parse_ao_params()
+        self.parse_modulation()
         self.check_invalid_fields()
+
+    def parse_modulation(self) -> None:
+        """Pull AC modulation defaults (Hz, V) into ``self.modulation``."""
+        from pioner.shared.modulation import ModulationParams  # avoid cycle
+
+        mod = self._exp_settings_dict.get(MODULATION_FIELD, {})
+        self.modulation = ModulationParams(
+            frequency=float(mod.get(FREQUENCY_FIELD, 0.0)),
+            amplitude=float(mod.get(AMPLITUDE_FIELD, 0.0)),
+            offset=float(mod.get(OFFSET_FIELD, 0.0)),
+        )
 
     def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
@@ -266,14 +310,17 @@ class FrontSettings:
                 not isinstance(self._exp_settings_dict[PATHS_FIELD][field], str):
                 self._invalid_fields.append(field)
 
+        # ``int`` is fine for sample rate; ``bool`` is excluded explicitly
+        # because in Python ``bool`` is a subclass of ``int``.
         for field in [SAMPLE_RATE_FIELD]:
-            if field not in self._exp_settings_dict[SCAN_FIELD] or \
-                not isinstance(self._exp_settings_dict[SCAN_FIELD][field], int):
+            v = self._exp_settings_dict[SCAN_FIELD].get(field)
+            if not (isinstance(v, int) and not isinstance(v, bool)):
                 self._invalid_fields.append(field)
-        
+
+        # JSON authors often write ``0`` instead of ``0.0``; accept both.
         for field in [FREQUENCY_FIELD, AMPLITUDE_FIELD, OFFSET_FIELD]:
-            if field not in self._exp_settings_dict[MODULATION_FIELD] or \
-                not isinstance(self._exp_settings_dict[MODULATION_FIELD][field], float):
+            v = self._exp_settings_dict[MODULATION_FIELD].get(field)
+            if not (isinstance(v, (int, float)) and not isinstance(v, bool)):
                 self._invalid_fields.append(field)
 
     def set_server_settings(self):

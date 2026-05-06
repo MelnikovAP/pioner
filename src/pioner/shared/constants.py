@@ -107,6 +107,12 @@ R_HEATER_FIELD = "R heater"
 R_GUARD_FIELD = "R guard"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
+
+# Hardware (electronics) calibration sub-block
+HARDWARE_FIELD = "Hardware"
+HARDWARE_GAIN_UTPL_FIELD = "Gain Utpl"
+HARDWARE_GAIN_UMOD_FIELD = "Gain Umod"
+HARDWARE_AD595_LOW_FIELD = "AD595 low correction"
 # =================================================================================
 
 

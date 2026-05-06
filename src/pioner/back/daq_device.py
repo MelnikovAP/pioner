@@ -1,195 +1,128 @@
+"""Connection management for the MCC DAQ board.
+
+The handler is intentionally minimal: it discovers a single device on the
+configured interface, connects/disconnects, and exposes child ``AiDevice`` and
+``AoDevice`` handles. All higher-level logic lives in
+:class:`pioner.back.experiment_manager.ExperimentManager`.
+"""
+
+from __future__ import annotations
+
 import logging
 import time
+from typing import Optional
 
-# Use smart uldaq import that auto-detects hardware
-from .mock_uldaq import uldaq as ul, DAQ_AVAILABLE
+from .mock_uldaq import DAQ_AVAILABLE, uldaq as ul
 
-# TODO: add an abstract class for device + add a mock device for testing
+logger = logging.getLogger(__name__)
 
 
 class DaqParams:
-    """General class to represent main DAQ parameters.
-    Default parameters cannot be used to initialize :obj:`uldaq.DaqDevice`,
-    they need to be parsed from file or specified manually.
-    
-    Parameters
-    ----------
-        interface_type : :obj:`uldaq.InterfaceType`
-            USB = 1; BLUETOOTH = 2; ETHERNET = 4; ANY = 7.
-            Refer to :obj:`uldaq` documentation.
-            By default, :obj:`uldaq.InterfaceType.ANY` is used.
-        connection_code : :obj:`int`
-            The connection code becomes active after cycling power 
-            to the device or calling :obj:`uldaq.DaqDevice.reset()`. 
-            This function only applies to DAQ Ethernet devices.
-            By default -1 used. 
-    
-    """
-    def __init__(self):
-        self.interface_type = ul.InterfaceType.ANY
-        self.connection_code = -1
+    """Parameters required to open a connection to the DAQ board."""
 
-    def __str__(self):
+    def __init__(self) -> None:
+        self.interface_type: int = ul.InterfaceType.ANY
+        self.connection_code: int = -1
+
+    def __str__(self) -> str:  # pragma: no cover - debug only
         return str(vars(self))
 
 
 class DaqDeviceHandler:
-    """ Class to handle connection to DAQ device with preset parameters.
-    On initialization, looks for connected devices only via USB interface.
-    Only one device is expected to be connected. 
-    
-    Parameters
-    ----------
-        params : :obj:`DaqParams`
-            Basic parameters to initialize connection to DAQ device.
-    
-    Raises
-    -------
-        :obj:`RuntimeError`
-            If no devices connected, logs and raises error
+    """Holder for a single ``uldaq.DaqDevice`` instance.
 
+    Usage::
+
+        with DaqDeviceHandler(params) as handler:
+            handler.try_connect()
+            ai = handler.get_ai_device()
+            ...
     """
+
     def __init__(self, params: DaqParams):
         self._params = params
+        self._daq_device = None
         self._init_daq_device()
 
-    def _init_daq_device(self):
+    def _init_daq_device(self) -> None:
         if not DAQ_AVAILABLE:
-            logging.warning("DAQ DEVICE: Running with MOCK hardware - no real DAQ device will be used.")
-        
+            logger.warning(
+                "Real uldaq is not available; the mock backend will be used."
+            )
         devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
         if not devices:
-            error_str = "No DAQ devices found."
-            logging.error("DAQ DEVICE: ERROR. {}".format(error_str))
-            raise RuntimeError(error_str)
-
-        # by default connecting only to the first DAQBoard with index 0
+            raise RuntimeError("No DAQ devices found")
         self._daq_device = ul.DaqDevice(devices[0])
 
-    def __enter__(self):
-        # self.try_connect()
+    # ------------------------------------------------------------------
+    # Context manager
+    # ------------------------------------------------------------------
+    def __enter__(self) -> "DaqDeviceHandler":
         return self
 
-    def __exit__(self, exe_type, exe_value, exe_traceback):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         self.quit()
 
-    def get_descriptor(self) -> ul.DaqDeviceDescriptor:
-        """ Provides explicit access to the descriptor of connected DAQ device. 
-        
-        Returns
-        -------- 
-            :obj:`class`  
-                A class :obj:`uldaq.DaqDeviceDescriptor` with 
-                the following properties of connected device:
-                :obj:`product_name`, :obj:`product_id`, 
-                :obj:`property dev_interface`, 
-                :obj:`property dev_string`, 
-                :obj:`property unique_id`
-
-        """
+    # ------------------------------------------------------------------
+    # Discovery / connection
+    # ------------------------------------------------------------------
+    def get_descriptor(self):
         return self._daq_device.get_descriptor()
 
     def is_connected(self) -> bool:
-        """ Provides explicit access to the connection status of DAQ device.
-        
-        Returns 
-        ---------
-            :obj:`bool` 
-                :obj:`True` if connected, :obj:`False` if not
-        """
         return self._daq_device.is_connected()
 
-    def connect(self):
-        """ Basic method to connect to DAQ device only with USB interface.
-        Only one device expected to be connected. 
-        Logs success/unsuccess result. 
-        """
+    def connect(self) -> None:
         descriptor = self.get_descriptor()
-        logging.info("DAQ DEVICE: Connecting to {} - please wait...".format(descriptor.dev_string))
+        logger.info("Connecting to %s", descriptor.dev_string)
         self._daq_device.connect(connection_code=self._params.connection_code)
-        if self._daq_device.is_connected():
-            logging.info("DAQ DEVICE: DAQ device has been successfully connected.")
+        if self.is_connected():
+            logger.info("DAQ device connected")
         else:
-            logging.warning("DAQ DEVICE: WARNING. DAQ device hasn't been connected.")
+            logger.warning("DAQ device failed to connect")
 
-    def try_connect(self, timeout: int = 60, sleep_time: int = 1):
-        """ Uses basic method :obj:`connect` to connect to DAQ device 
-        via USB interface using timeout. 
-        No action if device is already connected. 
-        Logs success/fail result.
-
-        Args
-        ------  
-            timeout : :obj:`int`
-                Timeout to give up connecting in seconds. By default = 60
-            sleep_time : :obj:`int`
-                Sleep time between connection attempts in seconds. By default = 1
-
-        Raises
-        -------
-            :obj:`TimeoutError`
-                If device can't be found via selected interface, 
-                logs and raises error
-        """
-        for _ in range(timeout):
+    def try_connect(self, timeout: int = 60, sleep_time: float = 1.0) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
             if not self.is_connected():
-                self.connect()
-            time.sleep(sleep_time)
+                try:
+                    self.connect()
+                except Exception as exc:
+                    logger.debug("Connect attempt failed: %s", exc)
             if self.is_connected():
                 return
-        raise TimeoutError("DAQ DEVICE: Connection timed out.")
+            time.sleep(sleep_time)
+        raise TimeoutError("DAQ device connection timed out")
 
-    def disconnect(self):
-        """ Basic method to disconnect DAQ device. Logs result."""
-        self._daq_device.disconnect()
-        logging.info("DAQ DEVICE: DAQ device has been disconnected.")
+    def disconnect(self) -> None:
+        try:
+            self._daq_device.disconnect()
+        finally:
+            logger.info("DAQ device disconnected")
 
-    def release(self):
-        """ Basic method to release DAQ device. Logs result."""
-        self._daq_device.release()
-        logging.info("DAQ DEVICE: DAQ device has been released.")
+    def release(self) -> None:
+        try:
+            self._daq_device.release()
+        finally:
+            logger.info("DAQ device released")
 
-    def reset(self):
-        """ Basic method to reset DAQ device. Logs result."""
+    def reset(self) -> None:
         self._daq_device.reset()
-        logging.info("DAQ DEVICE: DAQ device has been reset.")
+        logger.info("DAQ device reset")
 
-    def quit(self):
-        """ Basic method to disconnect and release DAQ device. Logs result. """
+    def quit(self) -> None:
         if self.is_connected():
             self.disconnect()
         self.release()
-        logging.info("DAQ DEVICE: DAQ device has been disconnected and released.")
 
-    def get(self) -> ul.DaqDevice:
-        """ Provides explicit access to :obj:`uldaq.daq_device`.
-        
-        Returns
-        ------- 
-            :obj:`class` 
-                :obj:`uldaq.DaqDevice` class with properties and methods, 
-                provided by :obj:`uldaq` library.
-        """
+    # ------------------------------------------------------------------
+    # Sub-device access
+    # ------------------------------------------------------------------
+    def get(self):
         return self._daq_device
 
-    def get_ai_device(self) -> ul.AiDevice:
-        """ Provides explicit access to :obj:`uldaq.ai_device`.
-        
-        Returns
-        -------
-            :obj:`class` 
-                :obj:`uldaq.AiDevice` class with properties and methods, 
-                provided by :obj:`uldaq` library.
-        """
+    def get_ai_device(self):
         return self._daq_device.get_ai_device()
 
-    def get_ao_device(self) -> ul.AoDevice:
-        """ Provides explicit access to uldaq.ao_device.
-        
-        Returns
-        ------- 
-            :obj:`class` 
-                :obj:`uldaq.AoDevice` class with properties and methods, 
-                provided by :obj:`uldaq` library.
-        """
+    def get_ao_device(self):
         return self._daq_device.get_ao_device()

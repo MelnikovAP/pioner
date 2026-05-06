@@ -1,43 +1,55 @@
 [build-system]
-requires = [
-    "setuptools>=61.0", 
-    "wheel"
-]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ppioner"
-version = "0.0.9"
+version = "0.1.0"
 authors = [
-    {name = "awesome author", email = "awesome@author.edu"},
+    {name = "PIONER Lab", email = "alexey0703@esrf.fr"},
 ]
-description = "Basic software to operate PIONER device (former Nanocal)"
+description = "Software stack for the PIONER chip nanocalorimeter (former Nanocal)."
 readme = "README.md"
-requires-python = ">=3.8"
-keywords = ["nanocalorimetry", "DAQ"]
+requires-python = ">=3.10"
+keywords = ["nanocalorimetry", "DAQ", "AC calorimetry", "MCC", "uldaq"]
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "silx>=1.1.2",
-    "pytango>=9.4.1",
-    "matplotlib>=3.7",
-    "pandas>=2.0.2",
-    "requests>=2.31.0",
-    "sortedcontainers>=2.4.0",
-    'importlib-metadata; python_version<"3.8"',
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "pandas>=2.2",
+    "h5py>=3.10",
+    "tables>=3.9",
+    "matplotlib>=3.8",
+    "requests>=2.31",
+    "sortedcontainers>=2.4",
 ]
 
 [project.optional-dependencies]
-server = ["uldaq>=1.2.3",]
-gui = ["pyqt5>=5.15.6",]
+# Real DAQ hardware backend (Linux/Raspberry Pi/macOS with libuldaq installed).
+hardware = ["uldaq>=1.2.3"]
+# Tango device server backend.
+server = ["pytango>=10.0"]
+# Qt5 GUI front-end.
+gui = ["pyqt5>=5.15", "silx>=1.1"]
+# Development / testing.
+dev = ["pytest>=8.0", "pytest-cov>=4.1"]
 
 [project.scripts]
 pionerUI = "pioner.runUI:pioner_run_ui"
 
-
 [tool.setuptools.package-data]
 "*" = ["*.json"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+pythonpath = ["src"]

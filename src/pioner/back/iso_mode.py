@@ -1,116 +1,105 @@
+"""Backwards-compatible iso-mode shim.
+
+The historical ``IsoMode`` accepted a degenerate dict like
+``{"ch2": {"volt": 0}}`` (no ``time`` array) and held the voltage indefinitely
+until disconnection. To keep the Tango server working we accept the same
+shape, normalise it into a proper one-second program for
+:class:`pioner.back.modes.IsoMode`, and expose ``arm`` / ``run`` that match
+the old API. The new behaviour adds:
+
+* AC modulation when ``BackSettings.modulation`` is enabled.
+* A bounded duration parameter on ``run`` (default: indefinite emulated as a
+  large number) so the run can be stopped cleanly.
+* Streaming AI samples to a ring buffer that the caller can grab via
+  :meth:`snapshot`.
+"""
+
+from __future__ import annotations
+
 import logging
+from typing import Optional
 
-from pioner.shared.constants import *
-from pioner.shared.settings import BackSettings
 from pioner.shared.calibration import Calibration
-from pioner.shared.utils import temperature_to_voltage
+from pioner.shared.modulation import ModulationParams
+from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.experiment_manager import ExperimentManager
+from pioner.back.modes import DEFAULT_AI_CHANNELS, IsoMode as _IsoMode
 
+logger = logging.getLogger(__name__)
+
+
+def _normalise_channel_program(
+    chan_temp_volt: dict,
+    duration_seconds: int,
+) -> dict:
+    """Turn ``{"chN": {"volt": v}}`` into a 1 s constant program."""
+    out: dict = {}
+    for ch, table in chan_temp_volt.items():
+        if "time" in table:
+            out[ch] = table
+            continue
+        if "volt" in table:
+            value = float(table["volt"])
+            kind = "volt"
+        elif "temp" in table:
+            value = float(table["temp"])
+            kind = "temp"
+        else:
+            raise ValueError(f"channel {ch} requires 'temp' or 'volt'")
+        out[ch] = {
+            "time": [0.0, duration_seconds * 1000.0],
+            kind: [value, value],
+        }
+    return out
 
 
 class IsoMode:
-    """Class to launch isothermal mode with predefined
-    settings without saving AI data. The applied temperature / voltage 
-    will be maintained util user sets it manually to 0 (could be done 
-    with the same IsoMode methods) or disconnects DAQ device.
-    
-    Parameters
-    ----------
-        daq_device_handler : :obj:`pioner.daq_device.DaqDeviceHandler`
-            DaqDeviceHandler class instance to handle connection 
-            to DAQ device. Parameters of DAQ device should be preset
-            from settings file while initializing of DaqDeviceHandler class instance
-        
-        settings : :obj:`pioner.shared.BackSettings`
-            BackSettings class instance after parsing 
-            of the configuration file with all 
-            necessary acquisition parameters.
-        
-        calibration : :obj:`pioner.shared.calibration.Calibration`
-            Calibration class instance, parsed from 
-            :obj:`*.json` calibration file with 
-            :obj:`pioner.shared.calibration.Calibration.read` method
+    def __init__(
+        self,
+        daq_device_handler: DaqDeviceHandler,
+        settings: BackSettings,
+        chan_temp_volt: dict,
+        calibration: Calibration,
+        duration_seconds: int = 1,
+        modulation: Optional[ModulationParams] = None,
+        modulation_channel: str = "ch1",
+    ) -> None:
+        self._duration_seconds = max(int(duration_seconds), 1)
+        programs = _normalise_channel_program(chan_temp_volt, self._duration_seconds)
+        self._mode = _IsoMode(
+            daq_device_handler,
+            settings,
+            calibration,
+            programs,
+            modulation=modulation,
+            modulation_channel=modulation_channel,
+        )
+        # Maintain the legacy ``arm()`` -> ``(channel, voltage)`` return.
+        ch_name = next(iter(chan_temp_volt))
+        self._channel = int(ch_name.replace("ch", ""))
+        self._voltage: Optional[float] = None
 
-        chan_temp_volt : :obj:`dict`
-            Dictionary should have the following structure:
-            :obj:`{"ch0": {"temp":[float]}},
-            "ch1": {"volt":[float]},
-            ...`. If "volt" is used, no calibration will be applied.
-            If "temp" is used, calibration will be applied.
-    """
-
-    def __init__(self, daq_device_handler: DaqDeviceHandler,
-                 settings: BackSettings,
-                 chan_temp_volt: dict,
-                 calibration: Calibration):
-        self._daq_device_handler = daq_device_handler
-        self._settings = settings
-        self._chan_temp_volt = chan_temp_volt
-        self._calibration = calibration
-
-        self._channel = None
-        self._voltage = None
-
-    def arm(self) -> [int, float]:
-        """
-        Method to prepare isotherm. 
-        Applies calibration coefficients to transform target temperature on heaters
-        to voltage on AO channels.
-        """
-        self._channel = int(list(self._chan_temp_volt.keys())[0].replace('ch', ''))
-        key = list(list(self._chan_temp_volt.values())[0].keys())[0]
-        self._voltage = float(list(list(self._chan_temp_volt.values())[0].values())[0])
-        if key=='temp':
-            self._voltage = float(temperature_to_voltage([self._voltage], self._calibration))
+    def arm(self):
+        self._mode.arm()
+        profile = self._mode.voltage_profiles.get(f"ch{self._channel}")
+        self._voltage = float(profile[0]) if profile is not None else 0.0
         return self._channel, self._voltage
 
     def is_armed(self) -> bool:
-        """
-        Method to check if isothermal mode is prepared and voltage values are correct.
+        return self._mode.is_armed()
 
-        Returns
-        ---------
-        :obj:`bool` 
-            Returns :obj:`True` or :obj:`False` depending on state. 
-        """
-        return bool(self._channel is not None and self._voltage is not None)
+    def run(self, do_ai: bool = True, duration_seconds: Optional[float] = None):
+        if duration_seconds is None:
+            duration_seconds = self._duration_seconds
+        if not do_ai:
+            # Just hold the voltage (no AI streaming).
+            self._mode.run(duration_seconds=0.0)
+            return None
+        return self._mode.run(duration_seconds=duration_seconds)
 
-    def run(self, do_ai:bool):
-        """
-        Method to start isotherm after preparation step (arming).
-        Uses methods :obj:`pioner.back.experiment_manager.ExperimentManager.ao_set`
-        and :obj:`pioner.back.experiment_manager.ExperimentManager.ai_continuous`
-        to launch AO and AI scans. Does not save experimental data.
-        """
-        with ExperimentManager(self._daq_device_handler,
-                               self._settings) as self.em:
-            self.em.ao_set(self._channel, self._voltage)
-            if do_ai:
-                self.em.ai_continuous([0,1,2,3,4,5], do_save_data=False)
-
-    def ai_stop(self):
-        """
-        Method to stop AI using method 
-        :obj:`pioner.back.experiment_manager.ExperimentManager.ai_continuous_stop`
-        """
-        self.em.ai_continuous_stop()
+    def ai_stop(self) -> None:  # legacy API
+        # The new implementation stops automatically when ``run`` returns.
+        pass
 
 
-if __name__ == '__main__':
-
-    settings = BackSettings(SETTINGS_FILE_REL_PATH)
-    chan_temp_volt = {'ch2':{'volt':0},
-                        }
-    calibration = Calibration()
-
-    daq_params = settings.daq_params
-    daq_device_handler = DaqDeviceHandler(daq_params)
-    daq_device_handler.try_connect()
-
-    sm = IsoMode(daq_device_handler, settings, chan_temp_volt, calibration)
-    sm.is_armed()
-    sm.arm()
-    sm.run(do_ai=True)
-
-    daq_device_handler.disconnect()
+__all__ = ["IsoMode"]

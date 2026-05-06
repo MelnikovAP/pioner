@@ -1,15 +1,24 @@
+# Python
 __pycache__/
-.idea/*
+*.py[cod]
+*.pyo
+*.pyd
+*.so
 
+# Virtual environments
+.venv/
+venv/
+env/
 .env
 .env2
-.vscode
 
-dist
-
-data/raw_data/*
-
-logs/*
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
 
 # Python packaging artifacts
 *.egg-info/
@@ -18,3 +27,27 @@ logs/*
 build/
 dist/
 pip-wheel-metadata/
+sdist/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Sphinx docs build
+docs/_build/
+docs/build/
+
+# Runtime data & logs
+data/raw_data/*
+data/*.h5
+logs/*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# mypy / ruff
+.mypy_cache/
+.ruff_cache/

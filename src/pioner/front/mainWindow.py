@@ -1,3 +1,14 @@
+"""Main window of the PIONER GUI.
+
+TODO(global): only the *fast* mode is wired up here. The Tango server now
+exposes a ``select_mode`` command that takes ``"fast"``, ``"slow"``, or
+``"iso"`` plus the unified ``arm(programs_json)`` / ``run`` pair. Add a UI
+element (combo box) that drives ``select_mode`` and re-uses the existing
+profile editor for slow-mode programs (DC ramp). The modulation block in
+``settings.json`` (Frequency / Amplitude / Offset) is already plumbed via
+``BackSettings.modulation`` and used by :class:`pioner.back.modes.SlowMode`.
+"""
+
 import json
 import os
 import shutil
@@ -195,8 +206,10 @@ class mainWindow(mainWindowUi):
     # Fast heating
 
     def fh_arm(self):
-        xOption = 1000 if self.experimentTimeComboBox.currentIndex()==1 else 1    #0 - time in ms, 1 - time in s
-        yOption = self.experimentTempComboBox.currentIndex() #index 0 - temp in C, 1 - volt in V
+        xOption = 1000 if self.experimentTimeComboBox.currentIndex()==1 else 1    # 0 - time in ms, 1 - time in s
+        # 0 - temp (°C), 1 - volt (V). Heater channel key depends on this.
+        is_voltage_program = self.experimentTempComboBox.currentIndex() == 1
+        heater_value_key = "volt" if is_voltage_program else "temp"
         uncorrectedProfile = np.array([[],[]], dtype=float)
         for i in range(self.experimentTable.rowCount()):
             uncorrectedProfile = np.hstack((uncorrectedProfile,
@@ -227,9 +240,11 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables['ch0']['time'] = self.time_table.tolist()
         self.time_temp_volt_tables['ch0']['volt'] = [0.1]*len(self.time_table) 
 
-        # signal to heater - channel 1
+        # Signal to heater - channel 1 (use the unit selected by the user;
+        # silently sending ``temp`` while the user picked ``Voltage`` would
+        # send the value through the calibration polynomial, which is wrong).
         self.time_temp_volt_tables['ch1']['time'] = self.time_table.tolist()
-        self.time_temp_volt_tables['ch1']['temp'] = self.temp_table.tolist()
+        self.time_temp_volt_tables['ch1'][heater_value_key] = self.temp_table.tolist()
 
         # 2.5V trigger signal like gate form
         self.time_temp_volt_tables['ch2']['time'] =  self.time_table.tolist()
@@ -292,23 +307,22 @@ class mainWindow(mainWindowUi):
 
     # ===================================
     # Iso (set) mode
+    # The "Set" / "Off" pair must target the *same* AO channel so that "Off"
+    # actually neutralises the previous "Set". The heater is wired on ch1 in
+    # ``fh_arm`` above (and is the default ``modulation_channel`` in the
+    # backend), so both endpoints write to ch1.
+    HEATER_CHANNEL_KEY = "ch1"
+
     def set_temp_volt(self):
         value = float(self.setInput.text())
-        print(value)
-        key = str(self.setComboBox.currentText())
-        if key=="Temperature":
-            key="temp"
-        if key=="Voltage":
-            key="volt"
-        print(key)
-        chan_temp_volt = {"ch2": {key:value} }
-        
+        key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
+        chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.device.arm_iso_mode(self.chan_temp_volt_str)
         self.device.run_iso_mode()
-    
+
     def unset_temp_volt(self):
-        chan_temp_volt = {"ch1": {"volt":0} }
+        chan_temp_volt = {self.HEATER_CHANNEL_KEY: {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.device.arm_iso_mode(self.chan_temp_volt_str)
         self.device.run_iso_mode()
