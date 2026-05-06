@@ -3,13 +3,25 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from pioner.shared.calibration import Calibration
+from pioner.shared.constants import DEFAULT_CALIBRATION_FILE_REL_PATH
 from pioner.shared.utils import temperature_to_voltage, voltage_to_temperature
+
+
+def test_reads_default_calibration_from_package_rel_path():
+    """Bundled defaults must resolve through ``DEFAULT_CALIBRATION_FILE_REL_PATH`` (Tango / server)."""
+    assert os.path.isfile(DEFAULT_CALIBRATION_FILE_REL_PATH), (
+        f"missing bundled default calibration: {DEFAULT_CALIBRATION_FILE_REL_PATH!r}"
+    )
+    cal = Calibration()
+    cal.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
+    assert cal.safe_voltage > 0.0
 
 
 def test_default_calibration_is_identity():

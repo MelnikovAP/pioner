@@ -48,8 +48,8 @@ except ImportError:  # pragma: no cover
 
 from pioner.shared.calibration import Calibration
 from pioner.shared.constants import (
-    CALIBRATION_FILE,
-    DEFAULT_CALIBRATION_FILE,
+    CALIBRATION_FILE_REL_PATH,
+    DEFAULT_CALIBRATION_FILE_REL_PATH,
     LOGS_FOLDER_REL_PATH,
     NANOCONTROL_LOG_FILE_REL_PATH,
     RAW_DATA_FOLDER_REL_PATH,
@@ -130,23 +130,28 @@ class NanoControl(Device):  # type: ignore[misc]
     # ------------------------------------------------------------------
     @command(dtype_in=str)
     def load_calibration(self, str_calib: str) -> None:
-        with open(CALIBRATION_FILE, "w", encoding="utf-8") as f:
+        calib_dir = os.path.dirname(CALIBRATION_FILE_REL_PATH)
+        if calib_dir:
+            os.makedirs(calib_dir, exist_ok=True)
+        with open(CALIBRATION_FILE_REL_PATH, "w", encoding="utf-8") as f:
             json.dump(json.loads(str_calib), f, separators=(",", ": "), indent=4)
-        logger.info("Calibration file updated from external string")
+        logger.info("Calibration file updated from external string at %s", CALIBRATION_FILE_REL_PATH)
 
     @command
     def apply_default_calibration(self) -> None:
         try:
-            self._calibration.read(DEFAULT_CALIBRATION_FILE)
-            logger.info("Applied default calibration from %s", DEFAULT_CALIBRATION_FILE)
+            self._calibration.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
+            logger.info(
+                "Applied default calibration from %s", DEFAULT_CALIBRATION_FILE_REL_PATH
+            )
         except Exception as exc:
             logger.error("Error applying default calibration: %s", exc)
 
     @command
     def apply_calibration(self) -> None:
         try:
-            self._calibration.read(CALIBRATION_FILE)
-            logger.info("Applied calibration from %s", CALIBRATION_FILE)
+            self._calibration.read(CALIBRATION_FILE_REL_PATH)
+            logger.info("Applied calibration from %s", CALIBRATION_FILE_REL_PATH)
         except Exception as exc:
             logger.error("Error applying calibration: %s", exc)
 
