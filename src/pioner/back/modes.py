@@ -143,10 +143,26 @@ def _program_to_voltage(
     samples_per_channel: int,
     calibration: Calibration,
 ) -> np.ndarray:
-    """Interpolate and, if needed, convert temperature -> voltage."""
+    """Interpolate and, if needed, convert temperature -> voltage.
+
+    For temperature programs, :func:`temperature_to_voltage` already clamps
+    the result into ``[0, safe_voltage]``. For raw ``volt`` programs we do
+    *not* auto-clip (the user may legitimately want negative voltages, e.g.
+    on a guard channel), but we log a warning if the requested peak exceeds
+    ``safe_voltage`` so the operator notices before the chip is damaged.
+    """
     arr = _interpolate_program(program, samples_per_channel)
     if program.is_temperature:
         arr = temperature_to_voltage(arr, calibration)
+    elif arr.size:
+        peak = float(np.nanmax(np.abs(arr)))
+        if peak > calibration.safe_voltage:
+            logger.warning(
+                "Voltage program peak |V|=%.3f V exceeds safe_voltage=%.3f V; "
+                "the heater may saturate or be damaged.",
+                peak,
+                calibration.safe_voltage,
+            )
     return arr
 
 
@@ -210,8 +226,13 @@ def apply_calibration(
     if 5 in df.columns and 0 in df.columns:
         df[5] = df[5] * 1000.0  # heater voltage in mV
         ih = calibration.ihtr0 + df[0] * calibration.ihtr1
-        rhtr = pd.Series(np.zeros(len(df)), index=df.index)
+        # When the heater is idle (current ~ 0) R_heater is undefined. The
+        # historical implementation used 0 as a sentinel which then evaluated
+        # to ``thtr0 + thtr1*thtrcorr + ...`` and produced a physically
+        # meaningless number (~ -1070 °C with the production polynomial).
+        # Mark those samples as NaN so downstream code / plots can skip them.
         nz = ih.abs() > 1e-9
+        rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
         rhtr.loc[nz] = (
             (df.loc[nz, 5] - df.loc[nz, 0] * 1000.0 + calibration.uhtr0)
             * calibration.uhtr1
@@ -227,13 +248,18 @@ def apply_calibration(
     # Provide the reference (guard) AO trace for context.
     if "ch1" in voltage_profiles:
         ref = np.asarray(voltage_profiles["ch1"], dtype=float)
-        # Match length to the AI frame; if AI has a remainder, pad with NaN.
-        if ref.size >= len(df):
+        if ref.size == 0:
+            df["Uref"] = np.full(len(df), np.nan)
+        elif ref.size >= len(df):
             df["Uref"] = ref[: len(df)]
         else:
-            padded = np.full(len(df), np.nan)
-            padded[: ref.size] = ref
-            df["Uref"] = padded
+            # Iso/CONTINUOUS AO replays the same buffer indefinitely (and a
+            # DC iso profile is just a single sample). Tile the commanded
+            # voltage to match the AI length so Uref reflects what the AO
+            # was actually putting out at every AI sample, not just the
+            # first second.
+            repeats = int(np.ceil(len(df) / ref.size))
+            df["Uref"] = np.tile(ref, repeats)[: len(df)]
 
     # Drop the raw integer-named columns; the engineering-unit columns are the
     # public output.

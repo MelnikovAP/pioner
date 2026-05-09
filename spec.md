@@ -134,8 +134,10 @@ LP, zero phase lag).
 │   Ihtr     = ihtr0 + ihtr1 · U_AI0                     [A]        │
 │   Rhtr     = (Uhtr_mV − U_AI0·1000 + uhtr0) · uhtr1 / Ihtr  [Ω·…] │
 │   Thtr     = Thtr_poly(Rhtr + thtrcorr)               [°C]        │
+│            (NaN where |Ihtr| < 1 nA — heater idle)                │
 │                                                                   │
-│   Uref     = ch1 voltage profile (debug context)      [V]         │
+│   Uref     = AO ch1 voltage profile (heater command)  [V]         │
+│            (tiled to AI length for iso/CONTINUOUS AO)             │
 └───────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -177,6 +179,11 @@ read it via the half-buffer flip protocol that real DMA-based DAQ APIs use:
 4. Each chunk is a `(half_per_channel, n_chans)` numpy view, copied into the
    `chunks` list. Total `O(seconds × sample_rate × n_chans × 8)` bytes,
    trimmed at the end to exactly `seconds × sample_rate` samples.
+
+`half_buf_len` is computed as `half_per_channel × n_chans`, **not**
+`len(buf) // 2` — so the channel-alignment of the flat buffer never depends
+on whether `samples_per_channel` and `n_chans` happen to share a common
+factor.
 
 This is symmetric in `_collect_finite_ai` (paced finite scan) and `_ring_loop`
 (continuous iso mode).
@@ -284,7 +291,8 @@ existing profile editor (see global TODOs). The Tango layer is ready.
 
 The following are tracked as `TODO(...)` comments next to the relevant code.
 They are listed here for project-management visibility. None block the
-3-mode pipeline from working end-to-end on mock and on real hardware.
+3-mode pipeline from working end-to-end on mock and on real hardware. The
+authoritative, prioritised list is in `todo.md`.
 
 ### Global / architectural
 
@@ -292,14 +300,15 @@ They are listed here for project-management visibility. None block the
    `program_duration % 1 s == 0` constraint by sizing the AI buffer to
    `ceil(seconds) * sample_rate` and trimming the trailing tail. Touched in
    `experiment_manager._collect_finite_ai` and `modes._validate_programs`.
+   *Currently a deliberate software simplification (see `todo.md` P0-6).*
 2. **Hardware trigger** — start AO and AI on the same DAQ pulse via
    `ScanOption.RETRIGGER` (or `EXTTRIGGER` if a digital line is wired). This
    removes the ~hundreds-of-µs leading skew that currently means the first
-   1–2 samples of AI are pre-AO.
+   1–2 samples of AI are pre-AO. Requires real hardware to validate.
 3. **External interrupt for IsoMode** — replace the plain
    `time.sleep(duration_seconds)` in `IsoMode.run` with a
    `threading.Event` exposed at the Tango / GUI level so long-running iso
-   experiments can be aborted mid-flight.
+   experiments can be aborted mid-flight (`todo.md` P1-1).
 4. **Slow mode in the GUI** — add a mode dropdown and reuse the existing
    profile editor. Backend (`select_mode("slow")`, `arm`, `run`) is already
    plumbed.
@@ -319,42 +328,46 @@ They are listed here for project-management visibility. None block the
    `bandwidth = f / 5 = 7.5 Hz` corresponds to a settling time
    `~0.13 s`. For ramp rates above ~5 K/s the bandwidth starts smearing the
    `C_p(T)` curve. Make `bandwidth` an explicit `ModulationParams` field.
-8. **Mock realism** — the mock copies AO voltage to AI ch5, scales it to
-   put a small thermopile signal on ch1/ch4, and exposes ~25 °C on ch3. It
-   does not simulate the chip's RC thermal response, so testing C_p
-   reconstruction algorithms against the mock is not meaningful. Add a
-   minimal first-order RC model to `mock_uldaq.MockAiDevice` if needed.
-9. **Half-buffer flip in iso ring-buffer relies on continuous AI scan** —
-   if the user stops/restarts AO during an iso run we may land in a state
-   where the buffer is fresh and `current_index` has not wrapped yet. The
-   ring loop handles "no chunk yet" gracefully (returns empty snapshot)
-   but it's worth documenting.
+8. **Heater current dimensions** — `apply_calibration` treats `df[0]` as
+   amperes via `Ihtr = ihtr0 + ihtr1·V_shunt`; for that to actually be
+   amperes the production calibration must set `ihtr1 ≈ 1/R_shunt`. The
+   default-identity calibration leaves it at `1.0`, which is fine for
+   tests but means `Rhtr` is in `[Ω·V/A]` until a real calibration is
+   loaded (`todo.md` P0-3).
+9. **Modulation amplitude vs `safe_voltage`** — for slow/iso the
+   modulated profile is silently clipped to `[0, safe_voltage]`; for raw
+   `volt` programs we now log a warning when the peak exceeds
+   `safe_voltage`. Adding the same warning to the modulation path is
+   `todo.md` P1-4.
+10. **Mock realism** — the mock copies AO voltage to AI ch5, scales it to
+    put a small thermopile signal on ch1/ch4, and exposes ~25 °C on ch3. It
+    does not simulate the chip's RC thermal response, so testing C_p
+    reconstruction algorithms against the mock is not meaningful.
 
 ### Code-quality
 
-10. **Wildcard import `from pioner.shared.constants import *`** in
+11. **Wildcard import `from pioner.shared.constants import *`** in
     `settings.py` and `front/mainWindow.py` makes refactors brittle.
     Replace by explicit imports.
-11. **`mainWindow.fh_arm` profile cleanup** —
+12. **`mainWindow.fh_arm` profile cleanup** —
     `correctedProfile = uncorrectedProfile[:, :np.argmax(uncorrectedProfile[0])+1]`
     silently truncates the program at the first non-monotonic time. Should
     raise instead.
-12. **Async `_fh_download_*` methods** in `mainWindow` block the UI thread
-    on slow networks. Run in a `QThread` if it becomes painful.
 
 ---
 
 ## 9. Test matrix
 
-| Test file              | Coverage                                             |
-|------------------------|------------------------------------------------------|
-| `test_calibration.py`  | identity, clamping, vectorised round-trip, error paths, production polynomial inverts |
-| `test_modulation.py`   | `apply_modulation`, lock-in amplitude/phase recovery, edge cases |
-| `test_mock_uldaq.py`   | lifecycle, shared buffer, scan progression, race-free re-arm |
-| `test_modes_e2e.py`    | fast / slow / iso end-to-end on mock; temp-program path; validation errors |
+| Test file                    | Coverage                                                          |
+|------------------------------|-------------------------------------------------------------------|
+| `test_calibration.py`        | identity, clamping, vectorised round-trip, error paths, production polynomial inverts |
+| `test_modulation.py`         | `apply_modulation`, lock-in amplitude/phase recovery, edge cases   |
+| `test_mock_uldaq.py`         | lifecycle, shared buffer, scan progression, race-free re-arm       |
+| `test_modes_e2e.py`          | fast / slow / iso end-to-end on mock; temp-program path; validation errors |
+| `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input |
 
 ```bash
-PYTHONPATH=src pytest tests/             # 26 tests, ~6 s
+PYTHONPATH=src pytest tests/             # 33 tests, ~7 s
 PYTHONPATH=src python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

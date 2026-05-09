@@ -295,8 +295,13 @@ class ExperimentManager:
         total_samples_per_channel = sample_rate * seconds
 
         buf = ai_handler.get_buffer()
-        total_buf_len = len(buf)
-        half_buf_len = total_buf_len // 2
+        # Derive ``half_buf_len`` from the channel-aligned half so that the
+        # reshape below is always exact. Computing it as ``len(buf) // 2`` is
+        # only correct when ``samples_per_channel`` is even AND ``len(buf)``
+        # is divisible by ``n_ai_chans`` — both true today (20000 samples /
+        # 6 channels) but easily violated with a different sample rate or a
+        # different AI channel range.
+        half_buf_len = half_per_channel * n_ai_chans
 
         # Naming convention used below:
         #   "lower half" = ``buf[:half_buf_len]``  (samples 0 .. half-1)
@@ -389,7 +394,8 @@ class ExperimentManager:
         keep_indices = [all_channels.index(ch) for ch in ai_channels]
 
         buf = ai_handler.get_buffer()
-        half_buf_len = len(buf) // 2
+        # Channel-aligned half (see _collect_finite_ai for the same reasoning).
+        half_buf_len = half_per_channel * n_ai_chans
 
         last_index = 0
         lower_half_collected = False

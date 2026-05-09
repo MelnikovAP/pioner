@@ -268,8 +268,9 @@ optional — falling back to the historical defaults when absent.
 ### Round trip (T ⇄ V)
 
 `pioner.shared.utils.temperature_to_voltage` is fully vectorised
-(`np.searchsorted`) and explicitly checks that the heater polynomial is
-monotonic on `[0, safe_voltage]` so the inversion is unambiguous.
+(`np.searchsorted`) and tolerates small sub-zero dips of the heater
+polynomial near `V = 0` (production sensors have one); only catastrophic
+non-monotonicity (overall decreasing trend) is rejected.
 
 ---
 
@@ -300,8 +301,10 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
 The suite covers calibration round-trip, T↔V vectorised conversion,
-modulation/lock-in, the mock DAQ contract, and an end-to-end pass through
-all three modes on the mock backend. ~24 tests, ~6 seconds locally.
+modulation/lock-in, the mock DAQ contract, the post-processing edge cases
+in `apply_calibration` (Uref tiling, Thtr-NaN), and an end-to-end pass
+through all three modes on the mock backend. **33 tests, ~7 seconds**
+locally.
 
 ---
 
@@ -323,8 +326,14 @@ all three modes on the mock backend. ~24 tests, ~6 seconds locally.
 * **Mock data is not a thermal model.** The synthetic AI signal mirrors the
   AO voltage scaled by hand-picked constants. It is sufficient for
   pipeline shape validation, not for closed-loop control development.
-* **The historical front-end has minor data-model drift** (`set_temp_volt`
-  sends ch2, `unset_temp_volt` sends ch1). Documented but not yet fixed.
+* **`Thtr` is NaN whenever the heater current is below ~1 nA.** Earlier
+  versions emitted a sentinel of around –1070 °C in those samples. If you
+  re-process old HDF5 files, drop the rows with `np.isfinite(Thtr)` first.
+* **`Uref` reflects the actual commanded voltage**: for iso (CONTINUOUS
+  AO) the per-second AO buffer is tiled to match the AI length, so the
+  column is meaningful for the full duration of an iso run.
 
 See `docs/source/` for the long-form architecture notes and the
-Sphinx-built API reference under `docs/build/`.
+Sphinx-built API reference under `docs/build/`. The detailed
+back-end / pipeline / open-tasks reference lives in `spec.md` and
+`todo.md` at the repo root.
