@@ -1,453 +1,482 @@
-# PIONER — пошаговый план работ (non-front)
+# PIONER — back-end TODO list
 
-Файл — сжатый, **исполнимый по очереди** список открытых задач. Каждый пункт
-самодостаточен (что сделать, где, почему, как проверить). **P0** делать
-первыми, **P3** — мелочи.
+Stepwise, executable backlog of open work on the back-end (no front-end items).
+Each item is self-contained: what to do, where, why, and how to verify. **P0**
+items go first, **P3** is polish.
 
-Ссылки на файлы — формат `path/to/file.py:line` или `path/to/file.py`.
-Тесты: `PYTHONPATH=src .venv/bin/pytest -q`.
+File references use the `path/to/file.py:line` format. Test command:
+`PYTHONPATH=src .venv/bin/pytest -q`.
 
-## Состояние сейчас
+## Status
 
-- Полный pytest: **33 passed** (включая 6 новых юнит-тестов на
-  `apply_calibration`). 3 итерации валидации back-кода.
-- Все «не запустится» баги закрыты, остались архитектурные шероховатости
-  и физические уточнения.
-- Полная картина пайплайна — в `spec.md`.
+- `pytest tests/`: **33 passed** (mock backend, ~7 s).
+- `python -m pioner.back.debug` runs all three modes end-to-end clean.
+- Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
+  + lock-in confirmed within ~10 % of the analytical amplitude, no sample
+  loss, `Uref` tiled correctly for finite / CONTINUOUS / DC-iso paths.
+- All "won't run" bugs are closed; remaining work is architectural rough
+  edges and physical fidelity items for real hardware.
+- Pipeline reference: `spec.md`. Manual mock usage: `mock_verification.md`.
 
-## Сделано в последнем проходе (8 мая 2026)
-
-- ✅ FIX A — `apply_calibration`: `Uref` тилится по AI-длине, корректно для
-  iso (CONTINUOUS AO) и DC. Тесты:
-  `tests/test_apply_calibration.py::test_uref_is_tiled_*`.
-- ✅ FIX B — `apply_calibration`: `Thtr` теперь NaN, когда ток нагревателя
-  ≈ 0 (а не призрачные −1070 °C). Тест:
-  `test_thtr_is_nan_when_heater_current_is_zero`.
-- ✅ FIX C — `_collect_finite_ai` / `_ring_loop`: `half_buf_len` выводится
-  из `half_per_channel * n_ai_chans` (был `len(buf) // 2` — ломалось при
-  не-кратных размерах).
-- ✅ FIX D — `_program_to_voltage`: warning при `peak |V| > safe_voltage`
-  для сырых `volt`-программ (для `temp` уже клип в
-  `temperature_to_voltage`).
-- ✅ P0-1 — `nanocontrol_tango`: пути к calibration.json через
-  `*_REL_PATH` (предыдущий коммит).
-
-## Отменено / явно не делать
-
-- ❌ **P0-2** (rename `Uref → Uheater`): пользователь сказал «эти все U…
-  не трогаем». Колонка остаётся `Uref`, документировать смысл в `spec.md`.
-- ❌ **P1-7** (вынести `HEATER_CHANNEL_KEY` в constants): не менять
-  hardcoded имена. `"ch1"` остаётся литералом.
-- 💤 **P0-6** (1-секундный буфер ⇒ `total_ms % 1000 == 0`): принят как
-  software constraint до отдельной задачи. Не трогать сейчас.
+**Hardcoded values left intentionally untouched** per project convention:
+column name `Uref` (not `Uheater`), heater channel literal `"ch1"`, and the
+`total_ms % 1000 == 0` software constraint on profile durations.
 
 ---
 
-## P0 — критические корректность-баги (открытые)
+## P0 — critical correctness bugs (open)
 
-### P0-3. `apply_calibration`: размерности Ihtr/Uhtr нужно валидировать с физиком
+### P0-3. `apply_calibration`: validate `Ihtr` / `Uhtr` dimensions with the physicist
 
-**Где:** `src/pioner/back/modes.py:209-227`
+**Where:** `src/pioner/back/modes.py:209-227`
 
-**Что:** `ih = ihtr0 + ihtr1 * df[0]` использует канал 0 как сырое
-напряжение на shunt-резисторе (V), а далее идёт в формулу `Rhtr =
-... / ih` как ток. С дефолтной калибровкой `ihtr1 = 1.0` это
-безразмерное «1 V» — `Rhtr` оказывается в [Ом·V/A], не в Омах.
-В production-калибровке скорее всего `ihtr1 = 1/Rshunt ≈ 1/1700`, но
-явных тестов на это нет.
+**What:** `ih = ihtr0 + ihtr1 * df[0]` treats AI ch0 as a raw shunt voltage
+(V), but later feeds `ih` into `Rhtr = ... / ih` as if it were amperes. With
+the default identity calibration `ihtr1 = 1.0`, that is dimensionally "1 V"
+and `Rhtr` ends up in `[Ω·V/A]`, not Ω. In production, `ihtr1` is presumably
+`1/Rshunt ≈ 1/1700 ≈ 5.88e-4`, but no test pins this down.
 
-**Действие:**
-1. Уточнить у Алексея: какой физический смысл у `ihtr1` в production?
-   Если действительно `1/Rshunt` — в production-`calibration.json`
-   должно стоять `≈5.88e-4`.
-2. Добавить в `apply_calibration` явные комментарии о размерностях
-   каждой величины (`# ih: amperes`, `# df[5]: millivolts`).
-3. Юнит-тест: подать синтетический `V_shunt = 1mA × 1700Ω = 1.7V` и
-   `V_heater_raw = ...`, проверить, что `Rhtr ≈ 1700 Ω` при
-   правильно настроенной калибровке.
+**Action:**
+1. Confirm with the physicist what `ihtr1` represents in production. If it
+   really is `1/Rshunt`, the production `calibration.json` must set it to
+   `≈5.88e-4`.
+2. Add explicit dimension comments next to each line in `apply_calibration`
+   (`# ih: amperes`, `# df[5]: millivolts`, …).
+3. Add a unit test: feed synthetic `V_shunt = 1 mA × 1700 Ω = 1.7 V` and
+   `V_heater_raw = …`, assert `Rhtr ≈ 1700 Ω` for a properly-set calibration.
 
-**Не менять** дефолтную калибровку (identity) — она нужна для тестов.
+**Do not** modify the default identity calibration — it is the test fallback.
 
-### P0-5. `ExperimentManager`: AI стартует перед AO ⇒ leading-edge skew
+### P0-5. `ExperimentManager`: AI starts before AO ⇒ leading-edge skew
 
-**Где:** `src/pioner/back/experiment_manager.py:179-194` (TODO inline)
+**Where:** `src/pioner/back/experiment_manager.py:179-194` (inline TODO)
 
-**Что:** AI запускается на ~100мкс раньше AO; для fast-режима 1000 K/s
-это ≤ 1 °C на первом образце. Решается только hardware-тригерами
-(`RETRIGGER + EXTTRIGGER`) на реальном железе.
+**What:** AI is armed ~100 µs before AO; on a 1000 K/s FastHeat scan that is
+≤ 1 °C of skew on the very first sample. Only fixable with a hardware
+trigger (`RETRIGGER + EXTTRIGGER`) on the real DAQ.
 
-**Действие:** при апгрейде до production-DAQ — настроить общий
-trigger source и перевести AO/AI на него. Альтернатива (workaround):
-помечать первые N сэмплов как `pre_trigger=True` и обрезать в
-`apply_calibration`.
+**Action:** when upgrading to a production DAQ board, configure both AO and
+AI on a shared trigger source. Workaround alternative: tag the first N
+samples as `pre_trigger=True` and trim them in `apply_calibration`.
 
-**Проверка:** на реальном железе — генератор 1кГц на AO ch1 → читать
-обратно с AI ch1, скейл смещения должен быть < 1 сэмпла.
+**Verification:** real hardware — drive a 1 kHz signal on AO ch1, read it
+back on AI ch1, confirm leading offset is < 1 sample.
 
 ---
 
-## P1 — важные архитектурные / логические улучшения
+## P1 — architectural / logical improvements
 
-### P1-1. `IsoMode.run`: нет `stop()` API для длинных прогонов
+### P1-1. `IsoMode`: no external abort handle for long runs
 
-**Где:** `src/pioner/back/modes.py:492-547`, `src/pioner/back/iso_mode.py`
-(уже есть `TODO(global)`).
+**Where:** `src/pioner/back/modes.py:518-553`,
+`src/pioner/back/iso_mode.py:91-103`.
 
-**Что:** для iso 30+ минут единственный способ остановить — ждать
-`time.sleep(duration)` или убить процесс.
+**What:** `IsoMode.run(duration_seconds=N)` blocks for exactly `N` seconds
+via `time.sleep(N)` and only stops when that wall-clock elapses. There is
+no externally-visible `stop()`, no `threading.Event`, no Tango command that
+can interrupt it. Killing the process is the only way to abort a 30-minute
+iso run.
 
-**Действие:** добавить `threading.Event` (или `stop()`) на `IsoMode`,
-прокинуть в Tango (`@command def stop_iso(self)`), цикл ожидания
-заменить на `event.wait(duration)`.
+The desired behaviour is "set V (with optional AC), stream AI, run **until
+the user explicitly stops**". That requires an external interrupt handle.
 
-**Проверка:** запустить iso в фоновом потоке на `duration=10`, через
-0.5с вызвать `stop()`, убедиться что `run()` вернулся за <1с.
+**Action:**
+1. Add a `threading.Event` (e.g. `self._stop_event`) on the new `_IsoMode`,
+   replace `time.sleep(duration_seconds)` with
+   `self._stop_event.wait(timeout=duration_seconds)`.
+2. Expose a `stop()` method on `_IsoMode` and on the legacy `IsoMode` shim
+   that sets the event and triggers a clean shutdown of AO + ring buffer.
+3. Add a Tango command `stop_iso(self)` that calls into it.
+4. Treat `duration_seconds` as a **maximum** timeout, not a hard duration —
+   `stop()` may return earlier.
 
-### P1-3. `apply_calibration`: мутация raw-frame по месту хрупка
+**Verification:** start iso in a background thread with `duration=10`; from
+the main thread call `stop()` after 0.5 s; assert that `run()` returns in
+< 1 s and the snapshot contains ~0.5 s of samples.
 
-**Где:** `src/pioner/back/modes.py:195-225`
+### P1-3. `apply_calibration`: in-place mutation of the raw frame is fragile
 
-**Что:** код делает `df[4] = df[4] * (1000.0 / hw.gain_utpl)` — пишет
-в сырую колонку. Затем читает `df[5] - df[0] * 1000.0`. Зависимо от
-порядка вызовов; если кто-то поменяет порядок blocks — silent bug.
+**Where:** `src/pioner/back/modes.py:195-225`
 
-**Действие:** ввести локальные переменные `u_tpl_mv = df[4] * 1000.0 /
-hw.gain_utpl`, не трогать сырые `df[N]`. Финальный `df.drop` уже есть
-и продолжит работать.
+**What:** the function does `df[4] = df[4] * (1000.0 / hw.gain_utpl)` —
+overwriting raw columns. Then it reads `df[5] - df[0] * 1000.0`. The whole
+thing is order-sensitive; a future re-ordering would silently produce a bug
+that no current test catches because the columns are dropped at the end.
 
-**Проверка:** существующие 33 теста + новый юнит-тест, что raw-колонки
-до `drop` не модифицируются.
+**Action:** introduce local variables (`u_tpl_mv = df[4] * 1000.0 /
+hw.gain_utpl`, …) and never mutate raw `df[N]`. The final `df.drop` block
+already exists and continues to work.
 
-### P1-4. Молчаливое clipping модуляции к `safe_voltage`
+**Verification:** existing 33 tests + a new unit test asserting that raw
+integer-named columns are **not** modified before `df.drop`.
 
-**Где:** `src/pioner/back/modes.py:380-385, 487-488`
+### P1-4. Silent modulation clipping to `safe_voltage`
 
-**Что:** `np.clip(profile, 0, safe_voltage, out=...)` без warning.
-Если пользователь задал `Amplitude = 2V` поверх `DC = 8.5V` при
-`safe = 9V`, половина периода молча обрежется → синусоида превратится
-в трапецию, lock-in выдаст неправильную амплитуду.
+**Where:** `src/pioner/back/modes.py:380-385, 487-488`
 
-**Действие:** до clipping проверить `peak/min` и `logger.warning` если
-выходим за safe-envelope. (Аналог FIX D, но для модулированных
-профилей.)
+**What:** `np.clip(profile, 0, safe_voltage, out=...)` runs without a
+warning. If a user sets `Amplitude = 2 V` on top of `DC = 8.5 V` with
+`safe = 9 V`, half of the sine period is silently clipped. The waveform
+becomes a trapezoid and the lock-in returns a wrong amplitude with no log
+trace.
 
-**Проверка:** unit-тест с профилем за пределы safe → ожидать запись в
-лог.
+**Action:** before clipping, check `profile.min() < 0` or `profile.max() >
+safe_voltage` and emit a `logger.warning` describing how much was clipped.
+(Mirror of FIX D, but for the modulated path.)
 
-### P1-5. `legacy IsoMode.run(do_ai=False)` теряет «hold voltage forever»
+**Verification:** unit test — a profile that exceeds the safe envelope
+should produce a warning record (use `caplog`).
 
-**Где:** `src/pioner/back/iso_mode.py:91-102`
+### P1-5. Legacy `IsoMode.run(do_ai=False)` does not actually hold the voltage
 
-**Что:** старый GUI-сценарий «Set 0.5V и держать пока не нажмут Off»
-сейчас стартует AO + start_ring_buffer + sleep(0) + stop. Напряжение
-уходит сразу же. **Tango-путь не использует** этот режим (он идёт
-через `_IsoMode`), но прямой Python-скрипт пользователя ломается.
+**Where:** `src/pioner/back/iso_mode.py:91-103`
 
-**Действие:** при `do_ai=False` в legacy facade использовать
-`em.ao_set(ch, V)` без `start_ring_buffer / stop`, хранить EM в self
-до явного `ai_stop()`. Метод `ai_stop` сейчас pass — должен звать
-`em.stop()`.
+**What:** the historical "Set V and hold until the GUI presses Off"
+scenario currently calls `self._mode.run(duration_seconds=0.0)`, which:
 
-**Проверка:** интеграционный тест: `IsoMode(...).run(do_ai=False)` →
-читаем `_shared.iso_voltages` через mock → видим заданное напряжение.
-Затем `ai_stop()` → видим, что `iso_voltages` сброшен.
+1. Starts the AO scan / sets `iso_voltages`.
+2. Starts the ring buffer.
+3. Sleeps 0 s (returns immediately).
+4. Stops the ring buffer.
+5. `finally: em.stop()` aborts AO.
 
-### P1-6. Mode-state в Tango: `select_mode` + `arm` рассогласованы
+So the heater voltage is dropped within milliseconds — the opposite of what
+"hold" means. The Tango path uses the new `_IsoMode` directly and is not
+affected, but a direct Python user of the legacy class is broken. The
+legacy `ai_stop()` method that should turn the held voltage off later is
+literally `pass`.
 
-**Где:** `src/pioner/back/nanocontrol_tango.py:183-203`
+**Action:**
+1. When `do_ai=False`, do **not** route through `_mode.run` at all. Instead
+   keep an `ExperimentManager` instance on `self` and call `em.ao_set(ch,
+   V)` (or `em.ao_modulated(...)` if AC is enabled) and **return without
+   stopping**.
+2. Implement `ai_stop()` to call the stored `em.stop()` and clear the
+   reference.
+3. Document the new lifecycle: `arm() → run(do_ai=False) → ai_stop()`.
 
-**Что:** `select_mode` хранит `self._mode_name`, но реально что-то
-делает только `arm()`. Если пользователь забыл `select_mode` —
-берётся прошлое значение. Не fail-loud.
+**Verification:** integration test on the mock — `IsoMode(...).run(do_ai=
+False)` then read `_shared.iso_voltages` (or the AO buffer) and confirm the
+commanded voltage is still being driven; call `ai_stop()` and confirm
+`iso_voltages` is empty.
 
-**Действие:** новый `arm(name, programs_json)` — single command. Старые
-`select_mode` + `arm(programs_json)` оставить как deprecated алиасы.
+This couples directly to **P1-1**: both items want the same interrupt
+primitive. Fix them together.
 
-### P1-8. AI-start без проверки RUNNING в `start_ring_buffer`
+### P1-6. Tango: `select_mode` + `arm` state machine is not fail-loud
 
-**Где:** `src/pioner/back/experiment_manager.py:240-254`
+**Where:** `src/pioner/back/nanocontrol_tango.py:183-203`
 
-**Что:** `ai_handler.scan(...)` возвращает rate, но не подтверждает,
-что scan реально запустился. Worker-поток сразу видит `ScanStatus !=
-RUNNING` и тихо выходит. `snapshot_ring_buffer()` отдаёт пустой
-массив без объяснений.
+**What:** `select_mode` stores `self._mode_name`. `arm(programs_json)`
+reads it. If the user forgot `select_mode`, the previous value is reused
+silently — surprising and easy to break in a multi-step session.
 
-**Действие:** после `ai_handler.scan(...)` ждать ≤ 100мс пока
-`get_scan_status()[0] == RUNNING`, иначе `raise RuntimeError`.
+**Action:** introduce a single `arm(name, programs_json)` command that
+takes the mode name explicitly. Keep `select_mode` + `arm(programs_json)`
+as deprecated aliases that log a warning when used.
 
-### P1-9. Lock-in: scipy `sosfiltfilt` transient на краях
+### P1-8. `start_ring_buffer` does not confirm the AI scan reached RUNNING
 
-**Где:** `src/pioner/shared/modulation.py:153-165`
+**Where:** `src/pioner/back/experiment_manager.py:240-254`
 
-**Что:** filtfilt — zero-phase, но переходные ~10 периодов модуляции
-на каждом крае. Тест уже это маскирует через `slice(2000, -2000)`.
-Для коротких scan (<0.5с при 37.5Hz) — это >50% сигнала.
+**What:** `ai_handler.scan(...)` returns the rate but does not assert that
+the scan actually started. The worker thread immediately sees
+`ScanStatus != RUNNING` and exits silently; `snapshot_ring_buffer()`
+returns an empty array with no explanation.
 
-**Действие:** возвращать вместе с `(amp, phase)` маску `valid`
-(boolean) с `False` в transient-зонах. Документировать минимальную
-длину сигнала (`>= 20 / frequency` секунд).
+**Action:** after `ai_handler.scan(...)`, poll up to ~100 ms for
+`get_scan_status()[0] == RUNNING`. Raise `RuntimeError` on timeout.
 
-**Проверка:** unit-test: lockin на сигнале 0.3с при 37.5Hz должен
-возвращать маску с >=80% False по краям.
+### P1-9. Lock-in: `sosfiltfilt` transients on the edges
 
-### P1-10. `AiDeviceHandler.__init__` мутирует общий `AiParams`
+**Where:** `src/pioner/shared/modulation.py:153-165`
 
-**Где:** `src/pioner/back/ai_device.py:59-60`
+**What:** `filtfilt` is zero-phase, but it has transients of ~10
+modulation periods on each edge. The existing test masks this via
+`slice(2000, -2000)`. For short scans (<0.5 s at 37.5 Hz) the transient is
+>50 % of the signal.
 
-**Что:** если SINGLE_ENDED не поддерживается, переключаемся на
-DIFFERENTIAL. Это меняет `params.input_mode` на самом объекте, который
-может быть shared между двумя handler-ами.
+**Action:** return a boolean `valid` mask alongside `(amp, phase)`,
+`False` over the transient regions. Document a minimum useful signal
+length (`>= 20 / frequency` seconds).
 
-**Действие:** `self._params = copy.copy(params)` в конструкторе, либо
-ввести `self._input_mode_override` локально.
+**Verification:** unit test — lock-in on a 0.3 s, 37.5 Hz signal returns a
+mask with `False` on the edges.
 
-### P1-11. `BackSettings.parse_*`: смешанная валидация (immediate vs deferred)
+### P1-10. `AiDeviceHandler.__init__` mutates the shared `AiParams`
 
-**Где:** `src/pioner/shared/settings.py:104-243`
+**Where:** `src/pioner/back/ai_device.py:59-60`
 
-**Действие:** унифицировать на batch-collect (helper возвращает
-`(value, ok)`, не raise) — пользователь увидит все проблемы одной
-строкой.
+**What:** if `SINGLE_ENDED` is unsupported, the code switches to
+`DIFFERENTIAL` by mutating `params.input_mode` on the shared object.
+Sharing `AiParams` between two handlers (currently nobody does, but
+nothing prevents it) would silently couple them.
 
-### P1-12. `ScanDataGenerator` молча zero-fill отсутствующих каналов
+**Action:** `self._params = copy.copy(params)` in the constructor, or keep
+the override on a local `self._input_mode_override`.
 
-**Где:** `src/pioner/back/ao_data_generators.py:60-69`
+### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
 
-**Действие:** `logger.info("AO ch%d not provided, holding at 0V", ch)`.
+**Where:** `src/pioner/shared/settings.py:104-243`
 
-### P1-13. `_collect_finite_ai` busy-poll @ 1ms
+**Action:** unify on batched collection (helper returns `(value, ok)`,
+does not raise). The user gets all problems on one line instead of one at
+a time.
 
-**Где:** `src/pioner/back/experiment_manager.py:357`
+### P1-12. `ScanDataGenerator` silently zero-fills missing channels
 
-**Что:** `time.sleep(0.001)` × тысячи итераций = 100% одного ядра CPU
-на Raspberry Pi.
+**Where:** `src/pioner/back/ao_data_generators.py:60-69`
 
-**Действие:** заменить на `time.sleep(half_per_channel / sample_rate
-/ 4)` — просыпаться в 4× от частоты flip-events. На 20kHz это ~125мс.
-Альтернатива — driver event если uldaq поддерживает.
+**Action:** `logger.info("AO ch%d not provided, holding at 0 V", ch)`.
 
-### P1-14. `mock_uldaq._fill_loop` чистый Python, медленный
+### P1-13. `_collect_finite_ai`: needlessly tight 1 ms busy-poll
 
-**Где:** `src/pioner/back/mock_uldaq.py:320-353`
+**Where:** `src/pioner/back/experiment_manager.py:362`
 
-**Что:** для каждого сэмпла отдельный `math.sin` вызов. На 60-секундном
-прогоне 20kHz × 6ch = 7.2M итераций ⇒ ~3с CPU.
+**What:** the polling loop sleeps 1 ms between iterations and calls
+`ai_handler.status()` on every wake. Half-buffer flip events occur **2×
+per second** (1 s buffer, two halves), so ~99.8 % of the 1000 wakes per
+second do nothing useful. On a desktop this is invisible; on a Raspberry
+Pi each wake costs a syscall and a context switch — single-digit % CPU
+wasted continuously, plus jitter for the ring-buffer thread. Not a
+correctness bug.
 
-**Действие:** буферизовать `chunk_samples` через numpy:
-`np.sin(omega * t_arr)` + broadcasting на каналы. Записывать в
-`buf[base:base+n_chans*chunk] = result.tolist()` одним вызовом.
+**Action:** sleep `half_per_channel / sample_rate / 4` (≈ 125 ms at 20
+kHz) — wakes 4× per flip, still safe. Same fix for `_ring_loop`.
+Alternative: a driver-side event if `uldaq` exposes one (typically does
+not in polling mode).
 
-### P1-15. `mock_uldaq._synthesise_sample` — когерентный «шум» 196 Hz
+### P1-14. `mock_uldaq._fill_loop` is pure-Python and slow
 
-**Где:** `src/pioner/back/mock_uldaq.py:362`
+**Where:** `src/pioner/back/mock_uldaq.py:320-353`
 
-**Что:** `math.sin(t * 1234.5 + channel) * 0.5e-3` — детерминирован,
-что хорошо для тестов, но это **чистый тон ~196 Hz**, виден в lock-in
-и спектре. Может ввести в заблуждение при отладке.
+**What:** one `math.sin` call per sample. A 60-second scan at 20 kHz with
+6 channels = 7.2 M iterations ⇒ ~3 s of CPU on the mock side, which
+distorts the timing of long iso runs.
 
-**Действие:** заменить на `np.random.default_rng(seed=hash(channel))`
-гауссовский шум того же RMS. Сделать seed-able через переменную
-окружения `PIONER_MOCK_NOISE_SEED`.
+**Action:** generate `chunk_samples` with numpy in a single call
+(`np.sin(omega * t_arr)` + broadcasting over channels). Slice-assign into
+`buf[base:base+n_chans*chunk]`.
 
-### P1-16. `Calibration.read` форматные ошибки малоинформативны
+### P1-15. `mock_uldaq._synthesise_sample` injects a coherent ~196 Hz tone
 
-**Где:** `src/pioner/shared/calibration.py:177-209`
+**Where:** `src/pioner/back/mock_uldaq.py:362`
 
-**Что:** прямой индексинг `coeffs[U_TPL_FIELD]["0"]` — `KeyError`
-без контекста.
+**What:** `math.sin(t * 1234.5 + channel) * 0.5e-3` is deterministic
+(useful for tests) but it is also a **clean tone at ~196 Hz** with 0.5 mV
+RMS. Visible in any FFT and lock-in at that frequency. Misleading when
+debugging if `f_mod` is anywhere near 196 Hz.
 
-**Действие:** обернуть блок в `try/except KeyError as exc: raise
-ValueError(f"Missing field {exc} in calibration file {path}")`.
+**Action:** replace with `np.random.default_rng(seed=hash(channel))`
+Gaussian noise of the same RMS. Make the seed configurable via
+`PIONER_MOCK_NOISE_SEED`.
+
+### P1-16. `Calibration.read` produces unfriendly errors on malformed files
+
+**Where:** `src/pioner/shared/calibration.py:177-209`
+
+**What:** direct indexing like `coeffs[U_TPL_FIELD]["0"]` raises bare
+`KeyError` with no context.
+
+**Action:** wrap the field-extraction block in
+`try/except KeyError as exc: raise ValueError(f"Missing field {exc} in
+calibration file {path}")`.
 
 ---
 
-## P2 — code quality / dx
+## P2 — code quality / DX
 
-### P2-1. `pyproject.toml`: убрать неиспользуемые runtime-зависимости
+### P2-1. `pyproject.toml`: drop unused runtime dependencies
 
-**Где:** `pyproject.toml:25-34`
+**Where:** `pyproject.toml:25-34`
 
-**Что:** `matplotlib`, `requests`, `sortedcontainers` не импортируются
-в `src/`. `tables` нужен только для `_prime_pandas` (отказоустойчиво).
+**What:** `matplotlib`, `requests`, `sortedcontainers` are not imported
+from `src/`. `tables` is only needed by `_prime_pandas` (which is already
+fault-tolerant).
 
-**Действие:** перенести в `optional-dependencies`:
+**Action:** move into `optional-dependencies`:
 - `matplotlib` → `dev`.
 - `requests` → `gui`.
-- `sortedcontainers` → удалить.
+- `sortedcontainers` → remove entirely.
 - `tables` → `optional-dependencies.hdf5`.
 
-### P2-2. Опечатка `(former Nanocal)` → `(formerly Nanocal)`
+### P2-2. Typo: "(former Nanocal)" → "(formerly Nanocal)"
 
-**Где:** `pyproject.toml:11`, возможно `README.md`.
+**Where:** `pyproject.toml:11`, possibly `README.md`.
 
-### P2-3. `pyproject.toml`: добавить console_script для Tango-сервера
+### P2-3. `pyproject.toml`: add a console_script for the Tango server
 
-**Действие:** `pioner-tango = "pioner.back.nanocontrol_tango:NanoControl.run_server"`.
+**Action:** `pioner-tango = "pioner.back.nanocontrol_tango:NanoControl.run_server"`.
 
-### P2-4. Логирование: единая точка конфигурации
+### P2-4. Single logging configuration entry point
 
-**Действие:** `pioner/logging_setup.py` с `configure(level=INFO,
-file=None)`. Вызывать из CLI/Tango entry points.
+**Action:** `pioner/logging_setup.py` exposing `configure(level=INFO,
+file=None)`. Call it from CLI / Tango entry points.
 
-### P2-5. Конфликт стилей type hints
+### P2-5. Inconsistent type-hint style
 
-**Действие:** `ruff format` + явная стиль-гайд. PEP 604 (`X | None`)
-+ `from __future__ import annotations` везде.
+**Action:** `ruff format` plus an explicit style guide. PEP 604
+(`X | None`) plus `from __future__ import annotations` everywhere.
 
-### P2-6. `BackSettings.get_str` собирает str через `dict→str→replace`
+### P2-6. `BackSettings.get_str` builds JSON via `dict→str→replace`
 
-**Действие:** `json.dumps({"DAQ": vars(self.daq_params), ...})`.
+**Action:** `json.dumps({"DAQ": vars(self.daq_params), …})`.
 
-### P2-7. `is_int_or_raise` название vs поведение
+### P2-7. `is_int_or_raise` name does not match behaviour
 
-**Действие:** переименовать в `validate_int(value, *, name="value")`.
-Сохранить старое имя как алиас.
+**Action:** rename to `validate_int(value, *, name="value")`. Keep the
+old name as an alias for one release.
 
-### P2-8. Дубликаты HDF5-сохранения в legacy facades
+### P2-8. Duplicated HDF5 saving in legacy facades
 
-**Где:** `src/pioner/back/fastheat.py:86-107`,
-`src/pioner/back/slow_mode.py:65-95`
+**Where:** `src/pioner/back/fastheat.py:86-107`,
+`src/pioner/back/slow_mode.py:65-95`.
 
-**Действие:** вытянуть в `pioner.back.hdf5_export.save_experiment(...)`.
+**Action:** extract to `pioner.back.hdf5_export.save_experiment(...)`.
 
-### P2-9. `iso_mode.IsoMode` не сохраняет результат на диск
+### P2-9. Iso mode does not save its result to disk
 
-**Где:** `src/pioner/back/iso_mode.py`
+**Where:** `src/pioner/back/iso_mode.py`
 
-**Что:** асимметрия: fast/slow → exp_data.h5; iso → ничего.
+**What:** asymmetry — fast/slow → `exp_data.h5`; iso → nothing.
 
-**Действие:** после `P2-8` использовать общий экспортер во всех трёх
-режимах.
+**Action:** after **P2-8**, route all three modes through the shared
+exporter.
 
-### P2-10. Удалить `FAST_HEAT_CUSTOM_FLAG` или реализовать
+### P2-10. Remove or implement `FAST_HEAT_CUSTOM_FLAG`
 
-**Где:** `src/pioner/back/fastheat.py:55-68`
+**Where:** `src/pioner/back/fastheat.py:55-68`
 
-**Что:** параметр принимается, сохраняется, но не читается.
+**What:** the parameter is accepted, stored, but never read anywhere.
 
 ### P2-11. `AiDeviceHandler` test coverage
 
-**Действие:** `tests/test_ai_device.py`:
-- buffer re-allocation при изменении samples_per_channel
-- `scan()` без allocate_buffer → ValueError
-- INPUT_MODE fallback к DIFFERENTIAL
+**Action:** add `tests/test_ai_device.py`:
+- Buffer re-allocation on `samples_per_channel` change.
+- `scan()` without `allocate_buffer` raises `ValueError`.
+- `INPUT_MODE` fallback to `DIFFERENTIAL`.
 
-### P2-12. Legacy `fastheat.FastHeat` / `slow_mode.SlowMode` без тестов
+### P2-12. Legacy `fastheat.FastHeat` / `slow_mode.SlowMode` have no tests
 
-**Действие:** `tests/test_legacy_facades.py`: запустить fast/slow
-через legacy class, проверить что HDF5 файл создан с ожидаемой
-структурой.
+**Action:** `tests/test_legacy_facades.py` — run fast/slow through the
+legacy classes, confirm the HDF5 file is created with the expected
+structure.
 
-### P2-13. `_collect_finite_ai`: прямой юнит-тест half-buffer flip
+### P2-13. Direct unit test for the half-buffer flip
 
-**Действие:** запустить `_collect_finite_ai` на mock с детерминированным
-синтез-буфером (linear ramp 0..N), проверить что после 5с прогона все
-N×5 сэмплов на месте, нет дублей и пропусков.
+**Action:** drive `_collect_finite_ai` against the mock with a
+deterministic ramp `0..N`. After 5 s, assert all `N × 5` samples are
+present, no duplicates, no gaps.
 
-### P2-14. Тест round-trip `Calibration.get_str → json.loads → fields`
+### P2-14. `Calibration.get_str` round-trip test
 
-### P2-15. `tests/conftest.py`: убрать sys.path хак
+**Action:** `Calibration.get_str → json.loads → check field equality`.
 
-**Где:** `tests/conftest.py:11-12`
+### P2-15. `tests/conftest.py`: drop the `sys.path` hack
 
-**Что:** дублирует `pyproject.toml [tool.pytest.ini_options].pythonpath
+**Where:** `tests/conftest.py:11-12`
+
+**What:** duplicates `pyproject.toml [tool.pytest.ini_options].pythonpath
 = ["src"]`.
 
-### P2-16. `parse_modulation` лишний `import` внутри функции
+### P2-16. `parse_modulation` has a function-local `import`
 
-**Где:** `src/pioner/shared/settings.py:114`
+**Where:** `src/pioner/shared/settings.py:114`
 
-**Действие:** перенести `from pioner.shared.modulation import
-ModulationParams` наверх файла.
+**Action:** move `from pioner.shared.modulation import ModulationParams`
+to the top of the file.
 
-### P2-17. `IsoMode._build_profiles` без модуляции возвращает 1-точечный профиль
+### P2-17. `IsoMode._build_profiles` returns a 1-sample profile when AC is off
 
-**Где:** `src/pioner/back/modes.py:472-476`
+**Where:** `src/pioner/back/modes.py:472-476`
 
-**Что:** `{ch: np.array([prog.values[0]])}` — одна точка. Любой код,
-читающий `voltage_profiles` без знания о DC-iso, удивится. (FIX A
-теперь корректно тилит до AI-длины — разрулил для `apply_calibration`,
-но проблема в типе данных остаётся.)
+**What:** `{ch: np.array([prog.values[0]])}` — a single sample. Any code
+that reads `voltage_profiles` without knowing about DC iso will be
+surprised. (FIX A made `apply_calibration` tile this correctly, but the
+data type asymmetry remains.)
 
-**Действие:** либо вернуть полную линию длиной `n = sample_rate`, либо
-**не возвращать profile вообще** для DC-only (отдельная ветка
-`_dc_voltages: Dict[str, float]` и проверять её в `run()`).
+**Action:** either return a full `n = sample_rate` line, or do **not**
+return a profile at all for DC-only (separate `_dc_voltages: Dict[str,
+float]`, checked in `run()`).
 
-### P2-18. `ChannelProgram` не ловит NaN/Inf
+### P2-18. `ChannelProgram` does not catch NaN/Inf
 
-**Где:** `src/pioner/back/modes.py:79-94`
+**Where:** `src/pioner/back/modes.py:79-94`
 
-**Действие:** `if not np.all(np.isfinite(values)): raise
-ValueError("program values contain NaN/Inf")`.
+**Action:** `if not np.all(np.isfinite(values)): raise ValueError(
+"program values contain NaN/Inf")`.
 
-### P2-19. `temperature_to_voltage` rounding 4 знака → 0.1мВ
+### P2-19. `temperature_to_voltage` rounds to 4 decimals → 0.1 mV
 
-**Где:** `src/pioner/shared/utils.py:118`
+**Where:** `src/pioner/shared/utils.py:118`
 
-**Что:** `np.round(volt_calib[idx], 4)`. На 16-битном DAC ±10V LSB ≈
-0.305мВ — округление ниже разрешения DAC.
+**What:** `np.round(volt_calib[idx], 4)`. The 16-bit DAC at ±10 V has an
+LSB of ~0.305 mV; rounding to 0.1 mV is below the DAC resolution and just
+quantises early.
 
-**Действие:** убрать `np.round` (DAC сам квантует) или сделать
-резолюцию параметром.
+**Action:** drop `np.round` (the DAC quantises by itself) or expose the
+resolution as a parameter.
 
 ---
 
-## P3 — документация / observability
+## P3 — documentation / observability
 
-### P3-1. Документировать размерности в `apply_calibration`
+### P3-1. Document units in `apply_calibration`
 
-См. `P0-3`. Доктрина: каждая числовая операция помечена комментарием
+See **P0-3**. Doctrine: every numeric operation gets a comment
 (`# input: V, output: mV`).
 
-### P3-2. README ссылается на spec.md
+### P3-2. README references `spec.md`
 
-**Действие:** добавить раздел «Pipeline overview» с одной фразой и
-линком на `spec.md`.
+**Action:** add a "Pipeline overview" section with one sentence and a
+link to `spec.md`.
 
-### P3-3. Sphinx autodoc обновить под текущую структуру
+### P3-3. Update Sphinx autodoc against the current package layout
 
-**Действие:** `cd docs && make html` — проверить что не падает.
+**Action:** `cd docs && make html` — confirm it does not fail.
 
-### P3-4. Docstrings на public API
+### P3-4. Public-API docstrings
 
-**Где:** `DaqDeviceHandler.get`, `Calibration.write`,
-`IsoMode.ai_stop`, `AiParams/AoParams.channel_count` — пустые.
+**Where:** `DaqDeviceHandler.get`, `Calibration.write`,
+`IsoMode.ai_stop`, `AiParams/AoParams.channel_count` — currently empty.
 
-### P3-5. `spec.md` обновить под последние фиксы
+### P3-5. Refresh `spec.md` with the recent fixes
 
-**Где:** `spec.md`, секции «Outstanding TODO» и «AI half-buffer».
+**Where:** `spec.md`, sections "Outstanding TODO" and "AI half-buffer".
 
-### P3-6. Пример скрипта для bench-эксперимента
+### P3-6. Bench-experiment example script
 
-**Действие:** `examples/run_slow_with_modulation.py` — настройка
-программы, модуляции, запуск SlowMode, сохранение HDF5 + plot.
+**Action:** `examples/run_slow_with_modulation.py` — set up a program,
+modulation, run `SlowMode`, save HDF5, plot.
 
-### P3-7. Mock_uldaq логирует в INFO на каждом импорте
+### P3-7. `mock_uldaq` logs at INFO on every import
 
-**Где:** `src/pioner/back/mock_uldaq.py:50`
+**Where:** `src/pioner/back/mock_uldaq.py:50`
 
-**Действие:** уровень DEBUG (один раз на процесс), либо warning только
-если явно `PIONER_DEBUG=1`.
+**Action:** drop to DEBUG (or fire once per process), or only WARN when
+`PIONER_DEBUG=1`.
 
 ---
 
-## Порядок выполнения (рекомендация)
+## Suggested execution order
 
-1. **P0-3** — требует разговора с физиком; до этого не двигать
-   калибровочные коэффициенты.
-2. **P0-5** — на реальном железе, при апгрейде trigger.
-3. **P1-1, P1-3, P1-4, P1-5** — параллельно, независимы.
-4. **P1-6..P1-16** — по два-три за раз.
-5. **P2-всё** — после P0/P1 как «code quality round».
-6. **P3-всё** — последним, или вшить в каждый PR из P0/P1.
+1. **P0-3** — needs a conversation with the physicist; do not touch
+   calibration coefficients before that.
+2. **P0-5** — real hardware, when the trigger upgrade happens.
+3. **P1-1 + P1-5** — closely coupled; fix together. Same `Event` /
+   `stop()` plumbing satisfies both.
+4. **P1-3, P1-4** — independent, do in parallel after the iso interrupt
+   work.
+5. **P1-6 → P1-16** — two or three at a time.
+6. **P2-\*** — code-quality round after P0/P1 close.
+7. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 
-## Примечания
+## Notes
 
-- При каждом изменении гонять `PYTHONPATH=src .venv/bin/pytest -q`
-  (≤10s).
-- Не трогать GUI (`front/`) пока не закроем P0/P1 в back/.
-- **Не менять hardcoded имена/значения** (Uref, ch1, и т. д.) без
-  явного запроса пользователя.
-- Перед production-запуском **обязательно** прогнать на реальном
-  железе: fast 1с (ramp), slow 2с с модуляцией, iso 10с с модуляцией.
-  Сравнить с эталонными данными прошлых экспериментов.
+- Run `PYTHONPATH=src .venv/bin/pytest -q` (≤10 s) on every change.
+- Do not touch the GUI (`front/`) until back-end P0/P1 are closed.
+- **Do not change hardcoded names/values** (`Uref`, `ch1`, …) without an
+  explicit user request.
+- Before any production run, mandatory smoke on real hardware: fast 1 s
+  ramp, slow 2 s with modulation, iso 10 s with modulation. Compare
+  against reference data from previous experiments.

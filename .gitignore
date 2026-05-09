@@ -19,6 +19,7 @@ env/
 *.swo
 *~
 .DS_Store
+pyrightconfig.json
 
 # Python packaging artifacts
 *.egg-info/
