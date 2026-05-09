@@ -92,6 +92,46 @@ def test_thtr_is_finite_when_heater_current_is_present():
     assert np.isfinite(out["Thtr"]).all()
 
 
+def test_rhtr_units_are_ohms_with_production_calibration():
+    """With production ``ihtr1 = 1/R_shunt`` and a known V/I pair, ``Thtr``
+    must come out in a physically plausible range (tens to hundreds of C).
+
+    Regression: the historical formula multiplied both V_AO and V_shunt by
+    1000 before subtracting and dividing by I (in A), producing R in
+    milliohms instead of ohms. With the production ``Thtr`` polynomial this
+    drove ``thtr2 * R^2`` to ~ -1e8 C and was completely unusable.
+    """
+    cal = Calibration()
+    R_shunt = 1700.0
+    cal.ihtr0 = 0.0
+    cal.ihtr1 = 1.0 / R_shunt          # production target per todo P0-3
+    cal.uhtr0 = 0.0
+    cal.uhtr1 = 1.0
+    cal.thtr0 = -1069.7                 # production polynomial
+    cal.thtr1 = 0.78336
+    cal.thtr2 = -8.67e-5
+    cal.thtrcorr = 0.0
+
+    # Heater at ~ room temperature (R = 1700 Ohm), I = 1 mA:
+    #   V_shunt = R_shunt * I = 1.7 V
+    #   V_AO    = (R_heater + R_shunt) * I = 3.4 V (AI ch5 sees the drive)
+    raw = _make_raw_frame(100)
+    raw[0] = 1.7
+    raw[5] = 3.4
+
+    out = apply_calibration(raw, sample_rate=20000.0, calibration=cal, voltage_profiles={})
+    thtr = out["Thtr"].to_numpy()
+
+    # Polynomial at R = 1700 Ohm gives ~ 11.5 C; allow generous tolerance
+    # because the formula's "R - R_shunt" interpretation depends on the
+    # circuit topology, but anything in [-50, +200] C is the correct order
+    # of magnitude. The pre-fix code produced numbers around -10^8 C.
+    assert np.all(np.isfinite(thtr))
+    assert -50.0 <= thtr.mean() <= 200.0, (
+        f"Thtr out of physical range: mean={thtr.mean()} (expected ~10 C)"
+    )
+
+
 def test_apply_calibration_preserves_length_and_drops_raw_columns():
     cal = Calibration()
     raw = _make_raw_frame(2000)

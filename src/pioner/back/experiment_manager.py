@@ -232,9 +232,20 @@ class ExperimentManager:
         ao_handler.set_voltage(channel, voltage)
 
     def ao_modulated(self, voltage_profiles: dict) -> None:
-        """Drive a continuous AO profile (used by iso/slow with modulation)."""
+        """Drive a continuous AO profile (used by iso/slow with modulation).
+
+        When ``BackSettings.daq_params.hardware_trigger`` is on, pre-arm the
+        AO scan with ``EXTTRIGGER``. The matching AI side is armed by
+        :meth:`start_ring_buffer`, which fires the shared trigger once both
+        scans are idle on the trigger gate.
+        """
         ao_handler = self._ensure_ao_handler()
-        self._ao_params.options = ul.ScanOption.CONTINUOUS
+        triggered = bool(getattr(self._daq_device_handler._params,
+                                  "hardware_trigger", False))
+        ao_options = ul.ScanOption.CONTINUOUS
+        if triggered:
+            ao_options |= ul.ScanOption.EXTTRIGGER
+        self._ao_params.options = ao_options
         self._ao_buffer = ScanDataGenerator(
             voltage_profiles,
             self._ao_params.low_channel,
@@ -258,10 +269,29 @@ class ExperimentManager:
         if self._ring_thread is not None and self._ring_thread.is_alive():
             raise RuntimeError("Ring buffer is already running")
 
-        self._ai_params.options = ul.ScanOption.CONTINUOUS
+        # Same constraint as ``_collect_finite_ai``: the half-buffer reshape
+        # requires an even ``samples_per_channel``.
+        if self._ai_params.sample_rate % 2 != 0:
+            raise ValueError(
+                f"AI sample_rate must be even (got {self._ai_params.sample_rate}); "
+                "the half-buffer flip protocol requires an even buffer length."
+            )
+        # If a previous ``ao_modulated`` armed AO with ``EXTTRIGGER`` (because
+        # ``hardware_trigger`` is on), arm AI the same way and fire the shared
+        # trigger after both scans are gated. This gives iso AC a clean t=0 on
+        # both AO and AI, matching what ``finite_scan`` does for fast/slow.
+        # For DC iso (``ao_set``) AO is not a scan, so we never set
+        # ``EXTTRIGGER`` on AI: there is nothing to synchronise with.
+        ao_triggered = bool(self._ao_params.options & ul.ScanOption.EXTTRIGGER)
+        ai_options = ul.ScanOption.CONTINUOUS
+        if ao_triggered:
+            ai_options |= ul.ScanOption.EXTTRIGGER
+        self._ai_params.options = ai_options
         ai_handler = self._ensure_ai_handler(self._ai_params.sample_rate)
         ai_handler.stop()
         ai_handler.scan(self._ai_buffer_samples_per_channel)
+        if ao_triggered:
+            self._daq_device_handler.fire_software_trigger()
 
         self._ring_max_seconds = float(max_seconds)
         self._ring_data.clear()
@@ -290,12 +320,21 @@ class ExperimentManager:
             return np.concatenate(list(self._ring_data), axis=0)
 
     def stop(self) -> None:
-        """Abort any running scans and clean up workers."""
+        """Abort any running scans and clean up workers.
+
+        AO is stopped **before** AI so the heater drops to the rest voltage
+        (and the chip stops being driven) before we lose the ability to
+        observe what is happening on AI.
+        """
+        # Drop heater first.
+        if self._ao_handler is not None:
+            self._ao_handler.stop()
+        # Then tear down AI workers (ring buffer worker reads from AI, so
+        # stopping AI before joining it is fine -- the worker just sees
+        # ScanStatus != RUNNING and exits cleanly).
         self.stop_ring_buffer()
         if self._ai_handler is not None:
             self._ai_handler.stop()
-        if self._ao_handler is not None:
-            self._ao_handler.stop()
 
     # ------------------------------------------------------------------
     # Internal: finite AI collection (no point loss)
@@ -313,6 +352,16 @@ class ExperimentManager:
         half_per_channel = samples_per_channel // 2
         if half_per_channel <= 0:
             raise ValueError("AI sample_rate must be at least 2")
+        # The half-buffer flip protocol reshapes both halves to
+        # ``(half_per_channel, n_chans)``. The upper half slice has
+        # ``samples_per_channel - half_per_channel`` rows, which equals
+        # ``half_per_channel`` only when ``samples_per_channel`` is even.
+        # Reject odd rates loudly instead of crashing in ``np.reshape``.
+        if samples_per_channel % 2 != 0:
+            raise ValueError(
+                f"AI sample_rate must be even (got {sample_rate}); the "
+                "half-buffer flip protocol requires an even buffer length."
+            )
         total_samples_per_channel = sample_rate * seconds
 
         buf = ai_handler.get_buffer()

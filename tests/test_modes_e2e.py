@@ -123,6 +123,38 @@ def test_iso_mode_with_modulation_emits_fft_attrs_and_warns_on_non_seamless(
     assert df.attrs["temp-hr_fft_window_samples"] > 0
 
 
+def test_iso_ac_with_hardware_trigger_runs_clean(
+    connected_daq, settings, calibration
+):
+    """Iso AC must respect ``hardware_trigger`` (regression).
+
+    The iso/slow CONTINUOUS path used to ignore ``hardware_trigger``: only
+    ``finite_scan`` honoured it. Without the trigger, AO and AI start
+    separately (~100 us apart), which biases the FFT phase recovery for
+    higher modulation frequencies. After the fix, ``ao_modulated`` arms AO
+    with ``EXTTRIGGER`` and ``start_ring_buffer`` arms AI with the same
+    flag, then fires the trigger once both are gated.
+    """
+    settings.modulation = settings.modulation.with_amplitude(0.1)
+    settings.daq_params.hardware_trigger = True
+    try:
+        iso = IsoMode(
+            connected_daq, settings, calibration, {"ch1": {"volt": 0.4}},
+            ring_buffer_seconds=2.0,
+        )
+        iso.arm()
+        df = iso.run(duration_seconds=1.0)
+    finally:
+        settings.daq_params.hardware_trigger = False
+
+    # The mock implements EXTTRIGGER as a synchronised release so a triggered
+    # iso run must still produce a non-empty DataFrame; this guards against
+    # regressions where AO/AI stay armed forever and the worker yields zero
+    # samples.
+    assert len(df) > 0
+    assert "temp-hr" in df.columns
+
+
 def test_fast_mode_with_hardware_trigger_runs_clean(
     connected_daq, settings, calibration, fast_programs
 ):
@@ -146,6 +178,46 @@ def test_fast_mode_with_hardware_trigger_runs_clean(
     assert len(df) == settings.ai_params.sample_rate
     for col in ("time", "Taux", "Thtr", "temp", "temp-hr", "Uref"):
         assert col in df.columns
+
+
+def test_ao_set_rejects_out_of_range_voltage(connected_daq, settings, calibration):
+    """Direct ``em.ao_set`` calls beyond the configured analog range must fail loud."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    em = ExperimentManager(connected_daq, settings)
+    # range_id = 5 in default_settings.json -> +/-10 V.
+    with pytest.raises(ValueError, match="exceeds the configured analog range"):
+        em.ao_set(1, 50.0)
+    # In-range still works.
+    em.ao_set(1, 9.5)
+
+
+def test_iso_dc_temp_program_goes_through_calibration(
+    connected_daq, settings, calibration
+):
+    """Iso DC + temperature program must convert via the calibration polynomial.
+
+    Regression: a degenerate iso DC program like ``{"ch1": {"temp": 100}}``
+    used to push the raw 100.0 directly into the AO buffer (treated as
+    volts) — bypassing both ``temperature_to_voltage`` and the
+    ``safe_voltage`` clamp.
+    """
+    from pioner.shared.modulation import ModulationParams
+
+    # Force the pure-DC branch: amplitude=0 AND offset=0 -> enabled=False.
+    settings.modulation = ModulationParams(frequency=0.0, amplitude=0.0, offset=0.0)
+    calibration.theater0, calibration.theater1, calibration.theater2 = (
+        -2.425, 8.0393, -0.42986,
+    )
+    calibration._add_params()
+
+    iso = IsoMode(connected_daq, settings, calibration, {"ch1": {"temp": 100.0}})
+    iso.arm()
+    profile = iso.voltage_profiles["ch1"]
+    assert profile.size == 1
+    # T=100 °C should map to a voltage strictly inside the safe envelope,
+    # never the raw 100.0 (= 11x safe_voltage) we used to get.
+    assert 0.0 < profile[0] < calibration.safe_voltage
 
 
 def test_iso_mode_stops_early_on_external_request(

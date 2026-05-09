@@ -235,18 +235,32 @@ def apply_calibration(
         )
 
     # Heater temperature derived from V/I.
+    #
+    # Circuit: AO drives a series (heater + shunt). AI ch5 reads the AO drive
+    # feedback (total V across heater+shunt), AI ch0 reads V across the shunt
+    # only. Heater current is ``I = V_shunt / R_shunt = ihtr0 + ihtr1*V_shunt``
+    # (with production ``ihtr1 = 1/R_shunt`` so ``ih`` is in amperes, see
+    # todo P0-3). Heater voltage drop is ``V_heater = V_AO - V_shunt``,
+    # so ``R_heater = (V_AO - V_shunt) / I``.
+    #
+    # Units: keep both V_AO and V_shunt in **volts**. Dividing V/A yields R
+    # in **ohms**, which is what the production ``Thtr`` polynomial expects
+    # (``thtr0=-1069.7, thtr1=0.78336, thtr2=-8.67e-5`` gives T(R=1700 Ohm)
+    # ~ 11.5 C, plausible for room temperature). The historical code
+    # multiplied both by 1000 (mV/mV), which divided by ih (A) produced
+    # milliohms and made ``Thtr`` off by a factor of 1000. The polynomial
+    # then drove e.g. R=1.7e6 mOhm to ``thtr2*R^2 ~ -2.5e8 C`` -- absurd.
     if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
-        df[UHTR_AI] = df[UHTR_AI] * 1000.0  # heater voltage in mV
         ih = calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1
         # When the heater is idle (current ~ 0) R_heater is undefined. The
         # historical implementation used 0 as a sentinel which then evaluated
         # to ``thtr0 + thtr1*thtrcorr + ...`` and produced a physically
-        # meaningless number (~ -1070 °C with the production polynomial).
+        # meaningless number (~ -1070 C with the production polynomial).
         # Mark those samples as NaN so downstream code / plots can skip them.
         nz = ih.abs() > 1e-9
         rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
         rhtr.loc[nz] = (
-            (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI] * 1000.0
+            (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI]
              + calibration.uhtr0)
             * calibration.uhtr1
             / ih.loc[nz]
@@ -528,7 +542,16 @@ class IsoMode(BaseMode):
         params = self._modulation or self._settings.modulation
         if not params.enabled:
             # Pure DC: no scan needed, the manager will use ``ao_set``.
-            return {ch: np.array([prog.values[0]]) for ch, prog in self._programs.items()}
+            # Route through ``_program_to_voltage`` so temperature programs get
+            # converted via the calibration polynomial (and clipped to
+            # ``[0, safe_voltage]``) and ``volt`` programs trigger the
+            # over-safe-voltage warning. Without this, a degenerate iso DC
+            # program like ``{"ch1": {"temp": 100}}`` would push the raw
+            # 100.0 to the AO buffer (treated as volts) and fry the heater.
+            return {
+                ch: _program_to_voltage(prog, 1, self._calibration)
+                for ch, prog in self._programs.items()
+            }
         # AC modulation: build a single period repeated enough times to fill
         # the AO buffer of one second's worth of samples (CONTINUOUS scan).
         rate = self._settings.ao_params.sample_rate

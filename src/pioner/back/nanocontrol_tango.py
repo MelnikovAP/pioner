@@ -51,6 +51,7 @@ from pioner.shared.constants import (
     CALIBRATION_FILE_REL_PATH,
     DEFAULT_CALIBRATION_FILE_REL_PATH,
     LOGS_FOLDER_REL_PATH,
+    MAX_SCAN_SAMPLE_RATE,
     NANOCONTROL_LOG_FILE_REL_PATH,
     RAW_DATA_FOLDER_REL_PATH,
     SETTINGS_FILE_REL_PATH,
@@ -168,9 +169,18 @@ class NanoControl(Device):  # type: ignore[misc]
 
     @command(dtype_in=int)
     def set_sample_scan_rate(self, scan_rate: int) -> None:
-        self._settings.ai_params.sample_rate = int(scan_rate)
-        self._settings.ao_params.sample_rate = int(scan_rate)
-        logger.info("Sample rate set to %d Hz", scan_rate)
+        rate = int(scan_rate)
+        # Bounds: positive, at most MAX_SCAN_SAMPLE_RATE (DAQ hardware ceiling),
+        # and even — the AI half-buffer flip protocol requires an even
+        # buffer length (see ``ExperimentManager._collect_finite_ai``).
+        if rate < 2 or rate > MAX_SCAN_SAMPLE_RATE or rate % 2 != 0:
+            raise ValueError(
+                f"sample rate must be an even integer in [2, {MAX_SCAN_SAMPLE_RATE}], "
+                f"got {scan_rate}"
+            )
+        self._settings.ai_params.sample_rate = rate
+        self._settings.ao_params.sample_rate = rate
+        logger.info("Sample rate set to %d Hz", rate)
 
     @command
     def reset_sample_scan_rate(self) -> None:

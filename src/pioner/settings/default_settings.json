@@ -46,7 +46,7 @@
         "Modulation": {
             "Frequency": 37.5,
             "Amplitude": 0.1,
-            "Offset": 0.3
+            "Offset": 0.0
         }
     }
 }

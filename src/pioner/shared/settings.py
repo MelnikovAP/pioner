@@ -65,7 +65,15 @@ class JsonReader:
         return self._json
 
 class BackSettings:
-    """Parses configuration file with all necessary acquisition parameters."""
+    """Parses configuration file with all necessary acquisition parameters.
+
+    Note: only the ``DAQ settings`` block and ``Experiment settings.Scan`` /
+    ``Experiment settings.Modulation`` are consumed here. The
+    ``Experiment settings.Paths`` block (``Calibration path``, ``Data path``)
+    and the ``Server settings`` block are read by :class:`FrontSettings` only.
+    The Tango back-end uses the hardcoded ``CALIBRATION_FILE_REL_PATH`` /
+    ``RAW_DATA_FOLDER_REL_PATH`` constants.
+    """
 
     def __init__(self, path: str):
         """Initializes dictionary and checks that all needed fields exist.

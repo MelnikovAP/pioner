@@ -35,8 +35,8 @@
     },
     "Experiment settings": {
         "Paths": {
-            "Calibration path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\settings\\calibration.json",
-            "Data path": "C:\\Users\\alexey0703\\prog\\nanocal\\nanocal_pi\\data"
+            "Calibration path": "./settings/calibration.json",
+            "Data path": "./data/"
         },
         "Scan": {
             "Sample rate": 20000
@@ -44,7 +44,7 @@
         "Modulation": {
             "Frequency": 37.5,
             "Amplitude": 0.1,
-            "Offset": 0.3
+            "Offset": 0.0
         }
     }
 }

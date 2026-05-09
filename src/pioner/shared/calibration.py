@@ -124,10 +124,17 @@ class Calibration:
         self.thtrd1: float = 1.0
         self.thtrd2: float = 0.0
         self.thtrdcorr: float = 0.0
-        # [Uhtr] = ([U(mv)] + uhtr0) * uhtr1
+        # Heater voltage offset/gain applied inside the Rhtr formula.
+        # ``uhtr0`` is in **volts** (matches the V-domain numerator after the
+        # bug-fix to apply_calibration).
         self.uhtr0: float = 0.0
         self.uhtr1: float = 1.0
-        # [Ihtr] = ihtr0 + ihtr1 * [I]
+        # Heater current is derived from the shunt voltage: ``Ihtr = ihtr0 +
+        # ihtr1 * V_shunt``. The ``ihtr1`` argument is therefore the shunt
+        # admittance in **siemens** (1/R_shunt). The default identity
+        # ``ihtr1 = 1.0`` is dimensionally meaningless (test fallback only);
+        # production must set ``ihtr1 ~= 1/R_shunt`` so ``ih`` is in amperes
+        # (see todo P0-3).
         self.ihtr0: float = 0.0
         self.ihtr1: float = 1.0
         # [Theater] = theater0 * U + theater1 * U^2 + theater2 * U^3
