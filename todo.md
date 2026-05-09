@@ -9,7 +9,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **33 passed** (mock backend, ~7 s).
+- `pytest tests/`: **48 passed** (mock backend, ~10 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -18,9 +18,11 @@ File references use the `path/to/file.py:line` format. Test command:
   edges and physical fidelity items for real hardware.
 - Pipeline reference: `spec.md`. Manual mock usage: `mock_verification.md`.
 
-**Hardcoded values left intentionally untouched** per project convention:
-column name `Uref` (not `Uheater`), heater channel literal `"ch1"`, and the
-`total_ms % 1000 == 0` software constraint on profile durations.
+**Conventions kept on purpose:** column name `Uref` (not `Uheater`), and
+the `total_ms % 1000 == 0` software constraint on profile durations.
+Heater channel `"ch1"` is now the named constant `HEATER_AO` in
+`pioner.shared.channels` (see that module for the full layout); the wire
+format remains `"ch{N}"`.
 
 ---
 
@@ -47,52 +49,59 @@ and `Rhtr` ends up in `[Ω·V/A]`, not Ω. In production, `ihtr1` is presumably
 
 **Do not** modify the default identity calibration — it is the test fallback.
 
-### P0-5. `ExperimentManager`: AI starts before AO ⇒ leading-edge skew
+### P0-4. IsoMode AO buffer is not seamless at the production f_mod = 37.5 Hz
 
-**Where:** `src/pioner/back/experiment_manager.py:179-194` (inline TODO)
+**Where:** `src/pioner/back/modes.py` (`IsoMode._build_profiles`) and
+`settings/settings.json` (default `Modulation.Frequency = 37.5`).
 
-**What:** AI is armed ~100 µs before AO; on a 1000 K/s FastHeat scan that is
-≤ 1 °C of skew on the very first sample. Only fixable with a hardware
-trigger (`RETRIGGER + EXTTRIGGER`) on the real DAQ.
+**What:** the iso AO buffer is sized to exactly 1 second (`n = sample_rate
+= 20000`). With `f_mod = 37.5 Hz` that is `37.5` cycles in the buffer ->
+the CONTINUOUS replay re-emits sample 0 with a phase offset of
+`pi rad` (half a period), producing a square-wave-like edge at every
+1 s wrap. Symptom: the chip drive contains 60 % spectral leakage outside
+the `f_mod` bin, the recovered C_p amplitude is biased, and the FFT-
+demodulated `temp-hr_fft` disagrees with the time-domain lock-in.
 
-**Action:** when upgrading to a production DAQ board, configure both AO and
-AI on a shared trigger source. Workaround alternative: tag the first N
-samples as `pre_trigger=True` and trim them in `apply_calibration`.
+`shared.modulation.check_ao_period_integrity` now logs a WARNING at
+`IsoMode.arm()` quantifying the defect. The warning is the diagnostic;
+the production fix is one of:
 
-**Verification:** real hardware — drive a 1 kHz signal on AO ch1, read it
-back on AI ch1, confirm leading offset is < 1 sample.
+1. Drop `f_mod` to a value such that `n * f_mod / sample_rate` is an
+   integer. At `fs = 20 kHz`, `n = 20000`, the eligible set is
+   `f in {1, 2, 4, 5, 8, 10, 16, 20, 25, 40, 50, ...}` Hz. `40 Hz` is
+   the closest to the historical 37.5 Hz; the C_p calibration may need
+   to be re-checked.
+2. Or size the AO buffer to the smallest integer-cycle multiple at
+   37.5 Hz (= 1600 samples = 80 ms; LCM of 1600 and `n` ≤ rate is 19200
+   samples = 0.96 s) by exposing the AO buffer length as a setting.
+
+**Action:** confirm with the physicist whether (1) is acceptable; if not,
+implement (2). Either way, follow up with a real-hardware verification
+that `temp-hr_fft.fundamental.amplitude` matches the time-domain lock-in
+within ~1 %.
+
+### P0-5. AO/AI start skew — real-hardware validation pending
+
+**Where:** `src/pioner/back/experiment_manager.py` (`finite_scan`),
+`src/pioner/back/daq_device.py` (`DaqParams.hardware_trigger`,
+`fire_software_trigger`).
+
+**Status:** the trigger primitive is implemented and mock-tested (see
+`tests/test_modes_e2e.py::test_fast_mode_with_hardware_trigger_runs_clean`).
+Both AO and AI pre-arm with `ScanOption.EXTTRIGGER` when
+`BackSettings.daq_params.hardware_trigger=True`, and a single
+`fire_software_trigger` call releases them on a shared t=0. Default is
+`False` so existing callers and mock tests are unaffected.
+
+**Open:** real-hardware loopback validation. Drive a 1 kHz square wave on
+AO ch1, read it back on AI ch1, find the leading edge — must be within 1
+sample of t=0 with `hardware_trigger=True`. If the board does not respond
+to `EXTTRIGGER` cleanly, fallback options are documented inline in
+`finite_scan` (pacer-clock sharing or a per-host software offset trim).
 
 ---
 
 ## P1 — architectural / logical improvements
-
-### P1-1. `IsoMode`: no external abort handle for long runs
-
-**Where:** `src/pioner/back/modes.py:518-553`,
-`src/pioner/back/iso_mode.py:91-103`.
-
-**What:** `IsoMode.run(duration_seconds=N)` blocks for exactly `N` seconds
-via `time.sleep(N)` and only stops when that wall-clock elapses. There is
-no externally-visible `stop()`, no `threading.Event`, no Tango command that
-can interrupt it. Killing the process is the only way to abort a 30-minute
-iso run.
-
-The desired behaviour is "set V (with optional AC), stream AI, run **until
-the user explicitly stops**". That requires an external interrupt handle.
-
-**Action:**
-1. Add a `threading.Event` (e.g. `self._stop_event`) on the new `_IsoMode`,
-   replace `time.sleep(duration_seconds)` with
-   `self._stop_event.wait(timeout=duration_seconds)`.
-2. Expose a `stop()` method on `_IsoMode` and on the legacy `IsoMode` shim
-   that sets the event and triggers a clean shutdown of AO + ring buffer.
-3. Add a Tango command `stop_iso(self)` that calls into it.
-4. Treat `duration_seconds` as a **maximum** timeout, not a hard duration —
-   `stop()` may return earlier.
-
-**Verification:** start iso in a background thread with `duration=10`; from
-the main thread call `stop()` after 0.5 s; assert that `run()` returns in
-< 1 s and the snapshot contains ~0.5 s of samples.
 
 ### P1-3. `apply_calibration`: in-place mutation of the raw frame is fragile
 
@@ -129,39 +138,29 @@ should produce a warning record (use `caplog`).
 
 ### P1-5. Legacy `IsoMode.run(do_ai=False)` does not actually hold the voltage
 
-**Where:** `src/pioner/back/iso_mode.py:91-103`
+**Where:** `src/pioner/back/iso_mode.py`
 
 **What:** the historical "Set V and hold until the GUI presses Off"
-scenario currently calls `self._mode.run(duration_seconds=0.0)`, which:
-
-1. Starts the AO scan / sets `iso_voltages`.
-2. Starts the ring buffer.
-3. Sleeps 0 s (returns immediately).
-4. Stops the ring buffer.
-5. `finally: em.stop()` aborts AO.
-
-So the heater voltage is dropped within milliseconds — the opposite of what
-"hold" means. The Tango path uses the new `_IsoMode` directly and is not
-affected, but a direct Python user of the legacy class is broken. The
-legacy `ai_stop()` method that should turn the held voltage off later is
-literally `pass`.
+scenario still routes through `_mode.run(duration_seconds=0.0)` which
+returns immediately and the surrounding `finally: em.stop()` drops the
+voltage within milliseconds. P1-1 added the `stop()` primitive that this
+fix relies on, but the legacy `do_ai=False` path was not rewired.
 
 **Action:**
-1. When `do_ai=False`, do **not** route through `_mode.run` at all. Instead
-   keep an `ExperimentManager` instance on `self` and call `em.ao_set(ch,
-   V)` (or `em.ao_modulated(...)` if AC is enabled) and **return without
+1. When `do_ai=False`, do **not** route through `_mode.run`. Instead keep
+   an `ExperimentManager` instance on `self` and call `em.ao_set(ch, V)`
+   (or `em.ao_modulated(...)` if AC is enabled) and **return without
    stopping**.
-2. Implement `ai_stop()` to call the stored `em.stop()` and clear the
-   reference.
+2. Have `ai_stop()` call the stored `em.stop()` and clear the reference.
+   (Currently `ai_stop()` forwards to `_mode.stop()` which is harmless
+   but does not stop a held AO since `_mode.run` was never started for
+   `do_ai=False`.)
 3. Document the new lifecycle: `arm() → run(do_ai=False) → ai_stop()`.
 
 **Verification:** integration test on the mock — `IsoMode(...).run(do_ai=
-False)` then read `_shared.iso_voltages` (or the AO buffer) and confirm the
-commanded voltage is still being driven; call `ai_stop()` and confirm
+False)` then read `_shared.iso_voltages` (or the AO buffer) and confirm
+the commanded voltage is still being driven; call `ai_stop()` and confirm
 `iso_voltages` is empty.
-
-This couples directly to **P1-1**: both items want the same interrupt
-primitive. Fix them together.
 
 ### P1-6. Tango: `select_mode` + `arm` state machine is not fail-loud
 
@@ -462,11 +461,12 @@ modulation, run `SlowMode`, save HDF5, plot.
 
 1. **P0-3** — needs a conversation with the physicist; do not touch
    calibration coefficients before that.
-2. **P0-5** — real hardware, when the trigger upgrade happens.
-3. **P1-1 + P1-5** — closely coupled; fix together. Same `Event` /
-   `stop()` plumbing satisfies both.
-4. **P1-3, P1-4** — independent, do in parallel after the iso interrupt
-   work.
+2. **P0-5** — real-hardware loopback validation of the new
+   `hardware_trigger` path, when access to the production DAQ is
+   available.
+3. **P1-5** — small follow-up to P1-1; the `stop()` primitive is in
+   place, just needs the legacy `do_ai=False` path rewired around it.
+4. **P1-3, P1-4** — independent, do in parallel.
 5. **P1-6 → P1-16** — two or three at a time.
 6. **P2-\*** — code-quality round after P0/P1 close.
 7. **P3-\*** — last, or piggy-back on each P0/P1 PR.
@@ -475,8 +475,10 @@ modulation, run `SlowMode`, save HDF5, plot.
 
 - Run `PYTHONPATH=src .venv/bin/pytest -q` (≤10 s) on every change.
 - Do not touch the GUI (`front/`) until back-end P0/P1 are closed.
-- **Do not change hardcoded names/values** (`Uref`, `ch1`, …) without an
-  explicit user request.
+- **Do not change hardcoded names/values** (`Uref`, the
+  `total_ms % 1000 == 0` constraint) without an explicit user request.
+  Heater channel `"ch1"` now goes through `pioner.shared.channels.HEATER_AO`
+  for internal references; the wire format stays `"ch{N}"`.
 - Before any production run, mandatory smoke on real hardware: fast 1 s
   ramp, slow 2 s with modulation, iso 10 s with modulation. Compare
   against reference data from previous experiments.

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -68,6 +71,125 @@ def test_iso_mode_streams_into_dataframe(
     # The ring buffer should hold roughly 1 s of samples; allow a wide
     # tolerance because the 0.5 s flip granularity rounds down.
     assert 0.4 * settings.ai_params.sample_rate <= len(df) <= 1.2 * settings.ai_params.sample_rate
+
+
+def test_iso_mode_with_modulation_emits_fft_attrs_and_warns_on_non_seamless(
+    connected_daq, settings, calibration, caplog
+):
+    """IsoMode + AC modulation: FFT scalars in df.attrs and AO warning logged.
+
+    The default settings (f=37.5 Hz at fs=20 kHz, 1 s buffer) are NOT
+    seamless on the AO wrap, so the IsoMode arm step must log a warning
+    and ``run()`` must still produce both the per-sample lock-in columns
+    and the scalar FFT attrs.
+    """
+    import logging
+
+    # Pick an integer-cycle f to keep the AC test deterministic but rely
+    # on the default fs=20000 Hz which gives 40 cycles -> seamless.
+    settings.modulation = settings.modulation.with_amplitude(0.1)
+    iso = IsoMode(
+        connected_daq, settings, calibration, {"ch1": {"volt": 0.4}},
+        ring_buffer_seconds=2.0,
+    )
+    with caplog.at_level(logging.WARNING, logger="pioner.back.modes"):
+        iso.arm()
+    # Default f_mod is 37.5 Hz (see settings/settings.json); the default
+    # buffer is 1 s; cycles=37.5 -> non-seamless -> warning expected.
+    if abs((settings.ai_params.sample_rate * settings.modulation.frequency)
+           % settings.ai_params.sample_rate) > 0:
+        assert any("not seamless" in rec.message.lower() for rec in caplog.records), (
+            "Expected a non-seamless AO warning at default 37.5 Hz / 20 kHz / 1 s"
+        )
+
+    # AO integrity report is exposed for callers that want to introspect it.
+    assert iso._ao_period_report is not None
+    assert iso._ao_period_report.cycles == pytest.approx(37.5)
+
+    df = iso.run(duration_seconds=1.0)
+    # Per-sample lock-in columns survive (existing contract).
+    assert "temp-hr_amp" in df.columns
+    assert "temp-hr_phase" in df.columns
+    # Scalar FFT results land on df.attrs.
+    assert "temp-hr_fft" in df.attrs
+    fft_attrs = df.attrs["temp-hr_fft"]
+    assert set(fft_attrs.keys()) >= {1, 2, 3}
+    # Mock signal contains a deterministic ~196 Hz tone (mock_uldaq.py:362)
+    # plus the modulation echo, so amplitude at 1f is non-NaN and finite.
+    assert np.isfinite(fft_attrs[1]["amplitude"])
+    assert np.isfinite(fft_attrs[1]["phase"])
+    assert "temp-hr_fft_leakage" in df.attrs
+    assert 0.0 <= df.attrs["temp-hr_fft_leakage"] <= 1.0
+    assert df.attrs["temp-hr_fft_window_samples"] > 0
+
+
+def test_fast_mode_with_hardware_trigger_runs_clean(
+    connected_daq, settings, calibration, fast_programs
+):
+    """``hardware_trigger`` should produce the same result as the legacy path.
+
+    The mock implements EXTTRIGGER as a synchronised release of the AO and
+    AI workers (see ``_SharedScanState.fire_trigger``), so when the flag is
+    on we still get a full DataFrame back; this guards against regressions
+    that would leave the scans armed but never fired (and thus return zero
+    samples).
+    """
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    settings.daq_params.hardware_trigger = True
+    try:
+        mode = FastHeat(connected_daq, settings, calibration, fast_programs)
+        mode.arm()
+        df = mode.run()
+    finally:
+        settings.daq_params.hardware_trigger = False
+
+    assert len(df) == settings.ai_params.sample_rate
+    for col in ("time", "Taux", "Thtr", "temp", "temp-hr", "Uref"):
+        assert col in df.columns
+
+
+def test_iso_mode_stops_early_on_external_request(
+    connected_daq, settings, calibration
+):
+    """``stop()`` from another thread must short-circuit ``run()``."""
+    iso = IsoMode(
+        connected_daq, settings, calibration, {"ch1": {"volt": 0.5}},
+        ring_buffer_seconds=2.0,
+    )
+    iso.arm()
+
+    result: dict = {}
+
+    def _runner():
+        # Long timeout so the test fails loudly if stop() does not work.
+        result["df"] = iso.run(duration_seconds=10.0)
+
+    th = threading.Thread(target=_runner)
+    t0 = time.monotonic()
+    th.start()
+    time.sleep(0.5)
+    iso.stop()
+    th.join(timeout=3.0)
+    elapsed = time.monotonic() - t0
+
+    assert not th.is_alive(), "run() did not return after stop()"
+    assert elapsed < 3.0, f"stop() did not interrupt in time ({elapsed:.2f}s)"
+    df = result["df"]
+    # Ring buffer should hold ~0.5 s worth of samples (half-buffer flip
+    # granularity rounds the actual count to 0.0–1.0 s).
+    assert 0 <= len(df) <= 1.5 * settings.ai_params.sample_rate
+
+
+def test_iso_mode_stop_is_resettable_for_a_second_run(
+    connected_daq, settings, calibration
+):
+    """A stale ``stop()`` from a previous run must not poison the next one."""
+    iso = IsoMode(connected_daq, settings, calibration, {"ch1": {"volt": 0.5}})
+    iso.arm()
+
+    iso.stop()  # before any run
+    df = iso.run(duration_seconds=1.0)
+    assert len(df) > 0
 
 
 def test_create_mode_factory(connected_daq, settings, calibration, fast_programs):

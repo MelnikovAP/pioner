@@ -15,11 +15,12 @@ import h5py
 import numpy as np
 
 from pioner.shared.calibration import Calibration
+from pioner.shared.channels import DEFAULT_AI_CHANNELS, HEATER_AO
 from pioner.shared.constants import EXP_DATA_FILE_REL_PATH
 from pioner.shared.modulation import ModulationParams
 from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.modes import DEFAULT_AI_CHANNELS, SlowMode as _SlowMode
+from pioner.back.modes import SlowMode as _SlowMode
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class SlowMode:
         calibration: Calibration,
         ai_channels: List[int] = list(DEFAULT_AI_CHANNELS),
         modulation: Optional[ModulationParams] = None,
-        modulation_channel: str = "ch1",
+        modulation_channel: str = HEATER_AO,
     ) -> None:
         self._mode = _SlowMode(
             daq_device_handler,

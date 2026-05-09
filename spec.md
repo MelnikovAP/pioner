@@ -142,7 +142,9 @@ LP, zero phase lag).
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
-│ 7. SlowMode / IsoMode lock-in (scipy.signal.sosfiltfilt)          │
+│ 7. SlowMode / IsoMode demodulation                                │
+│                                                                   │
+│ 7a. Time-domain lock-in (scipy.signal.sosfiltfilt) -- both modes  │
 │    in_phase(t)   = signal · sin(ωt)                               │
 │    quadrature(t) = signal · cos(ωt)                               │
 │    LP both with 4th-order Butterworth, Wn = (f / 5) / (fs/2)      │
@@ -150,6 +152,39 @@ LP, zero phase lag).
 │    phase(t)      = −arctan2(quadrature_lp, in_phase_lp)           │
 │        # positive phase = signal lags the AO reference            │
 │    Output columns: temp-hr_amp, temp-hr_phase                     │
+│                                                                   │
+│ 7b. FFT demodulation (IsoMode only)  -- shared.modulation.        │
+│     fft_demodulate                                                │
+│    Iso is stationary, so a single global (A, phi) is the natural  │
+│    physical observable. We pick the largest sub-window of length  │
+│    N <= len(signal) such that N · f / fs is an integer (Fraction- │
+│    based; for f=37.5 Hz at fs=20 kHz this picks N=19200, i.e.     │
+│    36 cycles). Inside that window the rectangular FFT has zero    │
+│    spectral leakage at the harmonic bins and we read              │
+│        A_h   = 2 · |X[h·k_f]| / N                                 │
+│        phi_h = -π/2 - arg(X[h·k_f]) + h·ω·t_start                 │
+│    where t_start = (len-N)/fs (we use the trailing slice to skip  │
+│    any thermal startup transient; the +h·ω·t_start term shifts    │
+│    the phase reference back to sample 0 of the original input,    │
+│    so FFT and time-domain lock-in agree on stationary inputs).    │
+│    Harmonics 1f / 2f / 3f are extracted at no extra cost; 2f and  │
+│    3f are useful in AC calorimetry as a check on heater linear-   │
+│    ity. Output: df.attrs['temp-hr_fft'] = {h: {amplitude, phase}} │
+│    plus df.attrs['temp-hr_fft_leakage'] (fraction of AC power not │
+│    at the requested harmonics).                                   │
+│                                                                   │
+│ 7c. AO modulation buffer integrity check (IsoMode only) --        │
+│     shared.modulation.check_ao_period_integrity                   │
+│    IsoMode replays the AO buffer CONTINUOUS, so unless the buffer │
+│    covers an integer number of AC cycles every wrap injects a     │
+│    phase jump of 2π·(cycles - round(cycles)) rad. The check       │
+│    quantifies cycles_drift, phase_jump_rad, and the resulting     │
+│    spectral leakage; logs a WARNING at IsoMode.arm() when         │
+│    seamless=False. Fix in production: choose f_mod so that        │
+│    n·f_mod/fs is integer (e.g. at fs=20 kHz, pick f from          │
+│    {1, 2, 4, 5, 8, 10, 16, 20, 25, 40, 50, ...} Hz; the historic  │
+│    37.5 Hz default is *not* in this set and produces a π-rad      │
+│    jump per wrap).                                                │
 └───────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -192,11 +227,25 @@ This is symmetric in `_collect_finite_ai` (paced finite scan) and `_ring_loop`
 
 Both scans share the same DAQ board's onboard pacer, so the relative drift
 between them is bounded by clock jitter (negligible on the timescale of any
-realistic scan). We do, however, start AI a few hundred microseconds before
-AO so we never miss the first AO sample. This means the AI frame contains
-those leading "pre-AO" samples; for fast mode (>1000 K/s) the leading edge
-is therefore offset by 1–2 samples. See the global TODOs below for the
-hardware-trigger fix.
+realistic scan).
+
+Two start modes are supported:
+
+* **Sequential start (default, ``BackSettings.daq_params.hardware_trigger
+  = False``).** AI is armed first (``ScanOption.CONTINUOUS``), then AO
+  (``ScanOption.BLOCKIO``). The two ``scan()`` calls are separated by
+  ~100 µs of Python and one USB round-trip, which means the AI frame
+  contains those leading "pre-AO" samples. For fast mode (>1000 K/s) the
+  leading edge is therefore offset by 1–2 samples.
+* **Hardware trigger (``hardware_trigger = True``).** Both scans pre-arm
+  with ``ScanOption.EXTTRIGGER`` and stay idle until
+  ``DaqDeviceHandler.fire_software_trigger()`` pulses the trigger line.
+  AO and AI then start on the same DAQ clock edge — no skew. The mock
+  implements this with a shared ``threading.Event`` and a single
+  ``time.monotonic()`` reference for both workers, so the path is
+  exercised by the test suite. Real-hardware validation is still pending
+  (loopback test described in
+  ``src/pioner/back/experiment_manager.py:_finite_scan``).
 
 ---
 
@@ -301,10 +350,12 @@ authoritative, prioritised list is in `todo.md`.
    `ceil(seconds) * sample_rate` and trimming the trailing tail. Touched in
    `experiment_manager._collect_finite_ai` and `modes._validate_programs`.
    *Currently a deliberate software simplification (see `todo.md` P0-6).*
-2. **Hardware trigger** — start AO and AI on the same DAQ pulse via
-   `ScanOption.RETRIGGER` (or `EXTTRIGGER` if a digital line is wired). This
-   removes the ~hundreds-of-µs leading skew that currently means the first
-   1–2 samples of AI are pre-AO. Requires real hardware to validate.
+2. **Hardware trigger** — implemented behind
+   ``BackSettings.daq_params.hardware_trigger`` (default ``False``); when
+   on, both AO and AI scans pre-arm with ``ScanOption.EXTTRIGGER`` and
+   start together on a single ``fire_software_trigger`` pulse. Removes
+   the ~hundreds-of-µs leading skew. Mock-tested; still requires
+   real-hardware loopback validation before production use.
 3. **External interrupt for IsoMode** — replace the plain
    `time.sleep(duration_seconds)` in `IsoMode.run` with a
    `threading.Event` exposed at the Tango / GUI level so long-running iso
@@ -361,13 +412,13 @@ authoritative, prioritised list is in `todo.md`.
 | Test file                    | Coverage                                                          |
 |------------------------------|-------------------------------------------------------------------|
 | `test_calibration.py`        | identity, clamping, vectorised round-trip, error paths, production polynomial inverts |
-| `test_modulation.py`         | `apply_modulation`, lock-in amplitude/phase recovery, edge cases   |
+| `test_modulation.py`         | `apply_modulation`, lock-in amp/phase, FFT demod (1f/2f/3f, aliasing, leakage), AO period integrity (seamless / 37.5 Hz defect / aliased) |
 | `test_mock_uldaq.py`         | lifecycle, shared buffer, scan progression, race-free re-arm       |
 | `test_modes_e2e.py`          | fast / slow / iso end-to-end on mock; temp-program path; validation errors |
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input |
 
 ```bash
-PYTHONPATH=src pytest tests/             # 33 tests, ~7 s
+PYTHONPATH=src pytest tests/             # 48 tests, ~10 s
 PYTHONPATH=src python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

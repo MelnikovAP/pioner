@@ -167,6 +167,24 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             self.ao_start_time: float = 0.0
             self.ao_options: int = 0
             self.iso_voltages: dict[int, float] = {}
+            # Hardware-trigger gate. ``trigger_event`` is preset, so scans
+            # without ``EXTTRIGGER`` start immediately. Scans armed with
+            # ``EXTTRIGGER`` clear it and wait until ``fire_trigger`` sets it.
+            # ``trigger_t0`` is populated atomically at fire time so AO and AI
+            # workers share an identical t=0 reference (no start skew).
+            self.trigger_event = threading.Event()
+            self.trigger_event.set()
+            self.trigger_t0: Optional[float] = None
+
+        def arm_trigger(self) -> None:
+            """Mark the next scan(s) as gated on a software trigger."""
+            self.trigger_event.clear()
+            self.trigger_t0 = None
+
+        def fire_trigger(self) -> None:
+            """Release all EXTTRIGGER-armed scans on a single t=0."""
+            self.trigger_t0 = time.monotonic()
+            self.trigger_event.set()
 
         def set_ao_scan(
             self,
@@ -180,8 +198,13 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             self.ao_low = low
             self.ao_high = high
             self.ao_rate = float(rate)
-            self.ao_start_time = time.monotonic()
             self.ao_options = int(options)
+            # If the scan is gated on a trigger, defer ao_start_time until the
+            # trigger fires; otherwise stamp it now.
+            if int(options) & ScanOption.EXTTRIGGER:
+                self.ao_start_time = 0.0  # placeholder, see voltage_at()
+            else:
+                self.ao_start_time = time.monotonic()
 
         def stop_ao(self) -> None:
             self.ao_buffer = None
@@ -197,7 +220,15 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             samples_per_chan = len(buf) // n_chans
             if samples_per_chan == 0:
                 return 0.0
-            elapsed = max(t - self.ao_start_time, 0.0)
+            # Triggered AO uses ``trigger_t0`` as t=0. Untriggered uses
+            # ``ao_start_time`` set at scan() time.
+            if self.ao_options & ScanOption.EXTTRIGGER:
+                if self.trigger_t0 is None:
+                    return 0.0
+                t0 = self.trigger_t0
+            else:
+                t0 = self.ao_start_time
+            elapsed = max(t - t0, 0.0)
             sample_index = int(elapsed * self.ao_rate)
             if self.ao_options & ScanOption.CONTINUOUS:
                 sample_index %= samples_per_chan
@@ -237,6 +268,7 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             self._low_channel = 0
             self._high_channel = 0
             self._continuous = False
+            self._triggered = False
             self._scanning = False
 
         # API used by AiDeviceHandler ----------------------------------
@@ -278,6 +310,7 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
                 self._scan_count = 0
                 self._current_index = 0
                 self._continuous = bool(options & ScanOption.CONTINUOUS)
+                self._triggered = bool(options & ScanOption.EXTTRIGGER)
                 self._scanning = True
                 self._stop_event.clear()
                 self._worker = threading.Thread(
@@ -326,8 +359,21 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             chunk_samples = max(1, int(rate / 200))  # ~5 ms chunks at 20 kHz
             sample_period = 1.0 / rate
 
+            # If gated on a trigger, block until ``fire_software_trigger`` is
+            # called. ``trigger_t0`` is then the shared t=0 reference for both
+            # AO and AI workers — that's the whole point of the trigger.
+            if self._triggered:
+                trig = self._shared.trigger_event
+                while not self._stop_event.is_set() and not trig.wait(timeout=0.05):
+                    pass
+                if self._stop_event.is_set():
+                    with self._lock:
+                        self._scanning = False
+                    return
+                t_start = self._shared.trigger_t0 or time.monotonic()
+            else:
+                t_start = time.monotonic()
             scan_index = 0
-            t_start = time.monotonic()
             while not self._stop_event.is_set():
                 target_samples = int((time.monotonic() - t_start) / sample_period)
                 if target_samples <= scan_index:
@@ -385,6 +431,7 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
             self._current_index = 0
             self._scan_start = 0.0
             self._continuous = False
+            self._triggered = False
 
         def get_info(self) -> _MockAoInfo:
             return _MockAoInfo()
@@ -426,8 +473,13 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
                 self._scan_count = 0
                 self._total_count = samples_per_channel
                 self._current_index = 0
-                self._scan_start = time.monotonic()
                 self._continuous = bool(options & ScanOption.CONTINUOUS)
+                self._triggered = bool(options & ScanOption.EXTTRIGGER)
+                # Without a trigger gate the AO advances from the moment
+                # ``a_out_scan`` returns. With it, ``_scan_start`` stays at
+                # 0 until ``fire_software_trigger`` is called and
+                # ``get_scan_status`` reports zero progress in the meantime.
+                self._scan_start = 0.0 if self._triggered else time.monotonic()
             # Iso voltages are no longer authoritative once a scan starts.
             for ch in range(low_channel, high_channel + 1):
                 self._shared.iso_voltages.pop(ch, None)
@@ -443,7 +495,15 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
                 if not self._scanning:
                     return ScanStatus.IDLE, MockTransferStatus()
                 rate = self._shared.ao_rate or 1.0
-                elapsed = time.monotonic() - self._scan_start
+                # If gated on a trigger that has not fired, no progress yet.
+                if self._triggered and self._shared.trigger_t0 is None:
+                    return ScanStatus.RUNNING, MockTransferStatus()
+                t0 = (
+                    self._shared.trigger_t0
+                    if self._triggered
+                    else self._scan_start
+                )
+                elapsed = time.monotonic() - t0
                 samples = int(elapsed * rate)
                 if not self._continuous and samples >= self._total_count:
                     samples = self._total_count
@@ -501,6 +561,15 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
 
         def get_ao_device(self) -> MockAoDevice:
             return self._ao_device
+
+        def fire_software_trigger(self) -> None:
+            """Release any AO/AI scans armed with ``EXTTRIGGER``.
+
+            On real hardware this would pulse a digital output line wired to
+            the trigger input. The mock fires both workers off the same
+            ``time.monotonic()`` reading.
+            """
+            self._shared.fire_trigger()
 
     # -----------------------------------------------------------------------
     # Module-level shim that mirrors the ``uldaq`` namespace

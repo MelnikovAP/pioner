@@ -211,6 +211,17 @@ class NanoControl(Device):  # type: ignore[misc]
         self._mode.run()
         logger.info("Mode %s finished", self._mode_name)
 
+    @command
+    def stop_run(self) -> None:
+        """Abort an in-flight ``run()`` (only meaningful for iso, today)."""
+        mode = self._mode
+        stop = getattr(mode, "stop", None) if mode is not None else None
+        if stop is None:
+            logger.warning("Active mode does not support stop_run")
+            return
+        stop()
+        logger.info("Mode %s stop requested", self._mode_name)
+
     # ------------------------------------------------------------------
     # Legacy compatibility (kept so existing GUI calls keep working)
     # ------------------------------------------------------------------

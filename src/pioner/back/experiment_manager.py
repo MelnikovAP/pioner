@@ -170,14 +170,31 @@ class ExperimentManager:
         ai_handler = self._ensure_ai_handler(self._ai_params.sample_rate)
         ao_handler = self._ensure_ao_handler()
 
-        # Configure AO for finite output; AI stays continuous.
-        # TODO(global): use a hardware trigger (RETRIGGER / EXTTRIGGER) so AO
-        # and AI start on the same DAQ clock pulse. Currently we start AI a
-        # few hundred microseconds before AO; for fast (>1000 K/s) scans the
-        # leading edge is therefore offset by 1-2 samples. Acceptable for
-        # mock and tests, but worth tightening on real hardware.
-        self._ao_params.options = ul.ScanOption.BLOCKIO
-        self._ai_params.options = ul.ScanOption.CONTINUOUS
+        # Configure AO for finite output; AI stays continuous. When
+        # ``hardware_trigger`` is enabled (todo P0-5) both scans pre-arm with
+        # ``EXTTRIGGER`` and only start when ``fire_software_trigger`` is
+        # called, so they share a single t=0 clock edge instead of the
+        # ~100 us start skew we get from sequential ``scan()`` calls.
+        #
+        # Real-hardware fallbacks if ``EXTTRIGGER`` does not behave as
+        # expected on the production board (validate with the loopback test:
+        # drive a 1 kHz square wave on AO ch1, read it back on AI ch1, look
+        # for the leading edge — should be within 1 sample of t=0):
+        #   1) Pacer-clock sharing (``ScanOption.PACEROUT`` on AO,
+        #      ``ScanOption.EXTCLOCK`` on AI). USB-1808 supports this and it
+        #      needs no external wiring.
+        #   2) Software offset: measure the persistent skew once, store it
+        #      as ``calibration.pre_trigger_samples``, and trim the leading
+        #      ``N`` samples in ``apply_calibration``. Cheap but host-specific.
+        triggered = bool(getattr(self._daq_device_handler._params,
+                                  "hardware_trigger", False))
+        ao_options = ul.ScanOption.BLOCKIO
+        ai_options = ul.ScanOption.CONTINUOUS
+        if triggered:
+            ao_options |= ul.ScanOption.EXTTRIGGER
+            ai_options |= ul.ScanOption.EXTTRIGGER
+        self._ao_params.options = ao_options
+        self._ai_params.options = ai_options
 
         self._ao_buffer = ScanDataGenerator(
             voltage_profiles,
@@ -189,9 +206,13 @@ class ExperimentManager:
         ao_handler.stop()
         ai_handler.stop()
 
-        # Start AI first so we don't miss the leading samples of the AO scan.
+        # Without a trigger we still arm AI first so we don't miss the
+        # leading edge of AO; with a trigger the order does not matter
+        # because neither scan progresses until fire_software_trigger().
         ai_rate = ai_handler.scan(self._ai_buffer_samples_per_channel)
         ao_rate = ao_handler.scan(self._ao_buffer)
+        if triggered:
+            self._daq_device_handler.fire_software_trigger()
 
         df = self._collect_finite_ai(ai_handler, ao_handler, seconds, ai_channels)
 

@@ -98,8 +98,12 @@ be re-validated on real hardware before MVP sign-off.
 
 2. **AO/AI start skew** — The mock does not care which scan starts first.
    On real hardware AI is armed ~100 µs before AO, which means the leading
-   1–2 samples on a 1000 K/s FastHeat scan are pre-AO. Tracked as `todo.md`
-   P0-5; the long-term fix is `RETRIGGER`/`EXTTRIGGER` on the same DAQ pulse.
+   1–2 samples on a 1000 K/s FastHeat scan are pre-AO. The
+   `hardware_trigger=True` path (see
+   `BackSettings.daq_params.hardware_trigger`) closes this on real
+   hardware by pre-arming both scans with `EXTTRIGGER` and firing them
+   together; mock-tested but not yet validated against a physical board.
+   Tracked as `todo.md` P0-5.
 
 3. **`Ihtr` / `Rhtr` dimensions** — With the default identity calibration
    `ihtr1 = 1.0`, the formula `Rhtr = (Uhtr_mV − V_shunt·1000 + uhtr0) ·

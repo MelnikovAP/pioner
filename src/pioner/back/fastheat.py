@@ -16,10 +16,11 @@ import h5py
 import numpy as np
 
 from pioner.shared.calibration import Calibration
+from pioner.shared.channels import DEFAULT_AI_CHANNELS
 from pioner.shared.constants import EXP_DATA_FILE_REL_PATH
 from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.modes import DEFAULT_AI_CHANNELS, FastHeat as _FastHeatMode
+from pioner.back.modes import FastHeat as _FastHeatMode
 
 logger = logging.getLogger(__name__)
 

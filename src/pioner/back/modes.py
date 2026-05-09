@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import abc
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence
 
@@ -35,9 +36,23 @@ import numpy as np
 import pandas as pd
 
 from pioner.shared.calibration import Calibration
+from pioner.shared.channels import (
+    AD595_AI,
+    DEFAULT_AI_CHANNELS,
+    HEATER_AO,
+    HEATER_CURRENT_AI,
+    UHTR_AI,
+    UMOD_AI,
+    UTPL_AI,
+    channel_index,
+    channel_key,
+)
 from pioner.shared.modulation import (
+    AOPeriodReport,
     ModulationParams,
     apply_modulation,
+    check_ao_period_integrity,
+    fft_demodulate,
     lockin_demodulate,
 )
 from pioner.shared.settings import BackSettings
@@ -46,13 +61,6 @@ from pioner.back.daq_device import DaqDeviceHandler
 from pioner.back.experiment_manager import ExperimentManager, ScanResult
 
 logger = logging.getLogger(__name__)
-
-
-# Indices of the AI channels we always keep, in the order the analysis code
-# below expects them. ``5`` is the heater voltage feedback, ``4`` the
-# thermopile, ``3`` the AD595 cold-junction, ``1`` the modulation channel,
-# ``0`` the current shunt.
-DEFAULT_AI_CHANNELS = (0, 1, 3, 4, 5)
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +128,7 @@ def _validate_programs(
             f"(got {total_ms} ms). Adjust the program or change the buffer "
             "scheme in ExperimentManager._collect_finite_ai."
         )
-    valid_keys = {f"ch{i}" for i in range(ao_low, ao_high + 1)}
+    valid_keys = {channel_key(i) for i in range(ao_low, ao_high + 1)}
     bad_keys = set(programs) - valid_keys
     if bad_keys:
         raise ValueError(
@@ -198,34 +206,38 @@ def apply_calibration(
     # which loses any drift information. For long slow ramps (>30 s) the
     # cold-junction can drift by O(0.5 °C). Replace ``mean()`` by either a
     # per-sample correction or a low-pass-filtered trace.
-    if 3 in df.columns:
-        u_aux = float(df[3].mean())
+    # TODO(diagnostic): expose an FFT spectrum of AI ch3 (AD595) as part of
+    # the apply_calibration diagnostics so 50/60 Hz mains pickup on the cold
+    # junction is visible quantitatively. Cheap to add (one np.fft.rfft per
+    # scan); see ``shared.modulation.fft_demodulate`` for the pattern.
+    if AD595_AI in df.columns:
+        u_aux = float(df[AD595_AI].mean())
         t_aux = 100.0 * u_aux
         t_aux = hw.correct_ad595(t_aux)
         df["Taux"] = t_aux
     else:
         df["Taux"] = 0.0
 
-    # Thermopile temperature on the standard channel (4) and on the
-    # high-resolution modulation channel (1).
-    if 4 in df.columns:
-        df[4] = df[4] * (1000.0 / hw.gain_utpl)  # mV at the front-end input
-        ax = df[4] + calibration.utpl0
+    # Thermopile temperature on the standard channel (Utpl) and on the
+    # high-resolution modulation channel (Umod).
+    if UTPL_AI in df.columns:
+        df[UTPL_AI] = df[UTPL_AI] * (1000.0 / hw.gain_utpl)  # mV at front-end
+        ax = df[UTPL_AI] + calibration.utpl0
         df["temp"] = (
             calibration.ttpl0 * ax + calibration.ttpl1 * (ax**2)
         )
         df["temp"] += df["Taux"]
-    if 1 in df.columns:
-        df[1] = df[1] * (1000.0 / hw.gain_umod)
-        ax_hr = df[1] + calibration.utpl0
+    if UMOD_AI in df.columns:
+        df[UMOD_AI] = df[UMOD_AI] * (1000.0 / hw.gain_umod)
+        ax_hr = df[UMOD_AI] + calibration.utpl0
         df["temp-hr"] = (
             calibration.ttpl0 * ax_hr + calibration.ttpl1 * (ax_hr**2)
         )
 
     # Heater temperature derived from V/I.
-    if 5 in df.columns and 0 in df.columns:
-        df[5] = df[5] * 1000.0  # heater voltage in mV
-        ih = calibration.ihtr0 + df[0] * calibration.ihtr1
+    if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
+        df[UHTR_AI] = df[UHTR_AI] * 1000.0  # heater voltage in mV
+        ih = calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1
         # When the heater is idle (current ~ 0) R_heater is undefined. The
         # historical implementation used 0 as a sentinel which then evaluated
         # to ``thtr0 + thtr1*thtrcorr + ...`` and produced a physically
@@ -234,7 +246,8 @@ def apply_calibration(
         nz = ih.abs() > 1e-9
         rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
         rhtr.loc[nz] = (
-            (df.loc[nz, 5] - df.loc[nz, 0] * 1000.0 + calibration.uhtr0)
+            (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI] * 1000.0
+             + calibration.uhtr0)
             * calibration.uhtr1
             / ih.loc[nz]
         )
@@ -245,9 +258,9 @@ def apply_calibration(
         )
         df["Thtr"] = thtr
 
-    # Provide the reference (guard) AO trace for context.
-    if "ch1" in voltage_profiles:
-        ref = np.asarray(voltage_profiles["ch1"], dtype=float)
+    # Provide the heater AO trace for context.
+    if HEATER_AO in voltage_profiles:
+        ref = np.asarray(voltage_profiles[HEATER_AO], dtype=float)
         if ref.size == 0:
             df["Uref"] = np.full(len(df), np.nan)
         elif ref.size >= len(df):
@@ -381,7 +394,7 @@ class SlowMode(BaseMode):
         self,
         *args,
         modulation: Optional[ModulationParams] = None,
-        modulation_channel: str = "ch1",
+        modulation_channel: str = HEATER_AO,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -432,6 +445,12 @@ class SlowMode(BaseMode):
         # Lock-in: extract AC amplitude and phase of the temperature response.
         # Only run the lock-in if both frequency and amplitude are non-zero;
         # otherwise the bandwidth and reference are undefined.
+        # We use the *time-domain* lock-in here (not fft_demodulate) because
+        # SlowMode's DC base ramps across the scan, so the AC amplitude is a
+        # function of T and the natural observable is per-sample
+        # ``amp(t), phi(t)`` -- exactly what ``lockin_demodulate`` returns.
+        # ``fft_demodulate`` would collapse the ramp into a single scalar
+        # which is meaningless for slow mode.
         params = self._modulation or self._settings.modulation
         if params.lockin_capable and "temp-hr" in df.columns:
             amp, phase = lockin_demodulate(
@@ -464,7 +483,7 @@ class IsoMode(BaseMode):
         programs: Dict[str, dict],
         ai_channels: Sequence[int] = DEFAULT_AI_CHANNELS,
         modulation: Optional[ModulationParams] = None,
-        modulation_channel: str = "ch1",
+        modulation_channel: str = HEATER_AO,
         ring_buffer_seconds: float = 10.0,
     ) -> None:
         normalised: Dict[str, dict] = {}
@@ -486,6 +505,16 @@ class IsoMode(BaseMode):
         self._modulation = modulation
         self._modulation_channel = modulation_channel
         self._ring_buffer_seconds = ring_buffer_seconds
+        # External abort handle. ``run()`` blocks on this; ``stop()`` from any
+        # other thread (Tango command, GUI button) sets it to return early.
+        self._stop_event = threading.Event()
+        # AO buffer integrity diagnostic, populated by _build_profiles when AC
+        # modulation is enabled. ``None`` means either DC-only or not armed.
+        self._ao_period_report: Optional[AOPeriodReport] = None
+
+    def stop(self) -> None:
+        """Request a clean shutdown of the running scan from another thread."""
+        self._stop_event.set()
 
     def _post_arm_check(self) -> None:
         # All programs must be constant in iso mode (no ramps).
@@ -513,23 +542,61 @@ class IsoMode(BaseMode):
                 base = apply_modulation(time_s, base, params)
                 np.clip(base, 0.0, self._calibration.safe_voltage, out=base)
             profiles[ch] = base
+        # Sanity check: the AO buffer is replayed CONTINUOUS, so a non-integer
+        # number of AC cycles in the buffer would inject a phase jump at every
+        # wrap (and visible spectral sidebands on the chip drive). With the
+        # default 1-second buffer at f_mod=37.5 Hz this is exactly what
+        # happens (37.5 cycles -> pi rad jump per wrap). We log a warning
+        # rather than raise: the experiment still runs, just with biased C_p.
+        # The fix in production is either to choose f_mod such that
+        # ``rate / f_mod`` is rational with a small denominator that divides
+        # ``n``, or to size the AO buffer to the smallest integer-cycle
+        # length (see :func:`_integer_cycle_length` in shared.modulation).
+        ac_profile = profiles.get(self._modulation_channel)
+        if ac_profile is not None:
+            report = check_ao_period_integrity(
+                ac_profile, sample_rate=float(rate), frequency=params.frequency
+            )
+            self._ao_period_report = report
+            if not report.seamless:
+                logger.warning(
+                    "IsoMode AO modulation buffer is NOT seamless: "
+                    "%.3f cycles in buffer (drift %+.3f cycles -> "
+                    "%+.4f rad phase jump per wrap), spectral leakage %.2f%%. "
+                    "Choose f_mod so that buffer_samples * f_mod / sample_rate "
+                    "is an integer (e.g. for fs=%.0f Hz pick f_mod from "
+                    "{1, 2, 4, 5, 8, 10, 16, 20, 25, 40, 50, ...} Hz instead).",
+                    report.cycles,
+                    report.cycles_drift,
+                    report.phase_jump_rad,
+                    100.0 * report.leakage_fraction,
+                    float(rate),
+                )
         return profiles
 
     def run(self, duration_seconds: Optional[float] = None) -> pd.DataFrame:
-        """Stream AI for ``duration_seconds`` and return the demodulated frame.
+        """Stream AI until ``stop()`` or ``duration_seconds`` elapses.
 
-        TODO(global): currently the wait is a plain ``time.sleep`` and there is
-        no externally-visible interrupt handle. For long iso runs (minutes /
-        hours) we should expose a ``threading.Event`` (or a dedicated
-        ``stop()`` method) that the GUI / Tango layer can flip without having
-        to wait for the duration to expire.
+        ``duration_seconds`` is a *maximum* timeout. ``None`` means "block
+        until ``stop()`` is called" (used by long iso runs from the GUI).
+        ``stop()`` from any other thread returns ``run()`` cleanly with
+        whatever the ring buffer has captured so far.
         """
         if not self.is_armed():
             raise RuntimeError("IsoMode is not armed; call arm() first")
 
         params = self._modulation or self._settings.modulation
-        if duration_seconds is None:
-            duration_seconds = max(self.duration_seconds, 1.0)
+        if duration_seconds is None and self.duration_seconds < 1.0:
+            # Falling back to the armed duration is the legacy behaviour for
+            # callers that did not specify one. ``< 1 s`` clearly was a default
+            # placeholder, so go indefinite.
+            duration_seconds = None
+        elif duration_seconds is None:
+            duration_seconds = self.duration_seconds
+
+        # Re-arm the abort flag. A stale ``stop()`` from a previous run must
+        # not leak into this one.
+        self._stop_event.clear()
 
         em = ExperimentManager(self._daq, self._settings)
         try:
@@ -538,13 +605,11 @@ class IsoMode(BaseMode):
             else:
                 # Single-channel DC voltage on every channel mentioned in the program.
                 for ch, profile in self._voltage_profiles.items():
-                    channel = int(ch.replace("ch", ""))
-                    em.ao_set(channel, float(profile[0]))
+                    em.ao_set(channel_index(ch), float(profile[0]))
 
             em.start_ring_buffer(self._ai_channels, max_seconds=self._ring_buffer_seconds)
-            import time as _time
-
-            _time.sleep(duration_seconds)
+            # Block until either the timeout expires or stop() is called.
+            self._stop_event.wait(timeout=duration_seconds)
             em.stop_ring_buffer()
 
             samples = em.snapshot_ring_buffer()
@@ -563,13 +628,57 @@ class IsoMode(BaseMode):
             ai_channels=self._ai_channels,
         )
         if params.lockin_capable and "temp-hr" in df.columns:
+            ai_rate = float(self._settings.ai_params.sample_rate)
+            temp_hr = df["temp-hr"].to_numpy()
+            # Time-domain lock-in: per-sample amp/phase trace. Useful for
+            # visual diagnostics (settling, drift) even in iso mode.
             amp, phase = lockin_demodulate(
-                df["temp-hr"].to_numpy(),
-                sample_rate=float(self._settings.ai_params.sample_rate),
-                frequency=params.frequency,
+                temp_hr, sample_rate=ai_rate, frequency=params.frequency,
             )
             df["temp-hr_amp"] = amp
             df["temp-hr_phase"] = phase
+            # FFT demodulation: scalar amp/phase per harmonic over the
+            # whole capture. In iso mode the response is stationary so a
+            # single global estimate is the natural physical observable;
+            # 2f/3f harmonics are extracted at no additional cost and are
+            # used in AC calorimetry as a check on heater linearity.
+            #
+            # We keep both estimators on purpose: the FFT is bias-free over
+            # an integer-cycle window, while the time-domain lock-in shows
+            # transient behaviour. Disagreement between the two flags either
+            # a thermal transient, a non-stationary signal, or a problem
+            # with the AO modulation period (see ``_ao_period_report``).
+            try:
+                fft_result = fft_demodulate(
+                    temp_hr,
+                    sample_rate=ai_rate,
+                    frequency=params.frequency,
+                    harmonics=(1, 2, 3),
+                )
+                # Stash on df.attrs so callers can pick up the scalars
+                # without bloating the per-sample DataFrame. (df.attrs does
+                # not round-trip through HDF5; if persistence is needed,
+                # log them at INFO and revisit when the iso HDF5 export
+                # lands -- see todo.md P2-9.)
+                df.attrs["temp-hr_fft"] = {
+                    h.harmonic: {"amplitude": h.amplitude, "phase": h.phase}
+                    for h in fft_result.harmonics
+                }
+                df.attrs["temp-hr_fft_leakage"] = fft_result.leakage_fraction
+                df.attrs["temp-hr_fft_window_samples"] = fft_result.window_samples
+                fund = fft_result.fundamental
+                logger.info(
+                    "IsoMode FFT demod: 1f -> A=%.4g, phi=%+.4f rad; "
+                    "leakage=%.2f%%, window=%d samples",
+                    fund.amplitude, fund.phase,
+                    100.0 * fft_result.leakage_fraction,
+                    fft_result.window_samples,
+                )
+            except ValueError as exc:
+                # Signal too short / Nyquist violation: log but do not
+                # crash the run -- the time-domain lock-in still produced
+                # something usable.
+                logger.warning("IsoMode FFT demod skipped: %s", exc)
         return df
 
 

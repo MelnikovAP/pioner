@@ -23,6 +23,13 @@ class DaqParams:
     def __init__(self) -> None:
         self.interface_type: int = ul.InterfaceType.ANY
         self.connection_code: int = -1
+        # When True, AO and AI scans are armed with ``ScanOption.EXTTRIGGER``
+        # and started by a single software trigger pulse so they share the
+        # same DAQ clock edge. Eliminates the ~100 us start skew between AO
+        # and AI on real hardware (todo P0-5). Default False until the
+        # production DAQ is wired up — flipping it on without a trigger line
+        # will hang the scans.
+        self.hardware_trigger: bool = False
 
     def __str__(self) -> str:  # pragma: no cover - debug only
         return str(vars(self))
@@ -126,3 +133,23 @@ class DaqDeviceHandler:
 
     def get_ao_device(self):
         return self._daq_device.get_ao_device()
+
+    # ------------------------------------------------------------------
+    # Hardware-trigger primitive (todo P0-5)
+    # ------------------------------------------------------------------
+    def fire_software_trigger(self) -> None:
+        """Pulse the DAQ trigger line so both EXTTRIGGER-armed scans start.
+
+        On real hardware this drives a digital output (typically wired
+        externally to the board's trigger input pin) for one clock cycle. The
+        mock backend implements this as a synchronised release of the AO and
+        AI workers.
+        """
+        fire = getattr(self._daq_device, "fire_software_trigger", None)
+        if fire is None:
+            raise RuntimeError(
+                "DAQ backend does not expose a software-trigger primitive; "
+                "hardware_trigger=True requires either an external pulse "
+                "generator or a DIO line wired to the trigger input."
+            )
+        fire()

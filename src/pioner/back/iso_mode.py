@@ -20,10 +20,16 @@ import logging
 from typing import Optional
 
 from pioner.shared.calibration import Calibration
+from pioner.shared.channels import (
+    DEFAULT_AI_CHANNELS,
+    HEATER_AO,
+    channel_index,
+    channel_key,
+)
 from pioner.shared.modulation import ModulationParams
 from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.modes import DEFAULT_AI_CHANNELS, IsoMode as _IsoMode
+from pioner.back.modes import IsoMode as _IsoMode
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +68,7 @@ class IsoMode:
         calibration: Calibration,
         duration_seconds: int = 1,
         modulation: Optional[ModulationParams] = None,
-        modulation_channel: str = "ch1",
+        modulation_channel: str = HEATER_AO,
     ) -> None:
         self._duration_seconds = max(int(duration_seconds), 1)
         programs = _normalise_channel_program(chan_temp_volt, self._duration_seconds)
@@ -76,12 +82,12 @@ class IsoMode:
         )
         # Maintain the legacy ``arm()`` -> ``(channel, voltage)`` return.
         ch_name = next(iter(chan_temp_volt))
-        self._channel = int(ch_name.replace("ch", ""))
+        self._channel = channel_index(ch_name)
         self._voltage: Optional[float] = None
 
     def arm(self):
         self._mode.arm()
-        profile = self._mode.voltage_profiles.get(f"ch{self._channel}")
+        profile = self._mode.voltage_profiles.get(channel_key(self._channel))
         self._voltage = float(profile[0]) if profile is not None else 0.0
         return self._channel, self._voltage
 
@@ -97,9 +103,15 @@ class IsoMode:
             return None
         return self._mode.run(duration_seconds=duration_seconds)
 
+    def stop(self) -> None:
+        """Abort a running ``run()`` from another thread (or from Tango)."""
+        self._mode.stop()
+
     def ai_stop(self) -> None:  # legacy API
-        # The new implementation stops automatically when ``run`` returns.
-        pass
+        # Old GUIs called this after ``run(do_ai=False)`` to drop the held
+        # voltage. Forward to the new ``stop()`` primitive so the legacy
+        # entry-point keeps working.
+        self.stop()
 
 
 __all__ = ["IsoMode"]
