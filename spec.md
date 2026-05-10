@@ -242,13 +242,21 @@ seamless. See §3.7c.
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
-│ 8. Optional persistence (FastHeat / SlowMode legacy facades)      │
-│    HDF5 file ``data/exp_data.h5`` with:                           │
+│ 8. Persistence (modes.save_run_to_h5)                             │
+│    Called by Tango ``run`` after every mode finishes (skipped     │
+│    when the mode returns None / empty, e.g. legacy iso-do_ai      │
+│    holds-only). Output: HDF5 file at ``EXP_DATA_FILE_REL_PATH``   │
+│    (= ``./data/exp_data.h5``):                                    │
 │      data/{time, Taux, Thtr, Uref, temp, temp-hr, [..._amp,phase]}│
 │      voltage_profiles/{ch0..chN}                                  │
-│      temp_volt_programs/{chN}/{time, temp|volt}                   │
-│      calibration   (json string blob)                             │
-│      settings      (json string blob)                             │
+│      temp_volt_programs/{chN}/{time, temp|volt}  (single-element  │
+│        time/value arrays for the iso shorthand                    │
+│        ``{"chN": {"volt": v}}`` form)                             │
+│      calibration   (json string blob from ``Calibration.get_str``)│
+│      settings      (json string blob from ``BackSettings.get_str``)│
+│    Legacy facades ``back/fastheat.py`` and ``back/slow_mode.py``  │
+│    still write the same shape directly via h5py for backwards     │
+│    compatibility; new code paths use ``save_run_to_h5``.          │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
@@ -424,9 +432,10 @@ Commands:
 | `set_sample_scan_rate`         | `int`                    | change AI/AO rate; rejects non-even or out-of-range values |
 | `reset_sample_scan_rate`       | —                        | re-parse rate from `BackSettings`                          |
 | `select_mode`                  | `str` (`fast/slow/iso`)  | choose the next mode to arm                                |
-| `arm`                          | `str` (json programs)    | build voltage profiles, ready to run                       |
+| `arm`                          | `str` (json programs)    | build voltage profiles, ready to run; stash programs in `_last_programs` for the post-run HDF5 dump |
 | `run`                          | —                        | execute the armed mode (blocks for finite scans, returns   |
-|                                |                          | when iso reaches `duration_seconds` or `stop_run` fires)   |
+|                                |                          | when iso reaches `duration_seconds` or `stop_run` fires);  |
+|                                |                          | on success calls `save_run_to_h5(...)` → `EXP_DATA_FILE_REL_PATH` (= `./data/exp_data.h5`) for the GUI to download |
 | `stop_run`                     | —                        | request abort of the running mode (iso `stop()`)           |
 | `arm_fast_heat`/`run_fast_heat`| (legacy)                 | shortcuts that pre-select fast                             |
 | `arm_iso_mode`/`run_iso_mode`  | (legacy)                 | shortcuts that pre-select iso                              |
@@ -447,18 +456,63 @@ module.
 
 ## 7. Front-end (Qt5 / silx)
 
-`pioner.front.mainWindow` is the live experiment GUI. It currently exposes:
+`pioner.front.mainWindow` is the live experiment GUI. It is a thin Tango
+client; all heavy lifting (validation, AO/AI, demodulation, persistence)
+happens in the back-end. PyTango is dynamically imported only when the user
+toggles "no hardware" off; if the import fails the GUI drops into a
+no-hardware mode with the experiment widgets still interactive (so the
+operator can edit programs, plot existing HDF5 files, and save settings).
 
-* connection / calibration / data-path management,
-* a fast-mode profile editor (time × temperature/voltage table) → `arm_fast_heat`,
-* a "Set / Off" pair that pushes a constant voltage to the heater
-  channel `ch1` (iso DC),
-* download of `raw_data.h5` / `exp_data.h5` from the device's HTTP endpoint,
-* result plotting via silx.
+What the GUI currently exposes:
+
+* **Connection panel** — `set_connection` / `disconnect` Tango calls; data
+  path and calibration path inputs (`select_data_path`,
+  `select_calibration_file`). New paths are stored as `./`-relative when
+  they live under `cwd` so `settings.json` stays portable across machines
+  (`mainWindow._relative_if_under_cwd`).
+* **Calibration panel** — view (`calibWindow`), apply (`apply_calib` →
+  `device.load_calibration` + `device.apply_calibration`), reset to default
+  (`apply_default_calib`).
+* **Sample-rate panel** — Apply / Reset buttons drive
+  `device.set_sample_scan_rate(int)` and `device.reset_sample_scan_rate`.
+  Note the back-end now rejects non-even or out-of-range integers, so an
+  invalid GUI value will surface as a Tango exception.
+* **Modulation params editor** (`apply_modulation_params` /
+  `reset_modulation_params`) — three line edits for `Frequency` (Hz),
+  `Amplitude` (V), `Offset` (V). The Apply button writes back into the
+  in-memory `FrontSettings` (which `closeEvent → save_settings_to_file`
+  persists into `settings.json`); there is **no** Tango command to push
+  the values to the running back-end at the moment, so changes only take
+  effect after a re-launch / re-`set_connection`. Units in the UI are now
+  V (the historical "mA" labels were a leftover misprint, fixed in
+  `mainWindowUi.py`).
+* **Fast-mode profile editor** (`fh_arm` / `fh_run`) — a `time × value`
+  table; `experimentTimeComboBox` selects ms/s, `experimentTempComboBox`
+  selects Temperature (°C, sent as `temp`) or Voltage (V, sent as `volt`).
+  `fh_arm` rejects an empty / all-zero program with an `ErrorWindow`
+  (instead of silently sending a degenerate profile). The compiled
+  `time_temp_volt_tables` includes `ch0=0.1 V` (shunt-bias), `ch1=heater`
+  (DC ramp from the table), `ch2=2.5 V trigger gate dropping to 0 at the
+  end`. `fh_run` triggers `device.run_fast_heat`, downloads
+  `raw_data.h5` and `exp_data.h5` over HTTP from `settings.http_host`,
+  and plots `temp` via silx.
+* **Iso "Set / Off" pair** — `set_temp_volt` arms iso on `HEATER_AO`
+  (`pioner.shared.channels.HEATER_AO = "ch1"`) with the chosen unit and
+  runs it; `unset_temp_volt` arms with `volt=0` and runs again. Both calls
+  guard against `device is None` and pop an `ErrorWindow` instead of
+  crashing.
+* **Result viewer** (`resultsDataWidget`) — silx multi-curve plot built
+  from the downloaded `exp_data.h5` (`/data/...` group keys map 1:1 to
+  curves; `temp` is visible by default, others toggled).
 
 **Slow mode is NOT yet exposed in the GUI**: the user can only run fast or
 iso. Wiring slow mode requires a `select_mode("slow")` button and the
 existing profile editor (see §8 item 3). The Tango layer is ready.
+
+Settings paths (`Calibration path`, `Data path`, `Sample rate`,
+`Modulation`, `Tango/HTTP host`) are read by `FrontSettings` only — the
+back-end ignores them (see `BackSettings` docstring). On `closeEvent`
+the GUI writes everything back to `./settings/settings.json`.
 
 ---
 
@@ -530,12 +584,14 @@ working end-to-end on mock or on real hardware.
 11. **Wildcard import `from pioner.shared.constants import *`** in
     `settings.py` and `front/mainWindow.py` makes refactors brittle.
     Replace by explicit imports.
-12. **`mainWindow.fh_arm` profile cleanup** —
+12. **`mainWindow.fh_arm` profile cleanup** — empty / all-zero programs
+    are now rejected with an `ErrorWindow`, but
     `correctedProfile = uncorrectedProfile[:, :np.argmax(uncorrectedProfile[0])+1]`
-    silently truncates the program at the first non-monotonic time. Should
-    raise instead.
+    still silently truncates a program at the first row whose time equals
+    the maximum (so two equal max-time rows drop the second one). Should
+    raise on a non-monotonic time column instead.
 
-### Recently closed (2026-05-09 audit)
+### Recently closed (2026-05-09 / 2026-05-10 audits)
 
 * Rhtr unit error (mΩ vs Ω in `apply_calibration`) — corrected.
 * IsoMode DC-only bypass of calibration / `safe_voltage` — fixed.
@@ -549,6 +605,18 @@ working end-to-end on mock or on real hardware.
   ≤ `MAX_SCAN_SAMPLE_RATE`).
 * `hardware_trigger` now applied to iso/slow CONTINUOUS paths
   (`ao_modulated` + `start_ring_buffer`), not only `finite_scan`.
+* `modes.save_run_to_h5` unifies the legacy HDF5 export across all three
+  modes; `Tango.run` calls it after every successful run, so iso also
+  ends up on disk (was previously fast/slow only via the legacy facades).
+* `mainWindow.fh_arm` rejects empty / all-zero program tables explicitly.
+* GUI modulation labels say `V`, not `mA` (display-only fix).
+* `set_temp_volt` / `unset_temp_volt` / `fh_run` guard `self.device is None`.
+* GUI no-hardware mode keeps the experiment widgets enabled so programs
+  can still be edited and HDF5 results plotted offline.
+* GUI writes `Calibration path` / `Data path` as `./`-relative when they
+  sit under `cwd`, so `settings.json` stays portable.
+* `mainWindow.HEATER_CHANNEL_KEY` now reuses the named constant
+  `pioner.shared.channels.HEATER_AO` instead of the literal `"ch1"`.
 
 ---
 
