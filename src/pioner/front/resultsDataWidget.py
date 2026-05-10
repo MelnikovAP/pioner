@@ -1,3 +1,5 @@
+# pyright: reportOptionalMemberAccess=false, reportAttributeAccessIssue=false
+# pyright: reportArgumentType=false, reportPrivateImportUsage=false
 from silx.gui import qt
 from silx.gui.plot import PlotWindow
 from silx.gui.plot.tools.CurveLegendsWidget import CurveLegendsWidget

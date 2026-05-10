@@ -12,28 +12,49 @@ profile editor for slow-mode programs (DC ramp). The modulation block in
 import json
 import os
 import shutil
+from typing import Any
 
 import h5py
 import numpy as np
 import pandas as pd
 import requests
 from silx.gui import qt
-from silx.gui.plot import Plot1D
 
 from pioner.front.calibWindow import *
 from pioner.front.configWindow import *
 from pioner.front.mainWindowUi import mainWindowUi
 from pioner.front.messageWindows import *
+from pioner.shared.channels import HEATER_AO
 from pioner.shared.constants import *
 from pioner.shared.settings import FrontSettings
 from pioner.shared.utils import Dict2Class
+
+
+def _relative_if_under_cwd(path: str) -> str:
+    """Return ``path`` as a './'-prefixed relative path if it sits under cwd,
+    otherwise the absolute form. Keeps settings.json portable across machines
+    when paths point inside the project tree."""
+    abs_path = os.path.abspath(path)
+    cwd = os.path.abspath(os.getcwd())
+    try:
+        rel = os.path.relpath(abs_path, cwd)
+    except ValueError:
+        return abs_path
+    if rel.startswith(".."):
+        return abs_path
+    return os.path.join(".", rel)
 
 
 class mainWindow(mainWindowUi):
     def __init__(self, parent=None):
         super(mainWindow, self).__init__(parent)
 
-        self.device = None          # patch for disconnect method. to be changed later
+        # Tango DeviceProxy when connected. Typed as ``Any`` (not Optional)
+        # because PyTango exposes commands/attributes/pipes via __getattr__:
+        # the static checker has no way of knowing them. Runtime ``None``
+        # checks (``if self.device is None``) protect against unconnected
+        # state at every call site that needs the wire.
+        self.device: Any = None
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -48,6 +69,9 @@ class mainWindow(mainWindowUi):
         self.applyScanSampleRateButton.clicked.connect(self.apply_sample_rate)
         self.resetScanSampleRateButton.clicked.connect(self.reset_sample_rate)
 
+        self.applyModulationParamsButton.clicked.connect(self.apply_modulation_params)
+        self.resetModulationParamsButton.clicked.connect(self.reset_modulation_params)
+
         self.armButton.clicked.connect(self.fh_arm)
         self.startButton.clicked.connect(self.fh_run)
 
@@ -59,7 +83,8 @@ class mainWindow(mainWindowUi):
 
     def print_debug(self):
         print(self.settings.sample_rate)
-        print(self.calibration.comment)
+        calibration = getattr(self, "calibration", None)
+        print(calibration.comment if calibration is not None else "no calibration loaded")
 # end for debugging
     
     def sysOnButtonPressed(self):
@@ -87,7 +112,7 @@ class mainWindow(mainWindowUi):
 
                 self.device.set_sample_scan_rate(self.settings.sample_rate)
 
-            except:
+            except Exception:
                 ## No-hardware mode for data processing
                 error_text = "No connection to the device or\nTANGO module not found!\nOnly no-hardware mode is possible."
                 ErrorWindow(error_text)
@@ -106,9 +131,11 @@ class mainWindow(mainWindowUi):
     def select_data_path(self):
         dpath = qt.QFileDialog.getExistingDirectory(self, "Choose folder to save experiment files", \
                                                     None, qt.QFileDialog.ShowDirsOnly)
-        if dpath: 
+        if dpath:
             dpath += '/'
-            self.settings.data_path = os.path.abspath(dpath)
+            # Prefer relative-to-cwd so settings.json stays portable across
+            # checkouts; fall back to absolute when the choice is outside cwd.
+            self.settings.data_path = _relative_if_under_cwd(dpath)
             self.sysDataPathInput.setText(self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
 
@@ -118,15 +145,20 @@ class mainWindow(mainWindowUi):
 
     def run_no_harware(self):
         self.sysNoHardware.setChecked(True)
-        self.controlTabsWidget.setCurrentIndex(1) 
-        self.mainTabWidget.setCurrentIndex(1) 
+        # Keep experiment widgets interactive so the operator can explore the
+        # program editor / plots without hardware. Tango calls in fh_arm,
+        # set_temp_volt etc. guard against ``self.device is None``.
+        for item in (self.experimentBox, self.controlTab):
+            item.setEnabled(True)
+        self.controlTabsWidget.setCurrentIndex(1)
+        self.mainTabWidget.setCurrentIndex(1)
     # ===================================
     # Calibration   
 
     def select_calibration_file(self):
         fname = qt.QFileDialog.getOpenFileName(self, "Choose calibration file", None, "*.json")[0]
-        if fname: 
-            self.settings.calib_path = os.path.abspath(fname)
+        if fname:
+            self.settings.calib_path = _relative_if_under_cwd(fname)
             self.calibPathInput.setText(self.settings.calib_path)
         self.calibPathInput.setCursorPosition(0)
 
@@ -166,20 +198,20 @@ class mainWindow(mainWindowUi):
             os.makedirs(DATA_FOLDER_REL_PATH)
 
         self.load_settings_from_file()
-        if not self.settings: 
-            quit()
+        if not getattr(self, "settings", None):
+            raise SystemExit("Failed to load settings; cannot start UI.")
 
         if not os.path.exists(self.settings.data_path):
             error_text = "Incorrect data path specified.\nIt will be set to {}".format(DATA_FOLDER_REL_PATH)
             ErrorWindow(error_text)
-            self.settings.data_path = os.path.abspath(DATA_FOLDER_REL_PATH)
+            self.settings.data_path = _relative_if_under_cwd(DATA_FOLDER_REL_PATH)
         self.sysDataPathInput.setText(self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
 
         if not os.path.exists(self.settings.calib_path):
             error_text = "Incorrect calibration file specified.\nIt will be set to default calibration."
             ErrorWindow(error_text)
-            self.settings.calib_path = os.path.abspath(DEFAULT_CALIBRATION_FILE_REL_PATH)
+            self.settings.calib_path = _relative_if_under_cwd(DEFAULT_CALIBRATION_FILE_REL_PATH)
         self.calibPathInput.setText(self.settings.calib_path)
         self.calibPathInput.setCursorPosition(0)
 
@@ -198,8 +230,21 @@ class mainWindow(mainWindowUi):
         self.settings.sample_rate = self.get_sample_rate_from_device()
         self.scanSampleRateInput.setText(str(self.settings.sample_rate))
 
-    def get_sample_rate_from_device(self):    
+    def get_sample_rate_from_device(self):
         return self.device.get_sample_rate[1][0]['value']
+
+    def apply_modulation_params(self):
+        try:
+            self.settings.modulation_frequency = float(self.freqInput.text())
+            self.settings.modulation_amplitude = float(self.amplitudeInput.text())
+            self.settings.modulation_offset = float(self.offsetInput.text())
+        except ValueError:
+            ErrorWindow("Modulation inputs must be numeric.")
+
+    def reset_modulation_params(self):
+        self.freqInput.setText(str(self.settings.modulation_frequency))
+        self.amplitudeInput.setText(str(self.settings.modulation_amplitude))
+        self.offsetInput.setText(str(self.settings.modulation_offset))
 
 
     # ===================================
@@ -212,9 +257,21 @@ class mainWindow(mainWindowUi):
         heater_value_key = "volt" if is_voltage_program else "temp"
         uncorrectedProfile = np.array([[],[]], dtype=float)
         for i in range(self.experimentTable.rowCount()):
+            # Cells are populated with QTableWidgetItem('0') in mainWindowUi
+            # __init__, so item(i, c) is never None here.
+            t_item = self.experimentTable.item(i, 0)
+            v_item = self.experimentTable.item(i, 1)
+            assert t_item is not None and v_item is not None
             uncorrectedProfile = np.hstack((uncorrectedProfile,
-                                            [[float(self.experimentTable.item(i, 0).text())],
-                                            [float(self.experimentTable.item(i, 1).text())]]))
+                                            [[float(t_item.text())],
+                                            [float(v_item.text())]]))
+        # Trim trailing zero-padded rows: keep up to the row with max time.
+        # If every cell is zero the resulting profile would have duration 0,
+        # which the backend (rightly) rejects -- fail loudly here instead of
+        # sending a degenerate program over Tango.
+        if not np.any(uncorrectedProfile[0] > 0):
+            ErrorWindow("Program table is empty: enter at least one row with time > 0.")
+            return
         correctedProfile = uncorrectedProfile[:, :(np.argmax(uncorrectedProfile[0])+1)]
         correctedProfile = np.insert(correctedProfile, 0, 0, axis=1)
         self.time_table = xOption*correctedProfile[0] # changing s to ms if needed
@@ -253,6 +310,8 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables['ch2']['volt'][-1] = 0
 
         self.time_temp_volt_tables_str = json.dumps(self.time_temp_volt_tables)
+        if self.device is None:
+            return  # no-hardware mode: program plotted, but cannot be armed
         self.device.arm_fast_heat(self.time_temp_volt_tables_str)
 
     def _fh_download_raw_data(self):
@@ -276,9 +335,14 @@ class mainWindow(mainWindowUi):
         self.exp_data = pd.DataFrame({})
         if self.currentExpFilePath:
             with h5py.File(self.currentExpFilePath, 'r') as f:
+                # h5py['name'] returns Group|Dataset|Datatype; for our exp file
+                # 'data' is always a Group, and each child is a Dataset.
                 data = f['data']
+                assert isinstance(data, h5py.Group)
                 for key in list(data.keys()):
-                    self.exp_data[key] = data[key][:]
+                    ds = data[key]
+                    assert isinstance(ds, h5py.Dataset)
+                    self.exp_data[key] = ds[:]
 
     def _fh_plot_data(self):
         self.resultsDataWidget.clear()
@@ -299,6 +363,9 @@ class mainWindow(mainWindowUi):
         
 
     def fh_run(self):
+        if self.device is None:
+            ErrorWindow("No hardware connection: cannot run experiment.")
+            return
         self.device.run_fast_heat()
         self._fh_download_raw_data()
         self._fh_download_exp_data()
@@ -311,10 +378,17 @@ class mainWindow(mainWindowUi):
     # actually neutralises the previous "Set". The heater is wired on ch1 in
     # ``fh_arm`` above (and is the default ``modulation_channel`` in the
     # backend), so both endpoints write to ch1.
-    HEATER_CHANNEL_KEY = "ch1"
+    HEATER_CHANNEL_KEY = HEATER_AO
 
     def set_temp_volt(self):
-        value = float(self.setInput.text())
+        if self.device is None:
+            ErrorWindow("No hardware connection: cannot set iso value.")
+            return
+        try:
+            value = float(self.setInput.text())
+        except ValueError:
+            ErrorWindow("Iso input must be numeric.")
+            return
         key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
@@ -322,6 +396,8 @@ class mainWindow(mainWindowUi):
         self.device.run_iso_mode()
 
     def unset_temp_volt(self):
+        if self.device is None:
+            return
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.device.arm_iso_mode(self.chan_temp_volt_str)
@@ -355,7 +431,7 @@ class mainWindow(mainWindowUi):
         try:
             self.settings = FrontSettings(fpath)
             self.disconnect()
-        except:
+        except Exception:
             error_text = "Settings file is missing or corrupted! Settings will be reset to default."
             ErrorWindow(error_text)
             self.reset_settings()

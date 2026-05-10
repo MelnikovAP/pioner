@@ -1,10 +1,26 @@
-import sys
-from PyQt5.QtGui import QRegExpValidator
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+# pyright: reportOptionalMemberAccess=false
 import json
 from enum import Enum
-from typing import List
+from typing import List, Optional, cast
+
+from PyQt5.QtCore import QPersistentModelIndex, QRegExp, Qt
+from PyQt5.QtGui import QRegExpValidator
+from PyQt5.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class SetProg(QWidget):
@@ -34,11 +50,11 @@ class SetProg(QWidget):
         self.rightLayout.addWidget(self.mainTabWidget)
 
         # Creating a vertical layout to place control elements
-        self.layout = QVBoxLayout()
+        self.main_layout = QVBoxLayout()
 
         # Adding the vertical layout with tabs to the vertical layout
-        self.layout.addLayout(self.rightLayout)
-        self.setLayout(self.layout)
+        self.main_layout.addLayout(self.rightLayout)
+        self.setLayout(self.main_layout)
 
     # Function for getting a dictionary of profile data from tabs
     def get_main_dict(self):
@@ -100,19 +116,22 @@ class ProfileWidget(QWidget):
         buttonDEL1s.setFixedSize(60, 25)
 
         # Create the main layout for the widget and add the sub-layouts
-        self.layout = QVBoxLayout()
-        self.layout.addLayout(layer3)
-        self.layout.addLayout(layer2)
-        self.setLayout(self.layout)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.addLayout(layer3)
+        self.main_layout.addLayout(layer2)
+        self.setLayout(self.main_layout)
 
         # Connect button signals to their corresponding functions
 
         buttonADD.clicked.connect(lambda: self.add_layer(self.tableWidget.rowCount()))
         buttonDEL1s.clicked.connect(lambda: self.mass_del())
-        buttonARM.clicked.connect(lambda: self.parent().parent().parent().get_main_dict())
+        buttonARM.clicked.connect(self._on_arm_clicked)
         buttonSAVE.clicked.connect(lambda: self.saving_procedure())
         buttonLOAD.clicked.connect(lambda: self.table_from_file())
         self.typecbox.currentIndexChanged.connect(self.change_type_value)
+
+    def _on_arm_clicked(self, _checked: bool = False) -> None:
+        cast("SetProg", self.parent().parent().parent()).get_main_dict()
 
     def change_type_value(self):
         for i in range(self.tableWidget.rowCount()):
@@ -295,7 +314,8 @@ class ProfileWidget(QWidget):
     def add_layer(self, x: int, b = True):
 
         dialog = InputDialog1(self.typecbox.currentText())
-        self.parent().setWindowModality(Qt.WindowModal)
+        parent = cast(QWidget, self.parent())
+        parent.setWindowModality(Qt.WindowModality.WindowModal)
         if x == self.tableWidget.rowCount():
             row_number = self.tableWidget.rowCount()
 
@@ -562,7 +582,7 @@ class InputDialog1(QDialog):
         hlayer2 = QHBoxLayout()
         hlayer3 = QHBoxLayout()
 
-        self.layout = QVBoxLayout()
+        self.main_layout = QVBoxLayout()
 
         vlayer1.addWidget(self.type_label)
         vlayer1.addWidget(self.type_combo)
@@ -587,9 +607,9 @@ class InputDialog1(QDialog):
         self.horlayout0.addLayout(vlayer4)
         self.horlayout0.addLayout(vlayer5)
 
-        self.layout.addLayout(self.horlayout0)
+        self.main_layout.addLayout(self.horlayout0)
 
-        layer1.addLayout(self.layout)
+        layer1.addLayout(self.main_layout)
         layer1.addWidget(self.button_box)
         self.setLayout(layer1)
         self.change_type()
@@ -695,9 +715,9 @@ class InputDialog1(QDialog):
 
 
 class SegmentType(Enum):
-    NONE = 0,
-    ISO = 1,
-    RAMP = 2,
+    NONE = 0
+    ISO = 1
+    RAMP = 2
     SINE = 3
 
 
@@ -765,8 +785,8 @@ class SineSegment(SegmentData):
 
 
 class DataType(Enum):
-    TIME = 1,
-    TEMP = 2,
+    TIME = 1
+    TEMP = 2
     VOLT = 3
 
 
@@ -776,7 +796,7 @@ class ProfileData:
 
     def __init__(self,
                  data_type: DataType,  # Y-axis
-                 segments: List[SegmentData] = None):
+                 segments: Optional[List[SegmentData]] = None):
         self.data_type = data_type
         if segments is None:
             segments = list()

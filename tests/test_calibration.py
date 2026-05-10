@@ -55,7 +55,7 @@ def test_calibration_round_trip(tmp_path: Path):
     cal.theater2 = -0.43
     cal.hardware.gain_utpl = 13.0
     out = tmp_path / "calib.json"
-    cal.write(out)
+    cal.write(str(out))
     other = Calibration()
     other.read(str(out))
     assert other.comment == "test"

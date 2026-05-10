@@ -349,8 +349,11 @@ class FrontSettings:
 
     def set_exp_settings(self):
         if not self._invalid_fields:
-            self.calib_path = os.path.abspath(self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD])
-            self.data_path = os.path.abspath(self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD])
+            # Keep paths in their JSON form (relative paths stay relative to cwd).
+            # Resolve to absolute only at the call site that actually needs an
+            # absolute path; ``os.path.exists`` and ``open`` accept relative.
+            self.calib_path = self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD]
+            self.data_path = self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD]
             self.sample_rate = self._exp_settings_dict[SCAN_FIELD][SAMPLE_RATE_FIELD]
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]

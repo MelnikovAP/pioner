@@ -6,6 +6,9 @@ that (AO/AI integration, calibration, etc.) is covered in higher-level
 e2e tests.
 """
 
+# pyright: reportArgumentType=false, reportAttributeAccessIssue=false
+# Real uldaq stubs are stricter than the mock surface (enum flags, ctypes
+# Array[float] vs list[float], etc.). Tests are runtime-verified.
 from __future__ import annotations
 
 import time

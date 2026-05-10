@@ -15,7 +15,7 @@ def pioner_run_ui():
 
     """
     app = qt.QApplication([])
-    sys.excepthook = qt.exceptionHandler
+    sys.excepthook = qt.exceptionHandler  # type: ignore[attr-defined]
     app.setStyle('Fusion')
     example = mainWindow()
     example.show()

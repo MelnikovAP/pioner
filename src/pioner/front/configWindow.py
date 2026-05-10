@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false, reportAttributeAccessIssue=false
 from silx.gui import qt
 
 from pioner.shared.constants import *

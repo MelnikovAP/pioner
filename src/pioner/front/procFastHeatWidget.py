@@ -1,3 +1,7 @@
+# pyright: reportOptionalMemberAccess=false, reportAttributeAccessIssue=false
+# pyright: reportArgumentType=false, reportIndexIssue=false
+# pyright: reportPrivateImportUsage=false, reportOptionalSubscript=false
+# pyright: reportGeneralTypeIssues=false
 import numpy as np
 from silx.gui import qt
 from silx.io import open
@@ -216,7 +220,7 @@ class procFastHeatWidget(qt.QWidget):
 
         main_lout.addStretch()
 
-        float_validator = qt.QRegExpValidator(qt.QRegExp("^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}$|^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}e[-]{0,1}[+]{0,1}[0-9]{0,2}$"))
+        float_validator = qt.QRegExpValidator(qt.QRegExp(r"^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}$|^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}e[-]{0,1}[+]{0,1}[0-9]{0,2}$"))
         for item in self.findChildren(qt.QLineEdit):
             item.setAlignment(qt.Qt.AlignCenter)
             item.setCursorPosition(0)

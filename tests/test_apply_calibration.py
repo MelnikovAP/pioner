@@ -11,6 +11,9 @@ notice in the e2e smoke tests:
   calorimetry curve.
 """
 
+# pyright: reportGeneralTypeIssues=false
+# pandas-stubs returns ``Series | DataFrame | bool`` from ``df["col"].isna().any()``;
+# pyright then refuses to use the result in boolean context. Runtime-verified.
 from __future__ import annotations
 
 import numpy as np

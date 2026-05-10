@@ -503,6 +503,10 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
                     if self._triggered
                     else self._scan_start
                 )
+                if t0 is None:
+                    # Scan flagged as running but never had a start timestamp
+                    # (shouldn't happen on real hardware; defensive only).
+                    return ScanStatus.RUNNING, MockTransferStatus()
                 elapsed = time.monotonic() - t0
                 samples = int(elapsed * rate)
                 if not self._continuous and samples >= self._total_count:

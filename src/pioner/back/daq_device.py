@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
+from typing import Any, cast
 
 from .mock_uldaq import DAQ_AVAILABLE, uldaq as ul
 
@@ -48,15 +48,14 @@ class DaqDeviceHandler:
 
     def __init__(self, params: DaqParams):
         self._params = params
-        self._daq_device = None
-        self._init_daq_device()
-
-    def _init_daq_device(self) -> None:
         if not DAQ_AVAILABLE:
             logger.warning(
                 "Real uldaq is not available; the mock backend will be used."
             )
-        devices = ul.get_daq_device_inventory(self._params.interface_type, 1)
+        # Real uldaq's signature wants ``InterfaceType`` enum here; the mock
+        # accepts the underlying int. Cast keeps the static checker happy
+        # without forcing callers to construct a real enum.
+        devices = ul.get_daq_device_inventory(cast(Any, self._params.interface_type), 1)
         if not devices:
             raise RuntimeError("No DAQ devices found")
         self._daq_device = ul.DaqDevice(devices[0])

@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false, reportAttributeAccessIssue=false
 from silx.gui import qt
 
 from pioner.shared.constants import *
@@ -299,7 +300,7 @@ class calibWindow(qt.QDialog):
         lout_1.addWidget(self.resetCalibButton)
 
 
-        float_validator = qt.QRegExpValidator(qt.QRegExp("^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}$|^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}e[-]{0,1}[+]{0,1}[0-9]{0,2}$"))
+        float_validator = qt.QRegExpValidator(qt.QRegExp(r"^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}$|^[-]{0,1}[0-9]{1,5}\.[0-9]{1,10}e[-]{0,1}[+]{0,1}[0-9]{0,2}$"))
         self.update_calib_input_fields()
         for item in self.findChildren(qt.QPushButton):
             item.setFocusPolicy(qt.Qt.NoFocus)
@@ -324,10 +325,12 @@ class calibWindow(qt.QDialog):
     def save_calib_to_file(self, fpath=False):
         fpath = qt.QFileDialog.getSaveFileName(self, "Select file and path to save calibration:", None, "*.json")[0]
         if fpath:
+            from pioner.front.mainWindow import _relative_if_under_cwd
+            rel = _relative_if_under_cwd(fpath)
             self.read_calib_input_fields()
             print(self.parent().calibration.comment)
-            self.parent().calibPathInput.setText(os.path.abspath(fpath))
-            self.parent().settings.calib_path = fpath
+            self.parent().calibPathInput.setText(rel)
+            self.parent().settings.calib_path = rel
             self.parent().calibPathInput.setCursorPosition(0)
             # self.parent().apply_calib()
             # URL = self.parent().settings.http_host+"settings/calibration.json"

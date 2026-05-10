@@ -16,7 +16,7 @@ from typing import Optional
 from .mock_uldaq import uldaq as ul
 
 try:  # pragma: no cover - tango may not be present on dev hosts
-    from tango.server import Device, attribute, command, pipe
+    from tango.server import Device, attribute, command, pipe  # type: ignore[attr-defined]
     TANGO_AVAILABLE = True
 except ImportError:  # pragma: no cover
     Device = object  # type: ignore[assignment]
@@ -50,6 +50,7 @@ from pioner.shared.calibration import Calibration
 from pioner.shared.constants import (
     CALIBRATION_FILE_REL_PATH,
     DEFAULT_CALIBRATION_FILE_REL_PATH,
+    EXP_DATA_FILE_REL_PATH,
     LOGS_FOLDER_REL_PATH,
     MAX_SCAN_SAMPLE_RATE,
     NANOCONTROL_LOG_FILE_REL_PATH,
@@ -58,7 +59,7 @@ from pioner.shared.constants import (
 )
 from pioner.shared.settings import BackSettings
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.modes import BaseMode, create_mode
+from pioner.back.modes import BaseMode, create_mode, save_run_to_h5
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,9 @@ class NanoControl(Device):  # type: ignore[misc]
         self._daq_device_handler = DaqDeviceHandler(self._settings.daq_params)
         self._mode = None
         self._mode_name = "fast"
+        # Last-armed program payload, kept so ``run`` can write the legacy
+        # ``exp_data.h5`` layout that the front-end downloads over HTTP.
+        self._last_programs: dict = {}
         logger.info("Tango server initial setup done")
 
     # ------------------------------------------------------------------
@@ -210,6 +214,7 @@ class NanoControl(Device):  # type: ignore[misc]
             programs,
         )
         self._mode.arm()
+        self._last_programs = programs
         logger.info("Mode %s armed", self._mode_name)
 
     @command
@@ -218,7 +223,22 @@ class NanoControl(Device):  # type: ignore[misc]
             logger.warning("Mode is not armed")
             return
         logger.info("Running mode %s", self._mode_name)
-        self._mode.run()
+        df = self._mode.run()
+        # Persist the result to the legacy HDF5 path the GUI downloads over
+        # HTTP. ``run()`` returns ``None`` for IsoMode-with-do_ai=False (it
+        # only holds a static voltage); skip persistence in that case.
+        if df is not None and not df.empty:
+            try:
+                save_run_to_h5(
+                    df,
+                    self._mode.voltage_profiles,
+                    self._last_programs,
+                    self._calibration,
+                    self._settings,
+                    EXP_DATA_FILE_REL_PATH,
+                )
+            except Exception as exc:  # pragma: no cover - disk failure
+                logger.exception("Failed to persist exp_data.h5: %s", exc)
         logger.info("Mode %s finished", self._mode_name)
 
     @command

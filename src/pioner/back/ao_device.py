@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
+from typing import Sequence, Tuple
 
 from .mock_uldaq import uldaq as ul
 
@@ -73,7 +73,7 @@ class AoDeviceHandler:
     def status(self) -> Tuple[int, "object"]:
         return self._ao_device.get_scan_status()
 
-    def scan(self, ao_buffer: List[float]) -> float:
+    def scan(self, ao_buffer: Sequence[float]) -> float:
         """Start an analog-output scan with the provided buffer."""
         n_chans = self._params.channel_count()
         if n_chans <= 0:

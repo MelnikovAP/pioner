@@ -15,11 +15,22 @@ Two important details that differ from the previous implementation:
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
+from typing import MutableSequence, Protocol, Tuple, cast
 
 from .mock_uldaq import uldaq as ul
 
 logger = logging.getLogger(__name__)
+
+
+class _TransferStatus(Protocol):
+    """Structural type for the transfer-status object returned by uldaq.
+
+    Real ``uldaq.TransferStatus`` and the mock's ``MockTransferStatus`` both
+    expose ``current_index`` (sample offset of the writer head in the AI
+    buffer); the experiment manager only relies on that field.
+    """
+
+    current_index: int
 
 
 class AiParams:
@@ -50,7 +61,10 @@ class AiDeviceHandler:
 
         self._ai_device = ai_device
         self._params = params
-        self._buffer: List[float] = []
+        # Real uldaq returns a ctypes Array[c_double], mock returns List[float];
+        # both satisfy MutableSequence[float] (indexable, sliceable, len-able), which
+        # is all the experiment manager needs.
+        self._buffer: MutableSequence[float] = []
         self._buffer_samples_per_channel: int = 0
 
         info = ai_device.get_info()
@@ -62,7 +76,7 @@ class AiDeviceHandler:
     # ------------------------------------------------------------------
     # Buffer management
     # ------------------------------------------------------------------
-    def allocate_buffer(self, samples_per_channel: int) -> List[float]:
+    def allocate_buffer(self, samples_per_channel: int) -> MutableSequence[float]:
         """Allocate a buffer big enough for ``samples_per_channel`` samples per channel."""
         if samples_per_channel <= 0:
             raise ValueError("samples_per_channel must be > 0")
@@ -70,10 +84,15 @@ class AiDeviceHandler:
         if n_chans <= 0:
             raise ValueError("AI channel range is invalid")
         self._buffer_samples_per_channel = samples_per_channel
-        self._buffer = ul.create_float_buffer(n_chans, samples_per_channel)
+        # Real uldaq returns ctypes Array[c_double] (invariant, not a Sequence
+        # subclass in stubs); the mock returns List[float]. Cast — both are
+        # indexable/sliceable, which is all the experiment manager needs.
+        self._buffer = cast(
+            MutableSequence[float], ul.create_float_buffer(n_chans, samples_per_channel)
+        )
         return self._buffer
 
-    def get_buffer(self) -> List[float]:
+    def get_buffer(self) -> MutableSequence[float]:
         return self._buffer
 
     @property
@@ -92,7 +111,7 @@ class AiDeviceHandler:
         except Exception as exc:  # pragma: no cover - defensive
             logger.debug("AI scan_stop failed: %s", exc)
 
-    def status(self) -> Tuple[int, "object"]:
+    def status(self) -> Tuple[int, _TransferStatus]:
         return self._ai_device.get_scan_status()
 
     def scan(self, samples_per_channel: int | None = None) -> float:

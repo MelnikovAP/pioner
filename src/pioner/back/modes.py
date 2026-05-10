@@ -30,7 +30,7 @@ import abc
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -211,7 +211,7 @@ def apply_calibration(
     # junction is visible quantitatively. Cheap to add (one np.fft.rfft per
     # scan); see ``shared.modulation.fft_demodulate`` for the pattern.
     if AD595_AI in df.columns:
-        u_aux = float(df[AD595_AI].mean())
+        u_aux = float(cast(pd.Series, df[AD595_AI]).mean())
         t_aux = 100.0 * u_aux
         t_aux = hw.correct_ad595(t_aux)
         df["Taux"] = t_aux
@@ -251,7 +251,10 @@ def apply_calibration(
     # milliohms and made ``Thtr`` off by a factor of 1000. The polynomial
     # then drove e.g. R=1.7e6 mOhm to ``thtr2*R^2 ~ -2.5e8 C`` -- absurd.
     if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
-        ih = calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1
+        ih = cast(
+            pd.Series,
+            calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1,
+        )
         # When the heater is idle (current ~ 0) R_heater is undefined. The
         # historical implementation used 0 as a sentinel which then evaluated
         # to ``thtr0 + thtr1*thtrcorr + ...`` and produced a physically
@@ -733,6 +736,68 @@ def create_mode(
     return cls(daq, settings, calibration, programs, ai_channels=ai_channels, **kwargs)
 
 
+# ---------------------------------------------------------------------------
+# Persistence: write a run result to the legacy HDF5 layout
+# ---------------------------------------------------------------------------
+_EXP_DATA_COLUMNS = (
+    "time",
+    "Taux",
+    "Thtr",
+    "Uref",
+    "temp",
+    "temp-hr",
+    "temp-hr_amp",
+    "temp-hr_phase",
+)
+
+
+def save_run_to_h5(
+    df: "pd.DataFrame",
+    voltage_profiles: Dict[str, np.ndarray],
+    programs: Dict[str, dict],
+    calibration: Calibration,
+    settings: BackSettings,
+    path: str,
+) -> None:
+    """Write a finished run to ``path`` in the legacy ``exp_data.h5`` layout.
+
+    The front-end downloads this file over HTTP and decodes it via the
+    ``data`` group. We persist the same shape :class:`fastheat.FastHeat` and
+    :class:`slow_mode.SlowMode` historically did (for backward compatibility),
+    plus the AC lock-in columns when present (``temp-hr_amp`` / ``temp-hr_phase``).
+
+    The Tango server calls this from ``run()`` — without it, ``run_fast_heat``
+    completes silently but the file the front-end expects never appears.
+    """
+    import h5py
+    import os
+
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with h5py.File(path, "w") as f:
+        data = f.create_group("data")
+        for col in _EXP_DATA_COLUMNS:
+            if col in df.columns:
+                data.create_dataset(col, data=np.asarray(df[col]))
+        f.create_dataset("calibration", data=calibration.get_str())
+        f.create_dataset("settings", data=settings.get_str())
+        prog_group = f.create_group("temp_volt_programs")
+        for chan, table in programs.items():
+            program = prog_group.create_group(chan)
+            if "time" in table:
+                program.create_dataset("time", data=np.asarray(table["time"]))
+                key = next(k for k in table if k != "time")
+                program.create_dataset(key, data=np.asarray(table[key]))
+            else:
+                # Iso shorthand: ``{"chN": {"volt": 0.5}}`` -- record the
+                # constant value as a single-element array; the front side
+                # treats this as a flat program.
+                for key, val in table.items():
+                    program.create_dataset(key, data=np.asarray([val]))
+        profiles_group = f.create_group("voltage_profiles")
+        for chan, profile in voltage_profiles.items():
+            profiles_group.create_dataset(chan, data=np.asarray(profile))
+
+
 __all__ = [
     "DEFAULT_AI_CHANNELS",
     "BaseMode",
@@ -741,5 +806,6 @@ __all__ = [
     "IsoMode",
     "create_mode",
     "apply_calibration",
+    "save_run_to_h5",
     "ChannelProgram",
 ]

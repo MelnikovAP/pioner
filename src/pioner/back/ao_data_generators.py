@@ -17,7 +17,7 @@ This module contains two generators:
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, Iterable, List, MutableSequence, cast
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class ScanDataGenerator:
 
     def __init__(
         self,
-        voltage_profiles: Dict[str, Sequence[float]],
+        voltage_profiles: Dict[str, MutableSequence[float]],
         low_channel: int,
         high_channel: int,
     ) -> None:
@@ -78,8 +78,10 @@ class ScanDataGenerator:
 
         self._buffer = self._build_buffer()
 
-    def _build_buffer(self) -> List[float]:
-        buf = ul.create_float_buffer(self._n_chans, self._buffer_size)
+    def _build_buffer(self) -> MutableSequence[float]:
+        # Real uldaq returns ctypes Array[c_double]; mock returns List[float].
+        # Both support indexing/slicing, which is all the consumers need.
+        buf = cast(MutableSequence[float], ul.create_float_buffer(self._n_chans, self._buffer_size))
         # Build the interleaved buffer in numpy, then push it into ``buf``.
         # ``buf`` is a Python list (mock) or a ctypes float array (real
         # uldaq); both support slice assignment from a Python list.
@@ -96,7 +98,7 @@ class ScanDataGenerator:
                 buf[i] = float(value)
         return buf
 
-    def get_buffer(self) -> List[float]:
+    def get_buffer(self) -> MutableSequence[float]:
         return self._buffer
 
 
@@ -112,13 +114,13 @@ class PulseDataGenerator:
     ) -> None:
         if duration <= 0:
             raise ValueError("duration must be > 0 samples")
-        flat: Dict[str, Sequence[float]] = {}
+        flat: Dict[str, MutableSequence[float]] = {}
         for key in _channel_keys(low_channel, high_channel):
             value = float(channel_voltages.get(key, 0.0))
             flat[key] = [value] * duration
         self._inner = ScanDataGenerator(flat, low_channel, high_channel)
 
-    def get_buffer(self) -> List[float]:
+    def get_buffer(self) -> MutableSequence[float]:
         return self._inner.get_buffer()
 
 

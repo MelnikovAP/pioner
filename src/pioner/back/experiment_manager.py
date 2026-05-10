@@ -80,7 +80,7 @@ class ExperimentManager:
 
         self._ai_handler: Optional[AiDeviceHandler] = None
         self._ao_handler: Optional[AoDeviceHandler] = None
-        self._ao_buffer: Optional[List[float]] = None
+        self._ao_buffer: Optional[Sequence[float]] = None
         self._ai_buffer_samples_per_channel: int = 0
 
         # Background ring-buffer worker (used by iso_scan).
@@ -196,11 +196,12 @@ class ExperimentManager:
         self._ao_params.options = ao_options
         self._ai_params.options = ai_options
 
-        self._ao_buffer = ScanDataGenerator(
+        ao_buffer: Sequence[float] = ScanDataGenerator(
             voltage_profiles,
             self._ao_params.low_channel,
             self._ao_params.high_channel,
         ).get_buffer()
+        self._ao_buffer = ao_buffer
 
         # Stop any leftover scans before starting fresh ones.
         ao_handler.stop()
@@ -210,7 +211,7 @@ class ExperimentManager:
         # leading edge of AO; with a trigger the order does not matter
         # because neither scan progresses until fire_software_trigger().
         ai_rate = ai_handler.scan(self._ai_buffer_samples_per_channel)
-        ao_rate = ao_handler.scan(self._ao_buffer)
+        ao_rate = ao_handler.scan(ao_buffer)
         if triggered:
             self._daq_device_handler.fire_software_trigger()
 
@@ -246,13 +247,14 @@ class ExperimentManager:
         if triggered:
             ao_options |= ul.ScanOption.EXTTRIGGER
         self._ao_params.options = ao_options
-        self._ao_buffer = ScanDataGenerator(
+        ao_buffer: Sequence[float] = ScanDataGenerator(
             voltage_profiles,
             self._ao_params.low_channel,
             self._ao_params.high_channel,
         ).get_buffer()
+        self._ao_buffer = ao_buffer
         ao_handler.stop()
-        ao_handler.scan(self._ao_buffer)
+        ao_handler.scan(ao_buffer)
 
     def start_ring_buffer(
         self,
@@ -443,8 +445,7 @@ class ExperimentManager:
             range(self._ai_params.low_channel, self._ai_params.high_channel + 1)
         )
         df = pd.DataFrame(full, columns=all_channels)
-        df = df[list(ai_channels)]
-        return df
+        return df.loc[:, list(ai_channels)]
 
     # ------------------------------------------------------------------
     # Internal: ring-buffer worker

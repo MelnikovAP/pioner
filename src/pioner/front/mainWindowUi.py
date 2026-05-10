@@ -1,3 +1,4 @@
+# pyright: reportOptionalMemberAccess=false, reportAttributeAccessIssue=false
 from silx.gui import icons, qt
 
 from pioner.front.procFastHeatWidget import procFastHeatWidget
@@ -176,7 +177,7 @@ class mainWindowUi(qt.QWidget):
         self.amplitudeInput.setMaximumWidth(short_line_input_width)
         #self.amplitudeInput.setFrame(False)
         lout_3.addWidget(self.amplitudeInput)
-        units = qt.QLabel("mA")
+        units = qt.QLabel("V")
         units.setFixedWidth(20)
         lout_3.addWidget(units)
         lout_4 = qt.QHBoxLayout()
@@ -188,7 +189,7 @@ class mainWindowUi(qt.QWidget):
         self.offsetInput.setMaximumWidth(short_line_input_width)
         #self.offsetInput.setFrame(False)
         lout_4.addWidget(self.offsetInput)
-        units = qt.QLabel("mA")
+        units = qt.QLabel("V")
         units.setFixedWidth(20)
         lout_4.addWidget(units)
         lout_5 = qt.QHBoxLayout()
@@ -612,9 +613,9 @@ class mainWindowUi(qt.QWidget):
         self.experimentTable.setItemDelegate(TableDelegate(self.experimentTable))
         self.experimentTable.setItemDelegate(TableDelegate(self.experimentTable))
 
-        float_validator_1000 = qt.QRegExpValidator(qt.QRegExp("^[0-9]{1,3}\.[0-9]{1,2}$"))
-        float_validator_100 = qt.QRegExpValidator(qt.QRegExp("^[0-9]{1,2}\.[0-9]{1,2}$"))
-        int_validator_5 = qt.QRegExpValidator(qt.QRegExp("^[0-9]{1,5}$"))
+        float_validator_1000 = qt.QRegExpValidator(qt.QRegExp(r"^[0-9]{1,3}\.[0-9]{1,2}$"))
+        float_validator_100 = qt.QRegExpValidator(qt.QRegExp(r"^[0-9]{1,2}\.[0-9]{1,2}$"))
+        int_validator_5 = qt.QRegExpValidator(qt.QRegExp(r"^[0-9]{1,5}$"))
 
         self.scanSampleRateInput.setValidator(int_validator_5)
         self.freqInput.setValidator(float_validator_100)
@@ -635,9 +636,9 @@ class mainWindowUi(qt.QWidget):
 
     def setComboBox_changed(self):
         text = self.setComboBox.currentText()
-        if text == "Temp":
+        if text == "Temperature":
             self.setInputUnits.setText("°C")
-        if text == "Volt":
+        elif text == "Voltage":
             self.setInputUnits.setText("V")
     
     def add_tab_to_mainTabWidget(self, i):
@@ -650,17 +651,21 @@ class mainWindowUi(qt.QWidget):
                 "New tab", tab_types, 0, False)
             if ok and tab_type:
                 self.newTab = qt.QWidget()
-                self.newTab.layout = qt.QVBoxLayout()
-                self.mainTabWidget.insertTab(i, self.newTab, tab_type)   
+                # Don't overwrite ``QWidget.layout`` (a method) with a layout
+                # instance — it shadows the bound method and confuses every
+                # static checker. Keep the layout in a separate name and
+                # call ``setLayout`` once at the end.
+                tab_layout = qt.QVBoxLayout()
+                self.mainTabWidget.insertTab(i, self.newTab, tab_type)
                 self.mainTabWidget.setCurrentIndex(i)
 
                 if tab_type=="Process fast heating":
                     self.newTabWidget = procFastHeatWidget(self)
-                    self.newTab.layout.addWidget(self.newTabWidget)
+                    tab_layout.addWidget(self.newTabWidget)
                 if tab_type == "Advanced process control":
                     self.newTabWidget = SetProg(self)
-                    self.newTab.layout.addWidget(self.newTabWidget)
-                self.newTab.setLayout(self.newTab.layout)
+                    tab_layout.addWidget(self.newTabWidget)
+                self.newTab.setLayout(tab_layout)
 
     def close_tab_in_mainTabWidget(self, i):
         self.mainTabWidget.setCurrentIndex(i-1)
