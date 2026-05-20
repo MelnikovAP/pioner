@@ -15,10 +15,64 @@ against a mock uldaq backend.
 - Pipeline reference: `spec.md`. Open backlog: `todo.md`. Mock pipeline check:
   `mock_verification.md`. Higher-level architecture: `design_notes.md`.
 
+## Core rules
+
+1. **Ask, don't assume.** If something is unclear, ask before writing a single
+   line. No silent assumptions about intent, architecture, or requirements.
+   One concrete clarifying question beats five wrong steps.
+2. **Simplest solution first.** Implement the simplest thing that could work.
+   No abstractions, flexibility, or "future-proofing" that wasn't explicitly
+   requested.
+3. **Stay in scope.** Only modify files / functions / lines directly related
+   to the current task. Do not refactor, rename, reorganize, reformat, or
+   "improve" anything not asked. If you notice something worth fixing
+   elsewhere, mention it in a note at the end. Do not touch it.
+4. **Flag uncertainty explicitly.** If you are not confident about an
+   approach, fact, statistic, date, or technical detail — say so before
+   including it. Never fill gaps with plausible-sounding information.
+
+## Behavior rules
+
+- **Ask before big changes.** Before significantly altering content already
+  in place (rewriting sections, removing paragraphs, restructuring flow,
+  changing tone of docs): stop, describe exactly what you'd change and why,
+  wait for confirmation.
+- **Confirm before destructive operations.** Before deleting files,
+  overwriting existing scan data (`data/*.h5`), dropping git history, or
+  removing dependencies: list exactly what will be affected and ask for
+  explicit confirmation in the current message. "You mentioned this earlier"
+  is not confirmation.
+- **Hard stops** — require explicit in-session confirmation, no exceptions:
+  - Running against real DAQ hardware (anything that isn't `mock_uldaq`)
+  - Overwriting calibration files or production config
+  - `git push`, publishing to PyPI, tagging a release
+  - Any command with irreversible side effects on the chip / instrument
+- **Never act on the user's behalf** (push, publish, share, send) without
+  explicit confirmation in the current message.
+- **Think before code.** For architecture decisions, debugging silent
+  numerical bugs, performance tradeoffs, or non-trivial features: work
+  through the problem step by step before writing any code. Surface
+  tradeoffs, identify uncertainty, flag assumptions that might not hold.
+  Then implement.
+
 ## Response style
 
-- Default to concise, concrete answers. No filler, no recap of what was just
+- Output the words "In progress" as the very first line of every reply, then
+  proceed with thinking and the answer. This is a liveness signal so the
+  user can tell a stalled turn from an actively-thinking one — emit it
+  before any tool call or further text.
+- Default to concise, concrete answers. No filler ("Great question!",
+  "Certainly!"). Start with the actual answer. No recap of what was just
   said, no trailing summaries.
+- For any significant task, show 2-3 approaches and wait for the user to
+  choose before proceeding.
+- After any task that touches files, end with:
+  - **Files changed** (every file touched, one per line)
+  - **What was modified** (one line per file)
+  - **Files intentionally not touched** (only if relevant)
+  - **Follow-up needed** (only if relevant)
+
+  This list IS the result — it replaces a prose recap, not adds to one.
 - Expand only on explicit request ("explain in detail", "walk me through",
   etc.).
 - When changing a method, verify the change in two passes: first read the new
@@ -59,11 +113,6 @@ against a mock uldaq backend.
 
 - ASCII only — in code, comments, docstrings, identifiers, and string
   literals.
-- C/C++ header extension: `.h` (not `.hpp`). Applies to all new headers and
-  includes.
-- Geometry work: prefer `mrmeshpy` (MeshLib) whenever it can do the job. If
-  another library is a clearly better fit, use it but add a comment naming the
-  library and the reason.
 - Hardcoded values left intentionally untouched per project convention:
   column name `Uref` (not `Uheater`), heater channel literal `"ch1"`, and the
   `total_ms % 1000 == 0` software constraint on profile durations. Don't
@@ -117,6 +166,22 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
 - **Mock vs. real hardware.** Tests run against `back/mock_uldaq.py`. Behaviour
   there is *plausible*, not bit-exact; physical-fidelity claims must be
   reproduced on real hardware before they're load-bearing.
+
+## Long-running operations
+
+- Iso/slow scans and lock-in sweeps can run for tens of seconds to minutes.
+  State the expected duration before launching, and use `run_in_background:
+  true` + `Monitor` with a strict regex filter ("done|Error|Saved"); do not
+  poll.
+- Before re-launching an experiment to apply specific parameter values
+  (sample rate, modulation freq, ramp profile), check each requested value
+  against the existing config / call site. If every requested value already
+  equals what the previous run used, do NOT re-run — tell the user the
+  current output already reflects that configuration and ask what they
+  actually want changed.
+- Before re-running, verify the run target matches intent: mock vs. real
+  backend, the right mode (`fast`/`slow`/`iso`), expected `total_ms`, and
+  that no calibration file changed underneath since the last run.
 
 ## Token efficiency
 
