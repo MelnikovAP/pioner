@@ -1,0 +1,59 @@
+{
+    "DAQ settings": {
+        "DAQ": {
+            "InterfaceType": [
+                1
+            ],
+            "ConnectionCode": 0,
+            "ConnectionMode": "direct"
+        },
+        "AI": {
+            "RangeId": 5,
+            "LowChannel": 0,
+            "HighChannel": 5,
+            "InputMode": 2,
+            "ScanFlags": [
+                0
+            ]
+        },
+        "AO": {
+            "RangeId": 5,
+            "LowChannel": 0,
+            "HighChannel": 3,
+            "ScanFlags": [
+                0
+            ]
+        }
+    },
+    "Server settings": {
+        "Tango": {
+            "Tango host": "",
+            "Device proxy": ""
+        },
+        "HTTP": {
+            "HTTP host": ""
+        }
+    },
+    "Experiment settings": {
+        "Paths": {
+            "Calibration path": "default_calibration1.json",
+            "Data path": "results"
+        },
+        "Scan": {
+            "Sample rate": 166000
+        },
+        "AI channels": {
+            "0": "Uref",
+            "1": "Umod",
+            "2": "Uhtr",
+            "3": "Uaux",
+            "4": "Utpl",
+            "5": "Uhtrabs"
+        },
+        "Modulation": {
+            "Frequency": 37.5,
+            "Amplitude": 0.1,
+            "Offset": 0.3
+        }
+    }
+}

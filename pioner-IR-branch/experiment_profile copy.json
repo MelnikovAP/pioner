@@ -1,0 +1,47 @@
+{
+  "channels": {
+
+    "0": [
+      {
+        "type": "ramp",
+        "duration": 200000,
+        "start": 0,
+        "stop": 5
+      },
+      {
+        "type": "isotherm",
+        "duration": 500,
+        "value": 5
+      },
+      {
+        "type": "ramp",
+        "duration": 200,
+        "start": 5,
+        "stop": 0
+      }
+    ],
+
+    "1": [
+      {
+        "type": "ramp",
+        "duration": 200,
+        "start": 5,
+        "stop": 0
+      }
+    ]
+
+  },
+    "post_hold": {
+
+    "enabled": true,
+
+    "duration": 500,
+
+    "channels": {
+      "0": 0,
+      "1": 0
+     
+    }
+
+  }
+}
