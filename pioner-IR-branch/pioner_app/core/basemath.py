@@ -182,7 +182,7 @@ def calcaf_lockin(bufref, bufsig, fclk, fgen, modulation_amp=None, x2_mode=False
         return amplitude, float(phase_deg)
     
 def voltage_to_temperature( voltage: np.array, calibration: Calibration) -> np.array:
-        voltage = np.asarray(voltage)  # <--- РґРѕР±Р°РІСЊС‚Рµ СЌС‚Сѓ СЃС‚СЂРѕРєСѓ
+        voltage = np.asarray(voltage)  # <--- ensure ndarray
         volt = voltage.copy()
         volt[volt < 0] = 0
         volt[volt > calibration.safe_voltage] = calibration.safe_voltage
@@ -230,7 +230,7 @@ class DataProcessor:
 
     def __init__(self, calibration=None, sample_rate=None, precision=6):
 
-        self.calibration = calibration  # в†ђ С‚РµРїРµСЂСЊ СЌС‚Рѕ Calibration (РќР• em)
+        self.calibration = calibration  # now this is Calibration (NOT em)
         self.sample_rate = sample_rate or settings.sample_rate
         self.precision = precision
 
@@ -282,7 +282,7 @@ class DataProcessor:
         Uref = raw_data[:, 0]
 
         ########################################
-        # CALIBRATED DATA (рџ”Ґ РџР РРҐРћР”РРў РЎРќРђР РЈР–Р)
+        # CALIBRATED DATA (comes from outside)
         ########################################
 
         temp = temp_hr = Thtr = Taux = None
@@ -489,7 +489,7 @@ class DataProcessor:
         Uhtrabs = raw_data[:, 5]
 
         ########################################
-        # РљРђР›РР‘Р РћР’РљРђ
+        # CALIBRATION
         ########################################
 
         temp = None
@@ -514,7 +514,7 @@ class DataProcessor:
         t = self._time_axis(len(raw_data), mode="slow")
 
         ########################################
-        # РњРћР”РЈР›РЇР¦РРЇ
+        # MODULATION
         ########################################
 
         if modulation_params:
@@ -532,14 +532,14 @@ class DataProcessor:
         power = Uhtr * Ihtr
 
         ########################################
-        # PHASE / AMPLITUDE (Р·Р°РіР»СѓС€РєР°)
+        # PHASE / AMPLITUDE (placeholder)
         ########################################
 
         amplitude = np.abs(Umod)
         phase = np.zeros_like(Umod)
 
         ########################################
-        # РЎР›РћР’РђР Р¬
+        # DICT
         ########################################
 
         data_dict = {

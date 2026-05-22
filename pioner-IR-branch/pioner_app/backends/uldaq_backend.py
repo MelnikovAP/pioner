@@ -11,7 +11,7 @@ class UldaqHardwareBackend(HardwareBackend):
     backend_name = "direct"
 
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.device = None
         self.ai_device = None
         self.ao_device = None
@@ -19,7 +19,7 @@ class UldaqHardwareBackend(HardwareBackend):
         self.device_name = "ULDAQ"
 
     def connect(self):
-        """?????????? ?????? `connect`."""
+        """Stub for `connect`."""
         try:
             from uldaq import DaqDevice, InterfaceType, get_daq_device_inventory
         except Exception as exc:
@@ -42,19 +42,19 @@ class UldaqHardwareBackend(HardwareBackend):
         self.ao_device = self.device.get_ao_device()
 
     def get_ai_device(self):
-        """?????????? ?????? `get_ai_device`."""
+        """Stub for `get_ai_device`."""
         if self.ai_device is None:
             raise RuntimeError("AI device not available")
         return self.ai_device
 
     def get_ao_device(self):
-        """?????????? ?????? `get_ao_device`."""
+        """Stub for `get_ao_device`."""
         if self.ao_device is None:
             raise RuntimeError("AO device not available")
         return self.ao_device
 
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         if self.device is None:
             return
         try:

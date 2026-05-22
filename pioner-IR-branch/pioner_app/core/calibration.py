@@ -11,7 +11,7 @@ from pioner_app.core.constants import *
 class Calibration:
     def __init__(self):
     # [Info]
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.comment = 'no calibration'
     # [Calibration coeff]
         # [Utpl] = [U(mv)] + utpl0
@@ -52,7 +52,7 @@ class Calibration:
 
         self._add_params()
     def to_dict(self):
-        """Преобразовать объект Calibration в словарь."""
+        """Convert Calibration object to a dict."""
         return {
             "comment": self.comment,
             "utpl0": self.utpl0,
@@ -130,7 +130,7 @@ class Calibration:
         }
 
     def read(self, path: str):
-        """?????? ?????? `read`."""
+        """Stub for `read`."""
         self._json_calib = dict()
         if not os.path.exists(path):
             raise ValueError("Calibration file doesn't exist.")
@@ -228,14 +228,14 @@ class Calibration:
 
     def _add_params(self):
         # parameters that are not in calibration file but need to use later
-        """???????? ?????? `add_params`."""
+        """Stub for `add_params`."""
         self.max_temp = self.theater0 * self.safe_voltage + \
                         self.theater1 * (self.safe_voltage ** 2) + \
                         self.theater2 * (self.safe_voltage ** 3)  # TODO: move calculation to another function
         self.min_temp = 0.
     
     def get_str(self):
-        """?????????? ?????? `get_str`."""
+        """Stub for `get_str`."""
         calib_str = str(self.__dict__)
         calib_str = calib_str.replace("\'", "\"")               # need because json.loads does not recognie " ' "
         return calib_str
@@ -269,7 +269,7 @@ class Calibration:
 
 
     def apply_fh_cal(self, raw_data):
-        """????????? ?????? `apply_fh_cal`."""
+        """Stub for `apply_fh_cal`."""
         import numpy as np
         data = pd.DataFrame(raw_data)
         values = data
@@ -332,7 +332,7 @@ class Calibration:
         Ih = self.ihtr0 + Uref * self.ihtr1
 
         # ===============================
-        # VOLTAGE → mV
+        # VOLTAGE -> mV
         # ===============================
         Uhtr_mV = Uhtr * 1000.0
         Uref_mV = Uref * 1000.0
@@ -393,7 +393,7 @@ class Calibration:
 
 
         # Thtr
-        values[5] *= 1000.  # ← включи если данные в В
+        values[5] *= 1000.  # enable if data is in V
 
         Ih = self.ihtr0 + values[0] * self.ihtr1
 
@@ -443,7 +443,7 @@ class Calibration:
             2 - Uhtr
             3 - Uaux
             4 - Utpl
-            5 - Uhtrabs (или raw Uhtr)
+            5 - Uhtrabs (or raw Uhtr)
         """
 
         data = np.array(raw_data)
@@ -456,7 +456,7 @@ class Calibration:
         Uhtr_raw = data[:, 5]
 
         ########################################
-        # SCALE (как в C++)
+        # SCALE (as in C++)
         ########################################
 
         Umod = Umod / 121.0 * 1000.0
@@ -485,14 +485,14 @@ class Calibration:
         Ihtr = calibration.ihtr0 + Uref * calibration.ihtr1
 
         ########################################
-        # Uabs (важный кусок из C++)
+        # Uabs (important block from C++)
         ########################################
 
         Uabs = Uhtr_raw - Uref * 1000.0
         Uabs = np.maximum(Uabs, 0)
 
         ########################################
-        # Средние значения
+        # Means
         ########################################
 
         Ihtr_mean = np.mean(Ihtr)
@@ -501,7 +501,7 @@ class Calibration:
         Uabs_mean = np.mean(Uabs)
 
         ########################################
-        # Температура термопары
+        # Thermopile temperature
         ########################################
 
         ax = Utpl + calibration.utpl0
@@ -509,7 +509,7 @@ class Calibration:
         Ttpl_mean = np.mean(Ttpl)
 
         ########################################
-        # Сопротивление нагревателя
+        # Heater resistance
         ########################################
 
         Rhtr = np.zeros_like(Uhtr)
@@ -518,7 +518,7 @@ class Calibration:
         Rhtr[mask] = Uabs[mask] / Ihtr[mask]
 
         ########################################
-        # Температура нагревателя
+        # Heater temperature
         ########################################
 
         Thtr = (
@@ -528,13 +528,13 @@ class Calibration:
         )
 
         ########################################
-        # Мощность
+        # Power
         ########################################
 
         power = Uhtr * Ihtr
 
         ########################################
-        # RMS (как в C++)
+        # RMS (as in C++)
         ########################################
 
         valid = Ihtr > 0
@@ -563,7 +563,7 @@ class Calibration:
         )
 
         ########################################
-        # ERROR (главная метрика)
+        # ERROR (main metric)
         ########################################
 
         terror = Thtr - (Ttpl + Taux)
@@ -593,15 +593,15 @@ class Calibration:
         import os
         from datetime import datetime
 
-        # 👉 сохраним raw ДО изменений (если не сделал раньше — лучше вынести выше)
+        # save raw BEFORE modifications (better to move higher if not done earlier)
         Uref_raw = data[0].copy()
         Uhtr_raw = data[5].copy()
 
-        # 👉 пересчитаем mV нормально (чтобы видеть)
+        # recompute mV properly (so it is visible)
         Uref_mV = Uref_raw * 1000.0
         Uhtr_mV = Uhtr_raw * 1000.0
 
-        # 👉 собираем всё в DataFrame
+        # pack everything into a DataFrame
         df = pd.DataFrame({
             "0": data[0],
             "1": data[1],
@@ -626,19 +626,19 @@ class Calibration:
             "Utpl": data[4],
         })
 
-        # 👉 путь
+        # path
         folder = "debug_csv"
         os.makedirs(folder, exist_ok=True)
 
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = os.path.join(folder, f"fh_debug_{ts}.csv")
 
-        # 👉 ВАЖНО: нужные разделители
+        # IMPORTANT: required separators
         df.to_csv(
             path,
-            sep="\t",       # табуляция
+            sep="\t",       # tab
             index=False,
-            decimal=",",    # запятая как десятичный
+            decimal=",",    # comma as decimal
             float_format="%.6f"
         )
 

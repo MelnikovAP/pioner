@@ -8,7 +8,7 @@ LOG_FOLDER.mkdir(exist_ok=True)
 
 def setup_logger():
 
-    """???????? ?????? `setup_logger`."""
+    """Stub for `setup_logger`."""
     log_file = LOG_FOLDER / "experiment.log"
 
     logger = logging.getLogger()

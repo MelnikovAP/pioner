@@ -10,7 +10,7 @@ USER_CONFIG_PATH = BASE_DIR / "config.user.json"
 
 
 def _deep_update(base, override):
-    """???????? ?????? `deep_update`."""
+    """Stub for `deep_update`."""
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(base.get(key), dict):
             _deep_update(base[key], value)
@@ -22,7 +22,7 @@ def _deep_update(base, override):
 class Config:
 
     def __init__(self, path=None, user_path=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.path = Path(path) if path is not None else DEFAULT_CONFIG_PATH
         self.user_path = Path(user_path) if user_path is not None else USER_CONFIG_PATH
 
@@ -42,7 +42,7 @@ class Config:
         self._parse()
 
     def _resolve_path(self, value):
-        """???????? ?????? `resolve_path`."""
+        """Stub for `resolve_path`."""
         if not value:
             return value
         candidate = Path(value)
@@ -51,7 +51,7 @@ class Config:
         return str((BASE_DIR / candidate).resolve())
 
     def _parse(self):
-        """???????? ?????? `parse`."""
+        """Stub for `parse`."""
         daq = self.data["DAQ settings"]["DAQ"]
         ai = self.data["DAQ settings"]["AI"]
         ao = self.data["DAQ settings"]["AO"]
@@ -99,7 +99,7 @@ class Config:
     def build_runtime_config(self, *, connection_mode, tango_host, device_proxy, http_host,
                              calibration_path, data_path, sample_rate, mod_freq, mod_amp, mod_offset,
                              input_gain_ranges=None, input_gain_auto=None):
-        """???????? ?????? `build_runtime_config`."""
+        """Stub for `build_runtime_config`."""
         config = json.loads(json.dumps(self.default_data))
         config["DAQ settings"]["DAQ"]["ConnectionMode"] = connection_mode
         config["Server settings"]["Tango"]["Tango host"] = tango_host
@@ -119,24 +119,24 @@ class Config:
         return config
 
     def save_user_config(self, config):
-        """????????? ?????? `save_user_config`."""
+        """Stub for `save_user_config`."""
         with open(self.user_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
         self.data = config
         self._parse()
 
     def reload(self):
-        """???????? ?????? `reload`."""
+        """Stub for `reload`."""
         self.__init__(self.path, self.user_path)
 
     def reset_user_config(self):
-        """?????????? ?????? `reset_user_config`."""
+        """Stub for `reset_user_config`."""
         if self.user_path.exists():
             self.user_path.unlink()
         self.reload()
 
     def save_ui_language(self, language):
-        """????????? ?????? `save_ui_language`."""
+        """Stub for `save_ui_language`."""
         config = json.loads(json.dumps(self.data))
         config.setdefault("UI", {})["Language"] = language
         self.save_user_config(config)

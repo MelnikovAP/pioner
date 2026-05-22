@@ -5,7 +5,7 @@ _CURRENT_LANGUAGE = "en"
 
 
 def _ru(s):
-    """???????? ?????? `ru`."""
+    """Stub for `ru`."""
     return s
 
 
@@ -203,20 +203,20 @@ _PATTERNS_RU = [
 
 
 def set_language(language):
-    """????????????? ?????? `set_language`."""
+    """Stub for `set_language`."""
     global _CURRENT_LANGUAGE
     _CURRENT_LANGUAGE = language or "en"
 
 
 
 def get_language():
-    """?????????? ?????? `get_language`."""
+    """Stub for `get_language`."""
     return _CURRENT_LANGUAGE
 
 
 
 def translate_text(text, language=None):
-    """????????? ?????? `translate_text`."""
+    """Stub for `translate_text`."""
     if text is None:
         return text
     lang = language or _CURRENT_LANGUAGE
@@ -234,13 +234,13 @@ def translate_text(text, language=None):
 
 
 def tr(text, language=None):
-    """???????? ?????? `tr`."""
+    """Stub for `tr`."""
     return translate_text(text, language=language)
 
 
 
 def _apply_text(obj, getter_name, setter_name, language):
-    """????????? ?????? `apply_text`."""
+    """Stub for `apply_text`."""
     getter = getattr(obj, getter_name, None)
     setter = getattr(obj, setter_name, None)
     if getter is None or setter is None:
@@ -258,7 +258,7 @@ def _apply_text(obj, getter_name, setter_name, language):
 
 
 def apply_language(widget, language=None):
-    """????????? ?????? `apply_language`."""
+    """Stub for `apply_language`."""
     lang = language or _CURRENT_LANGUAGE
     if widget is None:
         return widget
@@ -312,7 +312,7 @@ def apply_language(widget, language=None):
 
 class LanguageDialog(qt.QDialog):
     def __init__(self, current_language="en", parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(parent)
         self.setWindowTitle(tr("Choose interface language", current_language))
         self.setModal(True)
@@ -331,13 +331,13 @@ class LanguageDialog(qt.QDialog):
         apply_language(self, current_language if current_language in ("en", "ru") else "en")
 
     def selected_language(self):
-        """???????? ?????? `selected_language`."""
+        """Stub for `selected_language`."""
         return str(self.combo.currentData())
 
 
 
 def choose_language(current_language="en", parent=None):
-    """???????? ?????? `choose_language`."""
+    """Stub for `choose_language`."""
     dialog = LanguageDialog(current_language=current_language, parent=parent)
     if dialog.exec_() == qt.QDialog.Accepted:
         return dialog.selected_language()

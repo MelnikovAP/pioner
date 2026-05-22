@@ -12,14 +12,14 @@ from pioner_app.ui.localization import apply_language, tr
 
 
 def _dialog_options():
-    """???????? ?????? `dialog_options`."""
+    """Stub for `dialog_options`."""
     options = qt.QFileDialog.Options()
     options |= qt.QFileDialog.DontUseNativeDialog
     return options
 
 
 def _make_window_modal(widget):
-    """???????? ?????? `make_window_modal`."""
+    """Stub for `make_window_modal`."""
     widget.setWindowModality(qt.Qt.WindowModal)
     widget.setWindowFlag(qt.Qt.WindowContextHelpButtonHint, False)
     return widget
@@ -27,7 +27,7 @@ def _make_window_modal(widget):
 
 class calibWindow(qt.QDialog):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(calibWindow, self).__init__(parent=parent)
 
         # ####### UI setup
@@ -433,7 +433,7 @@ class calibWindow(qt.QDialog):
             self.parent().calibPathInput.setText(str(path))
 
     def load_calib_from_file(self):
-        """????????? ?????? `load_calib_from_file`."""
+        """Stub for `load_calib_from_file`."""
         try:
             if self.calibrationFilesCombo.count() and self.calibrationFilesCombo.currentIndex() >= 0:
                 selected_path = self.calibrationFilesCombo.currentData()
@@ -450,7 +450,7 @@ class calibWindow(qt.QDialog):
             ErrorWindow(f"Failed to load calibration: {e}")
 
     def save_calib_to_file(self, fpath=False):
-        """????????? ?????? `save_calib_to_file`."""
+        """Stub for `save_calib_to_file`."""
         try:
             fpath = qt.QFileDialog.getSaveFileName(
                 self,
@@ -472,7 +472,7 @@ class calibWindow(qt.QDialog):
             ErrorWindow(f"Failed to save calibration: {e}")
 
     def reset_calib(self):
-        """?????????? ?????? `reset_calib`."""
+        """Stub for `reset_calib`."""
         self.parent().apply_default_calib()
 
     def start_calibration_procedure(self):
@@ -485,7 +485,7 @@ class calibWindow(qt.QDialog):
             ErrorWindow(f"Failed to start calibration procedure: {e}")
 
     def apply_calib_from_fields(self):
-        """????????? ?????? `apply_calib_from_fields`."""
+        """Stub for `apply_calib_from_fields`."""
         try:
             self.read_calib_input_fields()
             self.parent().set_active_calibration(
@@ -551,7 +551,7 @@ class calibWindow(qt.QDialog):
         self.apply_calib_from_fields()
 
     def update_calib_input_fields(self):
-        """Обновить поля ввода информации о калибровке."""
+        """Update calibration info input fields."""
         try:
             calibration = self.parent().calibration
             self.calibInfoInput.setText(str(calibration.comment))
@@ -584,7 +584,7 @@ class calibWindow(qt.QDialog):
             ErrorWindow(f"Failed to update calibration input fields: {e}")
 
     def read_calib_input_fields(self):
-        """?????? ?????? `read_calib_input_fields`."""
+        """Stub for `read_calib_input_fields`."""
         calibration = self.parent().calibration
         calibration.comment = self.calibInfoInput.text()
         calibration.utpl0 = float(self.ttplBoxInput1.text() or 0)
@@ -625,7 +625,7 @@ class calibWindow(qt.QDialog):
 
 class ErrorWindow(qt.QMessageBox):
     def __init__(self, error_text: str, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(ErrorWindow, self).__init__(parent)
         _make_window_modal(self)
         self.setText(error_text)
@@ -636,7 +636,7 @@ class ErrorWindow(qt.QMessageBox):
 
 class MessageWindow(qt.QMessageBox):
     def __init__(self, message_text: str, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(MessageWindow, self).__init__(parent)
         _make_window_modal(self)
         self.setText(message_text)
@@ -647,7 +647,7 @@ class MessageWindow(qt.QMessageBox):
 
 class YesCancelWindow(qt.QMessageBox):
     def __init__(self, message_text: str, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(YesCancelWindow, self).__init__(parent)
         _make_window_modal(self)
         self.setText(message_text)
@@ -667,7 +667,7 @@ class YesCancelWindow(qt.QMessageBox):
 
 class configWindow(qt.QDialog):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(configWindow, self).__init__(parent=parent)
 
         # ####### UI setup
@@ -770,24 +770,24 @@ class configWindow(qt.QDialog):
         self.resetConfigButton.clicked.connect(self.reset_settings)
 
     def apply_settings(self):
-        """????????? ?????? `apply_settings`."""
+        """Stub for `apply_settings`."""
         self.parent().settings.tango_host = self.tangoHostInput.text()
         self.parent().settings.device_proxy = self.deviceProxyInput.text()
         self.parent().settings.http_host = self.httpHostInput.text()
 
     def load_settings_from_file(self):
-        """????????? ?????? `load_settings_from_file`."""
+        """Stub for `load_settings_from_file`."""
         self.parent().load_settings_from_file(fpath=True)
         self.tangoHostInput.setText(self.parent().settings.tango_host)
         self.deviceProxyInput.setText(self.parent().settings.device_proxy)
         self.httpHostInput.setText(self.parent().settings.http_host)
 
     def save_settings_to_file(self):
-        """????????? ?????? `save_settings_to_file`."""
+        """Stub for `save_settings_to_file`."""
         self.parent().save_settings_to_file(fpath=True)
     
     def reset_settings(self):
-        """?????????? ?????? `reset_settings`."""
+        """Stub for `reset_settings`."""
         self.parent().reset_settings()
         self.tangoHostInput.setText(self.parent().settings.tango_host)
         self.deviceProxyInput.setText(self.parent().settings.device_proxy)

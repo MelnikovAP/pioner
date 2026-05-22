@@ -56,7 +56,7 @@ class AIDevice:
     }
 
     def __init__(self, ai_device):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         if ULDAQ_IMPORT_ERROR is not None:
             raise RuntimeError(
                 "ULDAQ AI support is unavailable in this Python environment."
@@ -87,7 +87,7 @@ class AIDevice:
         self._next_autogain_time = 0.0
 
     def _build_channel_names(self):
-        """???????? ?????? `build_channel_names`."""
+        """Stub for `build_channel_names`."""
         names = []
         configured = getattr(settings, "ai_names", {}) or {}
         for channel_index in range(self.channels):
@@ -101,7 +101,7 @@ class AIDevice:
         return names
 
     def _supported_ranges(self):
-        """???????? ?????? `supported_ranges`."""
+        """Stub for `supported_ranges`."""
         try:
             info = self.ai.get_info()
             return list(info.get_ranges(AiInputMode(settings.ai_input_mode)) or [])
@@ -110,12 +110,12 @@ class AIDevice:
             return []
 
     def _enum_full_scale(self, enum_value):
-        """???????? ?????? `enum_full_scale`."""
+        """Stub for `enum_full_scale`."""
         name = getattr(enum_value, "name", "")
         return float(self.RANGE_NAME_TO_FS.get(name, self.RANGE_FS[-1]))
 
     def _build_range_enum_lookup(self):
-        """???????? ?????? `build_range_enum_lookup`."""
+        """Stub for `build_range_enum_lookup`."""
         lookup = {}
         if Range is None:
             return lookup
@@ -126,11 +126,11 @@ class AIDevice:
         return lookup
 
     def _clamp_position(self, position):
-        """???????? ?????? `clamp_position`."""
+        """Stub for `clamp_position`."""
         return max(0, min(int(position), len(self.RANGE_LABELS) - 1))
 
     def _position_to_range_enum(self, position):
-        """???????? ?????? `position_to_range_enum`."""
+        """Stub for `position_to_range_enum`."""
         position = self._clamp_position(position)
         requested_fs = self.RANGE_FS[position]
         supported = self._supported_ranges()
@@ -147,17 +147,17 @@ class AIDevice:
         return fallback if fallback is not None else Range(settings.ai_range)
 
     def _position_full_scale(self, position):
-        """???????? ?????? `position_full_scale`."""
+        """Stub for `position_full_scale`."""
         return float(self.RANGE_FS[self._clamp_position(position)])
 
     def _queue_range_for_channel(self, channel_index):
-        """???????? ?????? `queue_range_for_channel`."""
+        """Stub for `queue_range_for_channel`."""
         name = self.channel_names[channel_index]
         position = self.range_positions.get(name, 5)
         return self._position_to_range_enum(position)
 
     def _configure_queue(self):
-        """???????? ?????? `configure_queue`."""
+        """Stub for `configure_queue`."""
         if AiQueueElement is None or not hasattr(self.ai, 'a_in_load_queue'):
             return
         try:
@@ -187,14 +187,14 @@ class AIDevice:
             logger.exception("Failed to load AI gain queue; falling back to global range")
 
     def get_gain_state(self):
-        """?????????? ?????? `get_gain_state`."""
+        """Stub for `get_gain_state`."""
         return {
             "ranges": dict(self.range_positions),
             "auto_gain": dict(self.auto_gain_enabled),
         }
 
     def set_channel_gains(self, ranges=None, auto_gain=None):
-        """????????????? ?????? `set_channel_gains`."""
+        """Stub for `set_channel_gains`."""
         ranges = ranges or {}
         auto_gain = auto_gain or {}
         for name in self.channel_names:
@@ -208,14 +208,14 @@ class AIDevice:
         }
 
     def allocate_buffer(self, samples):
-        """???????? ?????? `allocate_buffer`."""
+        """Stub for `allocate_buffer`."""
         logger.info(f"Allocating AI buffer: {samples} samples")
         self.samples_per_channel = samples
         self.buffer = create_float_buffer(self.channels, samples)
         return self.buffer
 
     def _start_scan(self, scan_option):
-        """????????? ?????? `start_scan`."""
+        """Stub for `start_scan`."""
         logger.info("Starting AI scan")
         self._configure_queue()
         actual_rate = self.ai.a_in_scan(
@@ -247,26 +247,26 @@ class AIDevice:
             logger.warning("AI actual sample rate differs from requested: requested=%s actual=%s", self.sample_rate, actual_rate)
 
     def start_scan(self):
-        """????????? ?????? `start_scan`."""
+        """Stub for `start_scan`."""
         self._start_scan(ScanOption.DEFAULTIO)
 
     def start_scan_continious(self):
-        """????????? ?????? `start_scan_continious`."""
+        """Stub for `start_scan_continious`."""
         self._start_scan(ScanOption.CONTINUOUS)
 
     def get_progress(self):
-        """?????????? ?????? `get_progress`."""
+        """Stub for `get_progress`."""
         status, transfer = self.ai.get_scan_status()
         return status, transfer.current_scan_count
 
     def read_available_data(self, samples):
-        """?????? ?????? `read_available_data`."""
+        """Stub for `read_available_data`."""
         data = np.array(self.buffer[:samples * self.channels])
         data = data.reshape(-1, self.channels)
         return data
 
     def autogain_update_from_data(self, data):
-        """???????? ?????? `autogain_update_from_data`."""
+        """Stub for `autogain_update_from_data`."""
         if data is None or len(data) == 0:
             return None
         now = time.monotonic()
@@ -304,7 +304,7 @@ class AIDevice:
         return self.get_gain_state()
 
     def stop(self):
-        """????????????? ?????? `stop`."""
+        """Stub for `stop`."""
         logger.info("Stopping AI scan")
         try:
             self.ai.scan_stop()

@@ -14,14 +14,14 @@ def is_int(key) -> bool:
 
 
 def is_int_or_raise(key) -> bool:
-    """????????? ?????? `is_int_or_raise`."""
+    """Stub for `is_int_or_raise`."""
     if is_int(key):
         return True
     raise ValueError("'{}' is not an integer value.".format(key))
 
 
 def list_bitwise_or(ints: List[int]) -> int:
-    """???????? ?????? `list_bitwise_or`."""
+    """Stub for `list_bitwise_or`."""
     res = 0
     for i in ints:
         res |= i
@@ -30,8 +30,8 @@ def list_bitwise_or(ints: List[int]) -> int:
 # calorimeter utils
 # ====================================================
 def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.array:
-    """???????? ?????? `voltage_to_temperature`."""
-    voltage = np.asarray(voltage)  # <--- добавьте эту строку
+    """Stub for `voltage_to_temperature`."""
+    voltage = np.asarray(voltage)  # <--- ensure ndarray
     volt = voltage.copy()
     volt[volt < 0] = 0
     volt[volt > calibration.safe_voltage] = calibration.safe_voltage
@@ -42,7 +42,7 @@ def voltage_to_temperature(voltage: np.array, calibration: Calibration) -> np.ar
 # TODO: think maybe to create a T-V (and vice versa) converter class
 def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.array:
     # generating temp-volt dependency in full calibration range
-    """???????? ?????? `temperature_to_voltage`."""
+    """Stub for `temperature_to_voltage`."""
     resolution = 0.0001  # V
     volt_calib = np.linspace(0, calibration.safe_voltage, int(1 / resolution))
 
@@ -61,12 +61,12 @@ def temperature_to_voltage(temp: np.array, calibration:  Calibration) -> np.arra
 # Turns a dictionary into a class
 class Dict2Class(object):
     def __init__(self, my_dict):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         for key in my_dict:
             setattr(self, key, my_dict[key])
         self.my_dict = my_dict
     def get_dict(self):
-        """?????????? ?????? `get_dict`."""
+        """Stub for `get_dict`."""
         return self.my_dict
 
 if __name__ == '__main__':

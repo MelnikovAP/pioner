@@ -12,14 +12,14 @@ from pioner_app.core.calibration import Calibration
 
 
 def _dialog_options():
-    """?? ?? `dialog_options`."""
+    """Stub for `dialog_options`."""
     options = QFileDialog.Options()
     options |= QFileDialog.DontUseNativeDialog
     return options
 
 
 def _center_on_parent(widget):
-    """?? ?? `center_on_parent`."""
+    """Stub for `center_on_parent`."""
     parent = widget.parentWidget()
     if parent is None:
         return
@@ -36,14 +36,14 @@ def _center_on_parent(widget):
 ############################################
 
 def volt_to_temperature(v, calibration=None):
-    """?? ?? `volt_to_temperature`."""
+    """Stub for `volt_to_temperature`."""
     calibration = calibration or Calibration()
     v = voltage_to_temperature(v, calibration=calibration)
     return float(v) if np.ndim(v) == 0 else v
 
 
 def temp_to_voltage(t, calibration=None):
-    """?? ?? `temp_to_voltage`."""
+    """Stub for `temp_to_voltage`."""
     calibration = calibration or Calibration()
     t = temperature_to_voltage(t, calibration=calibration)
     return float(t) if np.ndim(t) == 0 else t
@@ -58,7 +58,7 @@ class Segment:
     def __init__(self, seg_type, duration_ms, start, end,
                  freq=0, ampl=0, offset=0):
 
-        """?? ?? ? ?? ? ?."""
+        """Stub docstring."""
         self.type = seg_type
         self.duration = duration_ms
         self.start = start
@@ -70,7 +70,7 @@ class Segment:
 
     def slope(self):
 
-        """?? ?? `slope`."""
+        """Stub for `slope`."""
         if self.duration == 0:
             return 0
 
@@ -188,18 +188,18 @@ class SegmentDialog(QDialog):
         self.mode_changed()
 
     def showEvent(self, event):
-        """?? ?? `showEvent`."""
+        """Stub for `showEvent`."""
         super().showEvent(event)
         _center_on_parent(self)
 
     def emit_change(self):
-        """?? ?? `emit_change`."""
+        """Stub for `emit_change`."""
         self.segment_changed.emit()
 
 
     def type_changed(self):
 
-        """?? ?? `type_changed`."""
+        """Stub for `type_changed`."""
         if self.type.currentText() == "VoltSine ∿":
 
             self.set_row_visible(self.offset, True)
@@ -230,7 +230,7 @@ class SegmentDialog(QDialog):
 
     def set_row_visible(self, widget, visible):
 
-        """??? ?? `set_row_visible`."""
+        """Stub for `set_row_visible`."""
         layout = self.layout()
 
         for i in range(layout.rowCount()):
@@ -249,7 +249,7 @@ class SegmentDialog(QDialog):
 
     def mode_changed(self):
 
-        """?? ?? `mode_changed`."""
+        """Stub for `mode_changed`."""
         if self.mode.currentText() == "Duration":
 
             self.duration.setEnabled(True)
@@ -262,7 +262,7 @@ class SegmentDialog(QDialog):
 
     def update_from_duration(self):
 
-        """? ?? `update_from_duration`."""
+        """Stub for `update_from_duration`."""
         if self.mode.currentText() != "Duration":
             return
 
@@ -279,7 +279,7 @@ class SegmentDialog(QDialog):
 
     def update_from_rate(self):
 
-        """? ?? `update_from_rate`."""
+        """Stub for `update_from_rate`."""
         if self.mode.currentText() != "Rate":
             return
 
@@ -298,7 +298,7 @@ class SegmentDialog(QDialog):
 
     def get_segment(self):
 
-        """?? ?? `get_segment`."""
+        """Stub for `get_segment`."""
         return Segment(
             self.type.currentText(),
             self.duration.value(),
@@ -322,7 +322,7 @@ class ProfileWidget(QWidget):
     def __init__(self, parent=None):
 
             
-        """?? ?? ? ?? ? ?."""
+        """Stub docstring."""
         super(ProfileWidget, self).__init__(parent=parent)
         
         self.segments = []
@@ -460,7 +460,7 @@ class ProfileWidget(QWidget):
 
     def _selected_rows(self):
 
-        """?? ?? `selected_rows`."""
+        """Stub for `selected_rows`."""
         rows = {index.row() for index in self.table.selectionModel().selectedRows()}
         if rows:
             return sorted(rows)
@@ -470,19 +470,19 @@ class ProfileWidget(QWidget):
 
     def _clone_segment(self, segment):
 
-        """?? ?? `clone_segment`."""
+        """Stub for `clone_segment`."""
         return copy.deepcopy(segment)
 
     def _set_current_row(self, row):
 
-        """??? ?? `set_current_row`."""
+        """Stub for `set_current_row`."""
         if 0 <= row < self.table.rowCount():
             self.table.setCurrentCell(row, 0)
             self.table.selectRow(row)
 
     def copy_selected_segments(self):
 
-        """?? ?? `copy_selected_segments`."""
+        """Stub for `copy_selected_segments`."""
         rows = self._selected_rows()
         if not rows:
             return
@@ -490,7 +490,7 @@ class ProfileWidget(QWidget):
 
     def cut_selected_segments(self):
 
-        """?? ?? `cut_selected_segments`."""
+        """Stub for `cut_selected_segments`."""
         rows = self._selected_rows()
         if not rows:
             return
@@ -502,7 +502,7 @@ class ProfileWidget(QWidget):
 
     def paste_segments(self):
 
-        """? ?? `paste_segments`."""
+        """Stub for `paste_segments`."""
         if not self.segment_clipboard:
             return
 
@@ -522,7 +522,7 @@ class ProfileWidget(QWidget):
 
     def open_segments_context_menu(self, pos):
 
-        """? ?? `open_segments_context_menu`."""
+        """Stub for `open_segments_context_menu`."""
         menu = QMenu(self)
         copy_action = menu.addAction("Copy")
         cut_action = menu.addAction("Cut")
@@ -553,19 +553,19 @@ class ProfileWidget(QWidget):
 
     def get_profile(self):
 
-        """?? ?? `get_profile`."""
+        """Stub for `get_profile`."""
         return getattr(self,"profile",None)
 
     def _get_active_calibration(self):
 
-        """?? ?? `get_active_calibration`."""
+        """Stub for `get_active_calibration`."""
         window = self.window()
         calibration = getattr(window, "calibration", None)
         return calibration or Calibration()
 
     def _convert_scalar(self, value, target_mode):
 
-        """??? ?? `convert_scalar`."""
+        """Stub for `convert_scalar`."""
         calibration = self._get_active_calibration()
         if target_mode == "temperature":
             return float(volt_to_temperature(value, calibration=calibration))
@@ -573,7 +573,7 @@ class ProfileWidget(QWidget):
 
     def _convert_sine_segment(self, segment, target_mode):
 
-        """??? ?? `convert_sine_segment`."""
+        """Stub for `convert_sine_segment`."""
         low = segment.offset - segment.ampl
         high = segment.offset + segment.ampl
 
@@ -635,7 +635,7 @@ class ProfileWidget(QWidget):
 
     def _segment_values_in_voltage(self, segment):
 
-        """?? ?? `segment_values_in_voltage`."""
+        """Stub for `segment_values_in_voltage`."""
         if self.mode == "voltage":
             if str(segment.type).startswith("VoltSine"):
                 return {"amplitude": float(segment.ampl), "offset": float(segment.offset)}
@@ -661,7 +661,7 @@ class ProfileWidget(QWidget):
 
     def _expand_ramp_for_execution(self, segment):
 
-        """?? ?? `expand_ramp_for_execution`."""
+        """Stub for `expand_ramp_for_execution`."""
         if self.mode == "voltage":
             values = self._segment_values_in_voltage(segment)
             return [{
@@ -697,7 +697,7 @@ class ProfileWidget(QWidget):
 
     def emit_profile(self):
 
-        """?? ?? `emit_profile`."""
+        """Stub for `emit_profile`."""
         if hasattr(self,"profile"):
 
             self.profile_ready.emit(self.profile)
@@ -708,7 +708,7 @@ class ProfileWidget(QWidget):
 
     def unit_changed(self):
 
-        """?? ?? `unit_changed`."""
+        """Stub for `unit_changed`."""
         target_mode = "voltage" if self.voltage_btn.isChecked() else "temperature"
         if self.mode == target_mode:
             return
@@ -739,7 +739,7 @@ class ProfileWidget(QWidget):
 
     def add_segment(self,event):
 
-        """?? ?? `add_segment`."""
+        """Stub for `add_segment`."""
         unit = " V" if self.mode=="voltage" else " °C"
 
         dlg = SegmentDialog(unit, parent=self.window())
@@ -758,8 +758,8 @@ class ProfileWidget(QWidget):
 
     def edit_segment(self,row,col):
 
-        """?? ?? `edit_segment`."""
-        unit = " V" if self.mode=="voltage" else " В°C"
+        """Stub for `edit_segment`."""
+        unit = " V" if self.mode=="voltage" else " °C"
 
         seg = self.segments[row]
 
@@ -777,7 +777,7 @@ class ProfileWidget(QWidget):
 
     def delete_segment(self):
 
-        """?? ?? `delete_segment`."""
+        """Stub for `delete_segment`."""
         rows = self._selected_rows()
 
         if not rows:
@@ -795,7 +795,7 @@ class ProfileWidget(QWidget):
 
     def update_table(self):
 
-        """? ?? `update_table`."""
+        """Stub for `update_table`."""
         self.table.setRowCount(len(self.segments))
         type_map = {
             "Ramp ↑": "↑",
@@ -828,12 +828,12 @@ class ProfileWidget(QWidget):
     # GRAPH UPDATE
     ###################################
     def refresh_ui(self):
-        """? ?? `refresh_ui`."""
+        """Stub for `refresh_ui`."""
         self.update_table()
 
     def _clear_rate_labels(self):
 
-        """? ?? `clear_rate_labels`."""
+        """Stub for `clear_rate_labels`."""
         for label in self.rate_labels:
             self.plot.removeItem(label)
         for leader in self.rate_leaders:
@@ -843,14 +843,14 @@ class ProfileWidget(QWidget):
 
     def _clear_segment_curves(self):
 
-        """? ?? `clear_segment_curves`."""
+        """Stub for `clear_segment_curves`."""
         for curve in self.segment_curves:
             self.plot.removeItem(curve)
         self.segment_curves = []
 
     def _segment_color(self, segment):
 
-        """?? ?? `segment_color`."""
+        """Stub for `segment_color`."""
         segment_type = str(segment.type)
         if segment_type.startswith("VoltSine"):
             return (120, 120, 120)
@@ -865,12 +865,12 @@ class ProfileWidget(QWidget):
 
     def _rate_unit_label(self):
 
-        """?? ?? `rate_unit_label`."""
+        """Stub for `rate_unit_label`."""
         return "C/s" if self.mode == "temperature" else "V/s"
 
     def _rate_color(self, rate):
 
-        """?? ?? `rate_color`."""
+        """Stub for `rate_color`."""
         if rate > 0:
             return (200, 40, 40)
         if rate < 0:
@@ -879,7 +879,7 @@ class ProfileWidget(QWidget):
 
     def _add_rate_labels(self):
 
-        """?? ?? `add_rate_labels`."""
+        """Stub for `add_rate_labels`."""
         self._clear_rate_labels()
         vb = self.plot.getPlotItem().vb
         time_cursor = 0.0
@@ -925,7 +925,7 @@ class ProfileWidget(QWidget):
 
     def update_plot(self):
 
-        """? ?? `update_plot`."""
+        """Stub for `update_plot`."""
         self._clear_segment_curves()
         self._clear_rate_labels()
         self.curve.setData([], [])
@@ -1064,7 +1064,7 @@ class ProfileWidget(QWidget):
 
     def preview_segment(self, dlg):
 
-        """?? ?? `preview_segment`."""
+        """Stub for `preview_segment`."""
         s = dlg.get_segment()
 
         temp_segments = list(self.segments)
@@ -1108,7 +1108,7 @@ class ProfileWidget(QWidget):
 
     def save_profile(self):
 
-        """? ?? `save_profile`."""
+        """Stub for `save_profile`."""
         data = []
         t=0
         for s in self.segments:
@@ -1167,7 +1167,7 @@ class ProfileWidget(QWidget):
     ###################################
     def load_profile(self):
 
-        """? ?? `load_profile`."""
+        """Stub for `load_profile`."""
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Profile", "", "JSON (*.json)", options=_dialog_options()
         )
@@ -1181,7 +1181,7 @@ class ProfileWidget(QWidget):
         self.segments.clear()
 
         ################################
-        # РїСЂРѕРІРµСЂРєР° СЃС‚СЂСѓРєС‚СѓСЂС‹
+        # structure check
         ################################
 
         if "channels" not in profile:
@@ -1197,7 +1197,7 @@ class ProfileWidget(QWidget):
         data = channels["1"]
 
         ################################
-        # Р·Р°РіСЂСѓР·РєР° СЃРµРіРјРµРЅС‚РѕРІ
+        # load segments
         ################################
 
         for s in data:
@@ -1216,7 +1216,7 @@ class ProfileWidget(QWidget):
             elif seg_type == "ramp":
 
                 seg = Segment(
-                    "Ramp ↑",   # РЅР°РїСЂР°РІР»РµРЅРёРµ РЅРµ РІР°Р¶РЅРѕ
+                    "Ramp ↑",   # direction does not matter
                     s["duration"],
                     s["start"],
                     s["stop"]
@@ -1247,7 +1247,7 @@ class ProfileWidget(QWidget):
 
     def build_profile_for_experiment(self):
 
-        """?? ?? `build_profile_for_experiment`."""
+        """Stub for `build_profile_for_experiment`."""
         data = []
         total_time = 0
 
@@ -1307,7 +1307,7 @@ class ProfileWidget(QWidget):
 
     def arm_profile(self):
         
-        """?? ?? `arm_profile`."""
+        """Stub for `arm_profile`."""
         from pioner_app.hardware.daq_controller import get_daq_controller
         ctrl = get_daq_controller()
 
@@ -1327,9 +1327,9 @@ class ProfileWidget(QWidget):
         from threading import Thread
 
         def worker():
-            """?? ?? `worker`."""
+            """Stub for `worker`."""
             try:
-                # вњ… РїРµСЂРµРґР°С‘Рј dict РЅР°РїСЂСЏРјСѓСЋ
+                # pass dict directly
                 data = ctrl.run_fast_heat_profile(profile)
 
                 print("Experiment finished")
@@ -1349,7 +1349,7 @@ class ProfileWidget(QWidget):
 
     def refresh(self):
 
-        """? ?? `refresh`."""
+        """Stub for `refresh`."""
         self.update_table()
         self.update_plot()
 

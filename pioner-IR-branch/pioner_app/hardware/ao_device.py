@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class AODevice:
 
     def __init__(self, ao_device):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         if ULDAQ_IMPORT_ERROR is not None:
             raise RuntimeError(
                 "ULDAQ AO support is unavailable in this Python environment."
@@ -47,7 +47,7 @@ class AODevice:
 
     def allocate_buffer(self, samples):
 
-        """???????? ?????? `allocate_buffer`."""
+        """Stub for `allocate_buffer`."""
         logger.info(f"Allocating AO buffer: {samples} samples")
 
         self.samples_per_channel = samples
@@ -58,7 +58,7 @@ class AODevice:
 
     def fill_buffer(self, *signals):
 
-        """???????? ?????? `fill_buffer`."""
+        """Stub for `fill_buffer`."""
         logger.info("Filling AO buffer")
 
         lengths = [len(s) for s in signals]
@@ -78,7 +78,7 @@ class AODevice:
 
     def start_scan(self):
 
-        """????????? ?????? `start_scan`."""
+        """Stub for `start_scan`."""
         logger.info("Starting AO scan")
 
         actual_rate = self.ao.a_out_scan(
@@ -95,7 +95,7 @@ class AODevice:
 
     def start_scan_continious(self):
 
-        """????????? ?????? `start_scan_continious`."""
+        """Stub for `start_scan_continious`."""
         logger.info("Starting AO scan continious")
 
         actual_rate = self.ao.a_out_scan(
@@ -113,7 +113,7 @@ class AODevice:
 
     def start_single_channel_wave(self, channel, signal, sample_rate=None, continuous=True):
 
-        """Запускает wave scan на одном AO-канале."""
+        """Start a wave scan on a single AO channel."""
         signal = np.asarray(signal, dtype=np.float64)
         samples = int(len(signal))
         if samples <= 0:
@@ -157,7 +157,7 @@ class AODevice:
 
     def write_static(self, values_by_channel, stop_scan=True):
 
-        """?????????? ?????? `write_static`."""
+        """Stub for `write_static`."""
         logger.info("Writing static AO values: %s", values_by_channel)
 
         if stop_scan:
@@ -174,7 +174,7 @@ class AODevice:
 
     def stop(self):
 
-        """????????????? ?????? `stop`."""
+        """Stub for `stop`."""
         logger.info("Stopping AO scan")
 
         try:
@@ -186,37 +186,37 @@ class AODevice:
 class AOGenerator:
 
     def __init__(self, channels):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.channels = channels
         self.channel_buffers = {ch: [] for ch in range(channels)}
 
     def _samples(self, duration):
-        """???????? ?????? `samples`."""
+        """Stub for `samples`."""
         return int(duration * (settings.sample_rate / 1000))
 
     def ramp(self, channel, duration, start, stop):
-        """???????? ?????? `ramp`."""
+        """Stub for `ramp`."""
         samples = self._samples(duration)
         logger.info(f"Ramp ch{channel} {start}->{stop} duration={duration} ms")
         signal = np.linspace(start, stop, samples)
         self.channel_buffers[channel].append(signal)
 
     def ramp_down(self, channel, duration, start, stop):
-        """???????? ?????? `ramp_down`."""
+        """Stub for `ramp_down`."""
         samples = self._samples(duration)
         logger.info(f"RampDown ch{channel} {start}->{stop} duration={duration} ms")
         signal = np.linspace(start, stop, samples)
         self.channel_buffers[channel].append(signal)
 
     def isotherm(self, channel, duration, value):
-        """???????? ?????? `isotherm`."""
+        """Stub for `isotherm`."""
         samples = self._samples(duration)
         logger.info(f"Isotherm ch{channel} value={value} duration={duration} ms")
         signal = np.ones(samples) * value
         self.channel_buffers[channel].append(signal)
 
     def sine(self, channel, duration, frequency, amplitude, offset=0):
-        """???????? ?????? `sine`."""
+        """Stub for `sine`."""
         samples = self._samples(duration)
         logger.info(
             f"Sine ch{channel} f={frequency}Hz amp={amplitude} duration={duration} ms"
@@ -226,7 +226,7 @@ class AOGenerator:
         self.channel_buffers[channel].append(signal)
 
     def build(self):
-        """???????? ?????? `build`."""
+        """Stub for `build`."""
         logger.info("Building AO signals")
         signals = []
 
@@ -252,14 +252,14 @@ class AOGenerator:
 
 class AOGeneratorProfile:
     def __init__(self, profile, sample_rate):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.profile = profile
         self.sample_rate = sample_rate
 
 
 class AOStreamSHGenerator:
     def __init__(self, sample_rate):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.sample_rate = sample_rate
         self.freq = 0.0
         self.amp = 0.0
@@ -287,7 +287,7 @@ class AOStreamSHGenerator:
         self.x2_mode = False
 
     def set_modulation(self, freq, amp, offset):
-        """????????????? ?????? `set_modulation`."""
+        """Stub for `set_modulation`."""
         self.freq = float(freq)
         self.amp = float(amp)
         self.offset = float(offset)
@@ -295,7 +295,7 @@ class AOStreamSHGenerator:
         self.mod_final_amp = float(amp)
 
     def set_chunk_geometry(self, chunk_size, duration_sec):
-        """????????????? ?????? `set_chunk_geometry`."""
+        """Stub for `set_chunk_geometry`."""
         self.chunk_size = max(1, int(chunk_size))
         total_samples = max(1, int(np.ceil(max(float(duration_sec), 0.0) * self.sample_rate)))
         self.total_chunks = max(1, int(np.ceil(total_samples / self.chunk_size)))
@@ -311,7 +311,7 @@ class AOStreamSHGenerator:
         enable_phase_ramp=False,
         x2_mode=False,
     ):
-        """????????????? ?????? `set_modulation_ramps`."""
+        """Stub for `set_modulation_ramps`."""
         self.mod_final_freq = float(self.freq if final_freq is None else final_freq)
         self.mod_final_amp = float(self.amp if final_amp is None else final_amp)
         self.mod_start_phase_deg = 0.0
@@ -323,7 +323,7 @@ class AOStreamSHGenerator:
         self.x2_mode = bool(x2_mode)
 
     def set_heating(self, mode, start_value, end_value, rate_per_min, converter=None, hold_final_value=False):
-        """????????????? ?????? `set_heating`."""
+        """Stub for `set_heating`."""
         self.mode = mode
         self.start_value = float(start_value)
         self.end_value = float(end_value)
@@ -336,7 +336,7 @@ class AOStreamSHGenerator:
         self._carrier_phase = 0.0
 
     def _convert_output(self, values):
-        """??????????? ?????? `convert_output`."""
+        """Stub for `convert_output`."""
         values = np.asarray(values, dtype=float)
         if self.mode == "temperature":
             if self.converter is None:
@@ -345,7 +345,7 @@ class AOStreamSHGenerator:
         return values
 
     def _modulation_step_fraction(self):
-        """???????? ?????? `modulation_step_fraction`."""
+        """Stub for `modulation_step_fraction`."""
         active = self.mod_freq_ramp or self.mod_amp_ramp or self.mod_phase_ramp
         if not active:
             return 0.0
@@ -357,7 +357,7 @@ class AOStreamSHGenerator:
         return step_index / float(steps - 1)
 
     def current_modulation_values(self):
-        """???????? ?????? `current_modulation_values`."""
+        """Stub for `current_modulation_values`."""
         frac = self._modulation_step_fraction()
         freq = self.freq + (self.mod_final_freq - self.freq) * frac if self.mod_freq_ramp else self.freq
         amp = self.amp + (self.mod_final_amp - self.amp) * frac if self.mod_amp_ramp else self.amp
@@ -373,7 +373,7 @@ class AOStreamSHGenerator:
         }
 
     def _target_values(self, chunk_size):
-        """???????? ?????? `target_values`."""
+        """Stub for `target_values`."""
         t = (np.arange(chunk_size, dtype=float) + self.sample_index) / self.sample_rate
         if self.rate_per_min == 0:
             values = np.full(chunk_size, self.start_value, dtype=float)
@@ -388,12 +388,12 @@ class AOStreamSHGenerator:
         return self._convert_output(values)
 
     def _final_output(self, chunk_size):
-        """???????? ?????? `final_output`."""
+        """Stub for `final_output`."""
         final_values = np.full(chunk_size, self.end_value, dtype=float)
         return self._convert_output(final_values)
 
     def generate_chunk(self, chunk_size):
-        """???????? ?????? `generate_chunk`."""
+        """Stub for `generate_chunk`."""
         if self.completed and not self.hold_final_value:
             return None, None
 

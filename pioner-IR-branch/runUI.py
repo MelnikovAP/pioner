@@ -24,7 +24,7 @@ def pioner_run_ui():
     if selected_language != getattr(settings, "ui_language", "en"):
         settings.save_ui_language(selected_language)
     example = mainWindow()
-                # выключаем UI
+                # disable UI
     example.experimentBox.setEnabled(False)
     example.mainTabWidget.setEnabled(False)
     example.show()

@@ -10,20 +10,20 @@ class HardwareBackend(ABC):
 
     @abstractmethod
     def connect(self):
-        """?????????? ?????? `connect`."""
+        """Stub for `connect`."""
         raise NotImplementedError
 
     @abstractmethod
     def get_ai_device(self):
-        """?????????? ?????? `get_ai_device`."""
+        """Stub for `get_ai_device`."""
         raise NotImplementedError
 
     @abstractmethod
     def get_ao_device(self):
-        """?????????? ?????? `get_ao_device`."""
+        """Stub for `get_ao_device`."""
         raise NotImplementedError
 
     @abstractmethod
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         raise NotImplementedError

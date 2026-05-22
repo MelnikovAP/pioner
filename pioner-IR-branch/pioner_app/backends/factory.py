@@ -1,5 +1,5 @@
 def create_hardware_backend(mode: str):
-    """??????? ?????? `create_hardware_backend`."""
+    """Stub for `create_hardware_backend`."""
     normalized = (mode or "direct").strip().lower()
     if normalized == "tango":
         from pioner_app.backends.tango_backend import TangoHardwareBackend

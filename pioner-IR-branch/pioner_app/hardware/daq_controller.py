@@ -25,13 +25,13 @@ class DAQController(QObject):
     _instance = None
 
     def __new__(cls):
-        """??????? ????????? ??????."""
+        """Stub docstring."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__()
 
         if hasattr(self, "_initialized"):
@@ -55,12 +55,12 @@ class DAQController(QObject):
         self._fast_heat_running = False
 
     def set_connection_mode(self, mode):
-        """????????????? ?????? `set_connection_mode`."""
+        """Stub for `set_connection_mode`."""
         if mode:
             self.connection_mode = mode.strip().lower()
 
     def connect(self):
-        """?????????? ?????? `connect`."""
+        """Stub for `connect`."""
         if self.device:
             return
 
@@ -92,7 +92,7 @@ class DAQController(QObject):
         logger.info("DAQController connected via %s", self.connection_mode)
 
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         if self.device:
             self.device.disconnect()
 
@@ -102,7 +102,7 @@ class DAQController(QObject):
         logger.info("DAQController disconnected")
 
     def set_sample_rate(self, rate):
-        """????????? sample rate ? ????????????? ???????? continuous scan."""
+        """Set sample rate and restart the current continuous scan."""
         settings.sample_rate = rate
         if not self.em:
             return
@@ -121,7 +121,7 @@ class DAQController(QObject):
             self.start_acquisition(owner=owner or "signals", points_per_channel=points)
 
     def get_input_gains_state(self):
-        """?????????? ?????? `get_input_gains_state`."""
+        """Stub for `get_input_gains_state`."""
         if self.em:
             return self.em.ai.get_gain_state()
         return {
@@ -130,7 +130,7 @@ class DAQController(QObject):
         }
 
     def apply_input_gains(self, ranges=None, auto_gain=None, restart=True, emit_signal=True):
-        """????????? ?????? `apply_input_gains`."""
+        """Stub for `apply_input_gains`."""
         ranges = dict(ranges or {})
         auto_gain = dict(auto_gain or {})
 
@@ -167,7 +167,7 @@ class DAQController(QObject):
         return state
 
     def _maybe_apply_autogain(self, data):
-        """???????? ?????? `maybe_apply_autogain`."""
+        """Stub for `maybe_apply_autogain`."""
         if not self.em or not self._acquisition_running or data is None:
             return
         if self._acquisition_owner != "signals":
@@ -187,7 +187,7 @@ class DAQController(QObject):
         self.input_gains_changed.emit(dict(state["ranges"]), dict(state["auto_gain"]))
 
     def start_modulation(self, freq, amp, offset, phase_deg=0.0):
-        """????????? ?????? `start_modulation`."""
+        """Stub for `start_modulation`."""
         if hasattr(self.device, "set_modulation"):
             self.device.set_modulation(freq, amp, offset)
             return
@@ -222,7 +222,7 @@ class DAQController(QObject):
         self.em.ao.start_single_channel_wave(self.em.ao.low_channel, ch0, sample_rate=ao_sample_rate, continuous=True)
 
     def stop_modulation(self):
-        """????????????? ?????? `stop_modulation`."""
+        """Stub for `stop_modulation`."""
         self._modulation_running = False
         self._join_modulation_thread()
         if self.em:
@@ -237,7 +237,7 @@ class DAQController(QObject):
             self.reset_ao_outputs()
 
     def reset_ao_outputs(self, ao0=0.1, ao1=0.0):
-        """?????????? ?????? `reset_ao_outputs`."""
+        """Stub for `reset_ao_outputs`."""
         if not getattr(self, "em", None):
             return
         try:
@@ -249,16 +249,16 @@ class DAQController(QObject):
             logger.exception("Failed to reset AO outputs to baseline")
 
     def _heater_current_to_voltage(self, current_mA):
-        """???????? ?????? `heater_current_to_voltage`."""
+        """Stub for `heater_current_to_voltage`."""
         current_mA = np.asarray(current_mA, dtype=float)
         return (current_mA - self.calibration.ihtr0) / self.calibration.ihtr1
 
     def _temperature_to_voltage_array(self, values):
-        """???????? ?????? `temperature_to_voltage_array`."""
+        """Stub for `temperature_to_voltage_array`."""
         return np.asarray(temperature_to_voltage(values, calibration=self.calibration), dtype=float)
 
     def _reset_all_scans(self):
-        """?????????? ?????? `reset_all_scans`."""
+        """Stub for `reset_all_scans`."""
         if not self.em:
             return
 
@@ -283,21 +283,21 @@ class DAQController(QObject):
         time.sleep(0.1)
 
     def _join_ao_thread(self, timeout=2.0):
-        """???????? ?????? `join_ao_thread`."""
+        """Stub for `join_ao_thread`."""
         thread = self._ao_thread
         if thread and thread.is_alive():
             thread.join(timeout=timeout)
         self._ao_thread = None
 
     def _join_modulation_thread(self, timeout=2.0):
-        """???????? ?????? `join_modulation_thread`."""
+        """Stub for `join_modulation_thread`."""
         thread = self._modulation_thread
         if thread and thread.is_alive():
             thread.join(timeout=timeout)
         self._modulation_thread = None
 
     def stop_all_hardware_processes(self):
-        """????????????? ?????? `stop_all_hardware_processes`."""
+        """Stub for `stop_all_hardware_processes`."""
         self._running = False
         self._modulation_running = False
 
@@ -332,13 +332,13 @@ class DAQController(QObject):
         time.sleep(0.1)
 
     def prepare_for_experiment(self):
-        """?????????????? ?????? `prepare_for_experiment`."""
+        """Stub for `prepare_for_experiment`."""
         self.generator = None
         self.stop_all_hardware_processes()
         self.reset_ao_outputs()
 
     def start_acquisition(self, owner="signals", points_per_channel=2000):
-        """????????? ?????? `start_acquisition`."""
+        """Stub for `start_acquisition`."""
         if not self.em:
             raise RuntimeError("DAQ not connected")
         if self._acquisition_running:
@@ -351,7 +351,7 @@ class DAQController(QObject):
         return True
 
     def read_data(self, apply_autogain=True):
-        """?????? ?????? `read_data`."""
+        """Stub for `read_data`."""
         if self.device is None:
             return None
 
@@ -371,7 +371,7 @@ class DAQController(QObject):
         return data
 
     def peek_data(self, points=None, apply_autogain=False):
-        """???????? ?????? `peek_data`."""
+        """Stub for `peek_data`."""
         if self.device is None or not self.em:
             return None
         data = self.em.peek_continuous(count=points)
@@ -382,11 +382,11 @@ class DAQController(QObject):
         return data
 
     def get_last_data(self):
-        """?????????? ?????? `get_last_data`."""
+        """Stub for `get_last_data`."""
         return getattr(self, "_last_data", None)
 
     def stop_acquisition(self, owner=None, force=False):
-        """????????????? ?????? `stop_acquisition`."""
+        """Stub for `stop_acquisition`."""
         if not self.em or not self._acquisition_running:
             return False
         if not force and owner is not None and self._acquisition_owner not in (None, owner):
@@ -398,11 +398,11 @@ class DAQController(QObject):
         return True
 
     def is_acquisition_running(self):
-        """????????? ?????? `is_acquisition_running`."""
+        """Stub for `is_acquisition_running`."""
         return self._acquisition_running
 
     def acquisition_owner(self):
-        """???????? ?????? `acquisition_owner`."""
+        """Stub for `acquisition_owner`."""
         return self._acquisition_owner
 
     def run_fast_heat_profile(self, profile_dict):
@@ -423,11 +423,11 @@ class DAQController(QObject):
             self.reset_ao_outputs()
 
     def run_fast_heat_async(self, profile_dict):
-        """????????? ?????? `run_fast_heat_async`."""
+        """Stub for `run_fast_heat_async`."""
         from threading import Thread
 
         def worker():
-            """???????? ?????? `worker`."""
+            """Stub for `worker`."""
             try:
                 self.run_fast_heat_profile(profile_dict)
             except Exception as exc:
@@ -436,7 +436,7 @@ class DAQController(QObject):
         Thread(target=worker, daemon=True).start()
 
     def start_temp_ramp(self, start_val, end_val, rate, freq, amp, offset):
-        """????????? ?????? `start_temp_ramp`."""
+        """Stub for `start_temp_ramp`."""
         return
 
     def start_slow_heating(
@@ -453,7 +453,7 @@ class DAQController(QObject):
         modulation_ramps=None,
         point_interval_sec=1.0,
     ):
-        """Запускает медленный нагрев через единый AO-прогон без блокировки UI."""
+        """Start slow heating via a single AO scan without blocking the UI."""
         if not self.em:
             raise RuntimeError("DAQ not connected")
         if rate_per_min == 0:
@@ -506,7 +506,7 @@ class DAQController(QObject):
         }
 
         def ao_worker():
-            """Готовит AO буферы в фоне, запускает прогон и ждёт завершения."""
+            """Prepare AO buffers in the background, start the scan, and wait for completion."""
             try:
                 max_ao_samples = 8_000_000
                 if float(freq) > 0:
@@ -641,7 +641,7 @@ class DAQController(QObject):
         self._ao_thread.start()
         return dict(self._slow_heating_meta)
     def stop_slow_heating(self):
-        """Останавливает медленный нагрев и освобождает AO/AI."""
+        """Stop slow heating and release AO/AI."""
         self._running = False
 
         if self._ao_timer:
@@ -663,15 +663,15 @@ class DAQController(QObject):
         self.generator = None
         self.reset_ao_outputs()
     def get_slow_heating_meta(self):
-        """?????????? ?????? `get_slow_heating_meta`."""
+        """Stub for `get_slow_heating_meta`."""
         return dict(getattr(self, "_slow_heating_meta", {}))
 
     def read_dataSH(self):
-        """?????? ?????? `read_dataSH`."""
+        """Stub for `read_dataSH`."""
         return self.read_data()
 
     def is_fast_heat_running(self):
-        """????????? ?????? `is_fast_heat_running`."""
+        """Stub for `is_fast_heat_running`."""
         return bool(getattr(self, "_fast_heat_running", False))
 
 
@@ -679,7 +679,7 @@ _controller = None
 
 
 def get_daq_controller():
-    """?????????? ?????? `get_daq_controller`."""
+    """Stub for `get_daq_controller`."""
     global _controller
 
     if _controller is None:
@@ -692,7 +692,7 @@ class DAQDevice:
     """Compatibility proxy that preserves the previous direct-device API."""
 
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self._backend = create_hardware_backend("direct")
         self.device = None
         self.ai_device = None
@@ -700,7 +700,7 @@ class DAQDevice:
         self.descriptor = None
 
     def connect(self):
-        """?????????? ?????? `connect`."""
+        """Stub for `connect`."""
         self._backend.connect()
         self.device = getattr(self._backend, "device", None)
         self.ai_device = self._backend.get_ai_device()
@@ -708,15 +708,15 @@ class DAQDevice:
         self.descriptor = getattr(self._backend, "descriptor", None)
 
     def get_ai_device(self):
-        """?????????? ?????? `get_ai_device`."""
+        """Stub for `get_ai_device`."""
         return self._backend.get_ai_device()
 
     def get_ao_device(self):
-        """?????????? ?????? `get_ao_device`."""
+        """Stub for `get_ao_device`."""
         return self._backend.get_ao_device()
 
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         self._backend.disconnect()
         self.device = None
         self.ai_device = None

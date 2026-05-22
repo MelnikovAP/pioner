@@ -12,7 +12,7 @@ from pioner_app.core.settings import settings
 class SignalsWidget(qt.QWidget):
 
     def __init__(self, parent=None):
-        """Инициализирует виджет отображения сырых сигналов."""
+        """Initialize raw-signal display widget."""
         super().__init__(parent)
 
         self.ctrl = get_daq_controller()
@@ -79,7 +79,7 @@ class SignalsWidget(qt.QWidget):
         main_layout.addLayout(controls)
 
     def _current_sample_rate(self):
-        """Возвращает текущую частоту дискретизации AI."""
+        """Return current AI sample rate."""
         try:
             if self.ctrl and self.ctrl.em and getattr(self.ctrl.em, "ai", None):
                 return float(getattr(self.ctrl.em.ai, "sample_rate", settings.sample_rate))
@@ -88,36 +88,36 @@ class SignalsWidget(qt.QWidget):
         return float(getattr(settings, "sample_rate", 10000))
 
     def _points_for_window(self):
-        """Подбирает число точек для окна отображения по реальному sample rate."""
+        """Pick number of points for the display window based on the actual sample rate."""
         fs = max(self._current_sample_rate(), 1.0)
         return max(1500, int(round(fs * self._window_seconds)))
 
     def make_toggle_fn(self, curve):
-        """Создаёт обработчик показа/скрытия кривой из легенды."""
+        """Create a show/hide handler for a curve from the legend."""
         def toggle(event):
-            """Переключает видимость соответствующей кривой."""
+            """Toggle visibility of the matching curve."""
             curve.setVisible(not curve.isVisible())
         return toggle
 
     def showEvent(self, event):
-        """Автоматически запускает чтение при показе вкладки."""
+        """Automatically start acquisition when the tab is shown."""
         super().showEvent(event)
         self.start_acquisition()
 
     def hideEvent(self, event):
-        """Останавливает локальный таймер при скрытии вкладки."""
+        """Stop the local timer when the tab is hidden."""
         super().hideEvent(event)
         self.stop_acquisition()
 
     def toggle_acquisition(self):
-        """Переключает состояние чтения сигналов."""
+        """Toggle signal acquisition state."""
         if self.timer.isActive():
             self.stop_acquisition()
         else:
             self.start_acquisition()
 
     def start_acquisition(self):
-        """Запускает acquisition или подключается к уже запущенному."""
+        """Start acquisition or attach to an already running one."""
         if not self.ctrl.em:
             self.acquire_button.setText("No DAQ")
             self.acquire_button.setEnabled(False)
@@ -140,7 +140,7 @@ class SignalsWidget(qt.QWidget):
             print(f"Start error: {e}")
 
     def stop_acquisition(self):
-        """Останавливает acquisition, если виджет им владеет."""
+        """Stop acquisition if this widget owns it."""
         try:
             if self.ctrl.em and self._owns_acquisition:
                 self.ctrl.stop_acquisition(owner="signals")
@@ -153,7 +153,7 @@ class SignalsWidget(qt.QWidget):
         self.acquire_button.setEnabled(True)
 
     def update_plot(self):
-        """????????? ?????????????? ??????? ????? ???????? ??? ? ???????."""
+        """Stub docstring."""
         self.points_per_read = self._points_for_window()
         data = self.ctrl.peek_data(points=self.points_per_read)
 

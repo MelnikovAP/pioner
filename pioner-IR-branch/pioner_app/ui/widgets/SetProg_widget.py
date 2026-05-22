@@ -9,7 +9,7 @@ from typing import List
 
 class SetProg(QWidget):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(SetProg, self).__init__(parent)
         self.tab1 = ProfileWidget("Channel 0")
         self.tab1.setObjectName("Tab 0")
@@ -43,7 +43,7 @@ class SetProg(QWidget):
 
     # Function for getting a dictionary of profile data from tabs
     def get_main_dict(self):
-        """?????????? ?????? `get_main_dict`."""
+        """Stub for `get_main_dict`."""
         profiles_data = {}
         # add dict from all tabs
         for i in range(self.mainTabWidget.count()):
@@ -55,7 +55,7 @@ class SetProg(QWidget):
 
 class ProfileWidget(QWidget):
     def __init__(self, name: str, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(ProfileWidget, self).__init__(parent=parent)
         self.name = name
 
@@ -118,7 +118,7 @@ class ProfileWidget(QWidget):
         self.typecbox.currentIndexChanged.connect(self.change_type_value)
 
     def change_type_value(self):
-        """???????? ?????? `change_type_value`."""
+        """Stub for `change_type_value`."""
         for i in range(self.tableWidget.rowCount()):
             row_widget1 = self.tableWidget.cellWidget(i, 1).layout()
             row_widget2 = self.tableWidget.cellWidget(i, 2).layout()
@@ -140,7 +140,7 @@ class ProfileWidget(QWidget):
 
     def saving_procedure(self):
         # Create empty dictionaries to store table data and overall information
-        """???????? ?????? `saving_procedure`."""
+        """Stub for `saving_procedure`."""
         tab_dict = {}
         table_dict = {}
 
@@ -198,7 +198,7 @@ class ProfileWidget(QWidget):
 
     def table_from_file(self):
         # Define options for file dialog
-        """???????? ?????? `table_from_file`."""
+        """Stub for `table_from_file`."""
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog  # add the QFileDialog.DontUseNativeDialog option to options
         # Open file dialog and get file path
@@ -300,7 +300,7 @@ class ProfileWidget(QWidget):
 
     def add_layer(self, x: int, b = True):
 
-        """???????? ?????? `add_layer`."""
+        """Stub for `add_layer`."""
         dialog = InputDialog1(self.typecbox.currentText(), parent=self.window())
         if x == self.tableWidget.rowCount():
             row_number = self.tableWidget.rowCount()
@@ -411,7 +411,7 @@ class ProfileWidget(QWidget):
 
     def mass_del(self):
         # Function to delete selected rows from the table widget
-        """???????? ?????? `mass_del`."""
+        """Stub for `mass_del`."""
         row_number = self.tableWidget.rowCount()
         # If there is a selection in the table widget, delete the selected rows
         if self.tableWidget.selectionModel().hasSelection():
@@ -443,7 +443,7 @@ class ProfileWidget(QWidget):
 
     def get_dict(self):
         # Get the currently selected type from a combo box
-        """?????????? ?????? `get_dict`."""
+        """Stub for `get_dict`."""
         typeval = self.typecbox.currentText()
 
         # Create an empty dictionary to store data
@@ -523,7 +523,7 @@ class ProfileWidget(QWidget):
 
 class InputDialog1(QDialog):
     def __init__(self, type: str, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         QDialog.__init__(self, parent)
         self.setWindowModality(Qt.WindowModal)
         reg_ex = QRegExp("[0-9.]*")
@@ -606,7 +606,7 @@ class InputDialog1(QDialog):
         self.type_combo.currentTextChanged.connect(self.change_type)
 
     def set_values(self, val1, val3, type_mode, duration_unit, val2='', val4=''):
-        """????????????? ?????? `set_values`."""
+        """Stub for `set_values`."""
         index = self.type_combo.findText(type_mode)
         self.type_combo.setCurrentIndex(index)
         self.change_type()
@@ -620,7 +620,7 @@ class InputDialog1(QDialog):
         self.val_cb3.setCurrentIndex(index2)
 
     def text_take(self, type_mode: str, arg: list):
-        """???????? ?????? `text_take`."""
+        """Stub for `text_take`."""
         index = self.type_combo.findText(type_mode)
         self.type_combo.setCurrentIndex(index)
         self.change_type()
@@ -644,7 +644,7 @@ class InputDialog1(QDialog):
             self.val_cb3.setCurrentIndex(index2)
 
     def change_type(self):
-        """???????? ?????? `change_type`."""
+        """Stub for `change_type`."""
         if self.type_combo.currentText() == "Isotherm":
             self.label2.setVisible(False)
             self.val_cb2.setVisible(False)
@@ -683,7 +683,7 @@ class InputDialog1(QDialog):
             # self.val_cb3.addItems(["min", "s", "ms"])
 
     def accept1(self):
-        """???????? ?????? `accept1`."""
+        """Stub for `accept1`."""
         if self.type_combo.currentText() == "Isotherm":
             if not self.edit_val1.text() or not self.edit_val3.text():
                 error_dialog = QMessageBox(QMessageBox.Critical, "Error", "Please enter the values", QMessageBox.Ok,
@@ -725,7 +725,7 @@ class SegmentData:
                  end_time: float,
                  start_value: float,
                  end_value: float):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.segment_type = segment_type
         self.start_time = start_time  # in seconds
         self.end_time = end_time  # in seconds
@@ -733,7 +733,7 @@ class SegmentData:
         self.end_value = end_value  # Volts or °C
 
     def duration(self) -> float:
-        """???????? ?????? `duration`."""
+        """Stub for `duration`."""
         return self.end_time - self.start_time
 
 
@@ -742,11 +742,11 @@ class IsoSegment(SegmentData):
                  start_time: float,
                  end_time: float,
                  start_value: float):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(SegmentType.ISO, start_time, end_time, start_value, start_value)
 
     def __repr__(self):
-        """?????????? ????????? ????????????? ???????."""
+        """Stub docstring."""
         return f"IsoSegment({self.start_time}, {self.end_time}, {self.start_value})"
 
 
@@ -756,17 +756,17 @@ class RampSegment(SegmentData):
                  end_time: float,
                  start_value: float,
                  end_value: float):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(SegmentType.RAMP, start_time, end_time, start_value, end_value)
 
     def __repr__(self):
-        """?????????? ????????? ????????????? ???????."""
+        """Stub docstring."""
         return f"RampSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value})"
 
         # Volts or °C per second
 
     def rate(self) -> float:
-        """???????? ?????? `rate`."""
+        """Stub for `rate`."""
         return (self.end_value - self.start_value) / self.duration()
 
 
@@ -778,7 +778,7 @@ class SineSegment(SegmentData):
                  amplitude: float,
                  frequency: float,
                  offset: float):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(SegmentType.SINE, start_time, end_time, start_value, start_value)
 
         self.amplitude = amplitude
@@ -786,7 +786,7 @@ class SineSegment(SegmentData):
         self.offset = offset
 
     def __repr__(self):
-        """?????????? ????????? ????????????? ???????."""
+        """Stub docstring."""
         return f"SineSegment({self.start_time}, {self.end_time}, {self.start_value}, {self.end_value}, {self.amplitude}, {self.frequency}, {self.offset}  )"
 
 
@@ -803,14 +803,14 @@ class ProfileData:
     def __init__(self,
                  data_type: DataType,  # Y-axis
                  segments: List[SegmentData] = None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.data_type = data_type
         if segments is None:
             segments = list()
         self.segments = segments
 
     def __str__(self):
-        """?????????? ????????? ????????????? ???????."""
+        """Stub docstring."""
         result = f"ProfileData(data_type={self.data_type}, segments=["
         for segment in self.segments:
             result += f"\n\t{segment}"
@@ -818,7 +818,7 @@ class ProfileData:
         return result
 
     def __repr__(self):
-        """?????????? ????????? ????????????? ???????."""
+        """Stub docstring."""
         return f"ProfileData({self.data_type}, {self.segments})"
 
 

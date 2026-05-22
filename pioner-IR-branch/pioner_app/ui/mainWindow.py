@@ -18,14 +18,14 @@ BASE_DIR = PROJECT_ROOT
 
 
 def _dialog_options():
-    """???????? ?????? `dialog_options`."""
+    """Stub for `dialog_options`."""
     options = qt.QFileDialog.Options()
     options |= qt.QFileDialog.DontUseNativeDialog
     return options
 
 
 def _center_on_parent(widget, parent):
-    """???????? ?????? `center_on_parent`."""
+    """Stub for `center_on_parent`."""
     if parent is None:
         return
     widget.adjustSize()
@@ -38,7 +38,7 @@ def _center_on_parent(widget, parent):
 
 class mainWindow(mainWindowUi):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(mainWindow, self).__init__(parent)
 
         self.ctrl = get_daq_controller()
@@ -90,7 +90,7 @@ class mainWindow(mainWindowUi):
         apply_language(self, getattr(settings, "ui_language", "en"))
 
     def load_ui_from_settings(self):
-        """????????? ?????? `load_ui_from_settings`."""
+        """Stub for `load_ui_from_settings`."""
         self.scanSampleRateInput.setText(str(settings.sample_rate))
         self.freqInput.setText(str(settings.mod_freq))
         self.amplitudeInput.setText(str(settings.mod_amp))
@@ -115,7 +115,7 @@ class mainWindow(mainWindowUi):
                 print(f"Calibration preload failed: {exc}")
 
     def sysOnButtonPressed(self):
-        """???????? ?????? `sysOnButtonPressed`."""
+        """Stub for `sysOnButtonPressed`."""
         try:
             mode = "tango" if self.tangocheck.isChecked() else "direct"
             self.ctrl.set_connection_mode(mode)
@@ -140,7 +140,7 @@ class mainWindow(mainWindowUi):
             ErrorWindow(error_text)
 
     def on_input_gains_panel_changed(self, ranges, auto_gain):
-        """???????????? ??????? `on_input_gains_panel_changed`."""
+        """Stub for `on_input_gains_panel_changed`."""
         settings.input_gain_ranges = dict(ranges)
         settings.input_gain_auto = dict(auto_gain)
         try:
@@ -149,14 +149,14 @@ class mainWindow(mainWindowUi):
             ErrorWindow(f"Input gains error: {exc}")
 
     def on_controller_input_gains_changed(self, ranges, auto_gain):
-        """???????????? ??????? `on_controller_input_gains_changed`."""
+        """Stub for `on_controller_input_gains_changed`."""
         settings.input_gain_ranges = dict(ranges)
         settings.input_gain_auto = dict(auto_gain)
         if hasattr(self, "inputGainsPanel"):
             self.inputGainsPanel.set_state(ranges=ranges, auto_gain=auto_gain)
 
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         try:
             self.ctrl.disconnect()
             print("DAQ disconnected")
@@ -169,7 +169,7 @@ class mainWindow(mainWindowUi):
         self.mainTabWidget.setEnabled(False)
 
     def update_hardware_status(self):
-        """????????? ?????? `update_hardware_status`."""
+        """Stub for `update_hardware_status`."""
         ctrl = get_daq_controller()
         if not ctrl.device:
             self.hardware_label.setText(tr("None"))
@@ -185,13 +185,13 @@ class mainWindow(mainWindowUi):
         self.status_label.setStyleSheet("color: white; background-color: #5cb85c; padding: 2px; border-radius: 3px; font-weight: bold;")
 
     def set_running_status(self):
-        """????????????? ?????? `set_running_status`."""
+        """Stub for `set_running_status`."""
         self.status_label.setText(tr("RUNNING"))
         self.status_label.setStyleSheet("color: black; background-color: #f0ad4e; padding: 2px; border-radius: 3px; font-weight: bold;")
         apply_language(self, getattr(settings, "ui_language", "en"))
 
     def apply_modulation_params(self):
-        """????????? ?????? `apply_modulation_params`."""
+        """Stub for `apply_modulation_params`."""
         amp = float(self.amplitudeInput.text())
         freq = float(self.freqInput.text())
         offs = float(self.offsetInput.text())
@@ -201,7 +201,7 @@ class mainWindow(mainWindowUi):
         self.start_modulation(freq, amp, offs)
 
     def start_modulation(self, freq, amp, offs):
-        """????????? ?????? `start_modulation`."""
+        """Stub for `start_modulation`."""
         try:
             self.ctrl.start_modulation(freq, amp, offs)
             print("Modulation started")
@@ -209,7 +209,7 @@ class mainWindow(mainWindowUi):
             ErrorWindow(f"Modulation error: {exc}")
 
     def stop_modulation(self):
-        """????????????? ?????? `stop_modulation`."""
+        """Stub for `stop_modulation`."""
         try:
             self.ctrl.stop_modulation()
             print("Modulation stopped")
@@ -217,14 +217,14 @@ class mainWindow(mainWindowUi):
             ErrorWindow(f"Stop error: {exc}")
 
     def apply_sample_rate(self):
-        """????????? ?????? `apply_sample_rate`."""
+        """Stub for `apply_sample_rate`."""
         rate = int(self.scanSampleRateInput.text())
         settings.sample_rate = rate
         self.scanSampleRateInput.setText(str(rate))
         self.ctrl.set_sample_rate(rate)
 
     def on_experiment_finished(self, data):
-        """???????????? ??????? `on_experiment_finished`."""
+        """Stub for `on_experiment_finished`."""
         if data is None:
             return
 
@@ -261,17 +261,17 @@ class mainWindow(mainWindowUi):
         self.mainTabWidget.setCurrentWidget(self.resultTab)
 
     def update_progress(self, value):
-        """????????? ?????? `update_progress`."""
+        """Stub for `update_progress`."""
         self.progressBar.setValue(value)
 
     def update_fake_progress(self):
-        """????????? ?????? `update_fake_progress`."""
+        """Stub for `update_fake_progress`."""
         if self._progress_value < 95:
             self._progress_value += 1
             self.progressBar.setValue(self._progress_value)
 
     def apply_calibration(self):
-        """????????? ?????? `apply_calibration`."""
+        """Stub for `apply_calibration`."""
         path = self.calibPathInput.text().strip()
         if not path:
             return
@@ -283,7 +283,7 @@ class mainWindow(mainWindowUi):
             ErrorWindow(f"Calibration error: {exc}")
 
     def set_active_calibration(self, calib, path=None):
-        """????????????? ?????? `set_active_calibration`."""
+        """Stub for `set_active_calibration`."""
         self.calibration = calib
         self.values_processor.calibration = calib
         self.ctrl.calibration = calib
@@ -297,7 +297,7 @@ class mainWindow(mainWindowUi):
             self.calib_window.update_calib_input_fields()
 
     def _wrap_phase(self, value):
-        """???????? ?????? `wrap_phase`."""
+        """Stub for `wrap_phase`."""
         while value > 180.0:
             value -= 360.0
         while value < -180.0:
@@ -305,14 +305,14 @@ class mainWindow(mainWindowUi):
         return value
 
     def _current_lockin_frequency(self):
-        """???????? ?????? `current_lockin_frequency`."""
+        """Stub for `current_lockin_frequency`."""
         try:
             return float(self.freqInput.text())
         except Exception:
             return 0.0
 
     def _current_demod_periods(self):
-        """???????? ?????? `current_demod_periods`."""
+        """Stub for `current_demod_periods`."""
         try:
             if hasattr(self, "modulationWidget") and hasattr(self.modulationWidget, "periods_box"):
                 return max(3, int(self.modulationWidget.periods_box.value()))
@@ -321,11 +321,11 @@ class mainWindow(mainWindowUi):
         return 5
 
     def _values_interval_ms(self):
-        """???????? ?????? `values_interval_ms`."""
+        """Stub for `values_interval_ms`."""
         return 1000 if self.ctrl.is_fast_heat_running() else 250
 
     def _values_points_per_read(self):
-        """???????? ?????? `values_points_per_read`."""
+        """Stub for `values_points_per_read`."""
         freq = max(self._current_lockin_frequency(), 0.1)
         periods = max(self._current_demod_periods(), 3)
         samples_per_period = max(1, int(round(settings.sample_rate / freq)))
@@ -335,13 +335,13 @@ class mainWindow(mainWindowUi):
         return int(target)
 
     def _set_values_timer_interval(self):
-        """????????????? ?????? `set_values_timer_interval`."""
+        """Stub for `set_values_timer_interval`."""
         interval = self._values_interval_ms()
         if self._values_timer.interval() != interval:
             self._values_timer.setInterval(interval)
 
     def _ensure_values_acquisition(self):
-        """???????? ?????? `ensure_values_acquisition`."""
+        """Stub for `ensure_values_acquisition`."""
         if not self.ctrl.em or self.ctrl.is_fast_heat_running() or getattr(self.ctrl, "_running", False):
             return
         if self.ctrl.is_acquisition_running():
@@ -353,7 +353,7 @@ class mainWindow(mainWindowUi):
             pass
 
     def _format_value(self, value, suffix="", precision=3):
-        """???????? ?????? `format_value`."""
+        """Stub for `format_value`."""
         if value is None:
             return " ---"
         try:
@@ -365,7 +365,7 @@ class mainWindow(mainWindowUi):
         return f" {number:.{precision}f}{suffix}"
 
     def clear_values_widget(self):
-        """??????? ?????? `clear_values_widget`."""
+        """Stub for `clear_values_widget`."""
         if not hasattr(self, "valueswind"):
             return
         for attr in (
@@ -390,7 +390,7 @@ class mainWindow(mainWindowUi):
             self.calib_window.update_live_measurements(None)
 
     def _build_values_metrics(self, data):
-        """???????? ?????? `build_values_metrics`."""
+        """Stub for `build_values_metrics`."""
         if data is None:
             return None
         arr = np.asarray(data, dtype=float)
@@ -419,7 +419,7 @@ class mainWindow(mainWindowUi):
         return metrics
 
     def _render_values_metrics(self, metrics):
-        """???????? ?????? `render_values_metrics`."""
+        """Stub for `render_values_metrics`."""
         if not hasattr(self, "valueswind"):
             return
         vw = self.valueswind
@@ -439,7 +439,7 @@ class mainWindow(mainWindowUi):
         vw.phaseValueLabel.setText(self._format_value(metrics.get("PhaseAdjusted"), precision=2))
 
     def update_values_widget(self):
-        """????????? ?????? `update_values_widget`."""
+        """Stub for `update_values_widget`."""
         self._set_values_timer_interval()
         if not self.ctrl.em:
             self.clear_values_widget()
@@ -464,7 +464,7 @@ class mainWindow(mainWindowUi):
             self.calib_window.update_live_measurements(metrics)
 
     def zero_temperature_error(self):
-        """???????? ?????? `zero_temperature_error`."""
+        """Stub for `zero_temperature_error`."""
         metrics = self._latest_values_metrics
         if not metrics:
             return
@@ -472,12 +472,12 @@ class mainWindow(mainWindowUi):
         self.update_values_widget()
 
     def reset_temperature_error(self):
-        """?????????? ?????? `reset_temperature_error`."""
+        """Stub for `reset_temperature_error`."""
         self._temperature_error_offset = 0.0
         self.update_values_widget()
 
     def zero_phase_offset(self):
-        """???????? ?????? `zero_phase_offset`."""
+        """Stub for `zero_phase_offset`."""
         metrics = self._latest_values_metrics
         if not metrics:
             return
@@ -485,22 +485,22 @@ class mainWindow(mainWindowUi):
         self.update_values_widget()
 
     def reset_phase_offset(self):
-        """?????????? ?????? `reset_phase_offset`."""
+        """Stub for `reset_phase_offset`."""
         self._phase_offset = 0.0
         self.update_values_widget()
 
     def set_calibration(self, calib):
-        """????????????? ?????? `set_calibration`."""
+        """Stub for `set_calibration`."""
         self.set_active_calibration(calib)
 
     def apply_default_calib(self):
-        """????????? ?????? `apply_default_calib`."""
+        """Stub for `apply_default_calib`."""
         default_path = str(BASE_DIR / "default_calibration.json")
         self.calibPathInput.setText(default_path)
         self.apply_calibration()
 
     def open_calibration_window(self):
-        """????????? ?????? `open_calibration_window`."""
+        """Stub for `open_calibration_window`."""
         if not hasattr(self, "calib_window"):
             self.calib_window = calibWindow(self)
         self.calib_window.update_calib_input_fields()
@@ -516,7 +516,7 @@ class mainWindow(mainWindowUi):
         wizard.run()
 
     def select_calibration_file(self):
-        """???????? ?????? `select_calibration_file`."""
+        """Stub for `select_calibration_file`."""
         path, _ = qt.QFileDialog.getOpenFileName(
             self,
             "Select calibration file",
@@ -528,7 +528,7 @@ class mainWindow(mainWindowUi):
             self.calibPathInput.setText(path)
 
     def apply_server_settings(self, tango_host=None, device_proxy=None, http_host=None):
-        """????????? ?????? `apply_server_settings`."""
+        """Stub for `apply_server_settings`."""
         if tango_host is not None:
             settings.tango_host = tango_host
         if device_proxy is not None:
@@ -537,7 +537,7 @@ class mainWindow(mainWindowUi):
             settings.http_host = http_host
 
     def open_config_window(self):
-        """????????? ?????? `open_config_window`."""
+        """Stub for `open_config_window`."""
         if not hasattr(self, "config_window"):
             from h_windows import configWindow
             self.config_window = configWindow(self)
@@ -547,7 +547,7 @@ class mainWindow(mainWindowUi):
         self.config_window.activateWindow()
 
     def load_settings_from_file(self, fpath=False):
-        """????????? ?????? `load_settings_from_file`."""
+        """Stub for `load_settings_from_file`."""
         settings.reload()
         self.settings = settings
         self.load_ui_from_settings()
@@ -557,11 +557,11 @@ class mainWindow(mainWindowUi):
             self.config_window.httpHostInput.setText(settings.http_host)
 
     def save_settings_to_file(self, fpath=False):
-        """????????? ?????? `save_settings_to_file`."""
+        """Stub for `save_settings_to_file`."""
         self.save_config()
 
     def reset_settings(self):
-        """?????????? ?????? `reset_settings`."""
+        """Stub for `reset_settings`."""
         settings.reset_user_config()
         self.settings = settings
         self.load_ui_from_settings()
@@ -572,7 +572,7 @@ class mainWindow(mainWindowUi):
             self.config_window.httpHostInput.setText(settings.http_host)
 
     def save_config(self):
-        """????????? ?????? `save_config`."""
+        """Stub for `save_config`."""
         input_gains_state = self.inputGainsPanel.get_state() if hasattr(self, "inputGainsPanel") else {"ranges": {}, "auto_gain": {}}
         config = settings.build_runtime_config(
             connection_mode="tango" if self.tangocheck.isChecked() else "direct",
@@ -593,7 +593,7 @@ class mainWindow(mainWindowUi):
         self.ctrl.set_connection_mode(settings.connection_mode)
 
     def closeEvent(self, event):
-        """???????? ?????? `closeEvent`."""
+        """Stub for `closeEvent`."""
         box = qt.QMessageBox(self)
         box.setWindowFlag(qt.Qt.WindowContextHelpButtonHint, False)
         box.setWindowModality(qt.Qt.WindowModal)

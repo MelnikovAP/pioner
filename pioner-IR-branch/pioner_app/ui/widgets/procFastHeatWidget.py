@@ -12,7 +12,7 @@ from pioner_app.ui.h_windows import *
 
 
 def _dialog_options():
-    """???????? ?????? `dialog_options`."""
+    """Stub for `dialog_options`."""
     options = qt.QFileDialog.Options()
     options |= qt.QFileDialog.DontUseNativeDialog
     return options
@@ -20,20 +20,20 @@ def _dialog_options():
 
 class _ProcFastHeatRoi:
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self._min = 0.0
         self._max = 0.0
 
     def setMin(self, value):
-        """???????? ?????? `setMin`."""
+        """Stub for `setMin`."""
         self._min = float(value)
 
     def setMax(self, value):
-        """???????? ?????? `setMax`."""
+        """Stub for `setMax`."""
         self._max = float(value)
 
     def getRange(self):
-        """???????? ?????? `getRange`."""
+        """Stub for `getRange`."""
         return self._min, self._max
 
 
@@ -41,13 +41,13 @@ class _ProcFastHeatPlotWindow(PlotWindow):
     sigPlotSignal = qt.pyqtSignal(dict)
 
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(parent=parent, resetzoom=True)
 
 
 class ProcFastHeatResultPlot(qt.QWidget):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(parent)
         self.curveColors = {
             'red': 'red',
@@ -69,12 +69,12 @@ class ProcFastHeatResultPlot(qt.QWidget):
         layout.addWidget(self.resultPlot)
 
     def clear(self):
-        """??????? ?????? `clear`."""
+        """Stub for `clear`."""
         self.resultPlot.clear()
         self._curve_store = []
 
     def addCurve(self, x, y, **kwargs):
-        """???????? ?????? `addCurve`."""
+        """Stub for `addCurve`."""
         self._curve_store.append({
             'x': np.asarray(x, dtype=float),
             'y': np.asarray(y, dtype=float),
@@ -85,16 +85,16 @@ class ProcFastHeatResultPlot(qt.QWidget):
         return self.resultPlot.addCurve(x, y, **kwargs)
 
     def setRoi(self, x_min, x_max):
-        """???????? ?????? `setRoi`."""
+        """Stub for `setRoi`."""
         self.roi.setMin(x_min)
         self.roi.setMax(x_max)
 
     def removeRoi(self):
-        """???????? ?????? `removeRoi`."""
+        """Stub for `removeRoi`."""
         self.roi = _ProcFastHeatRoi()
 
     def segment_curves(self, x_min, x_max):
-        """???????? ?????? `segment_curves`."""
+        """Stub for `segment_curves`."""
         curves = []
         lo, hi = sorted((float(x_min), float(x_max)))
         for curve in self._curve_store:
@@ -114,7 +114,7 @@ class ProcFastHeatResultPlot(qt.QWidget):
 
 class procFastHeatWidget(qt.QWidget):
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super(procFastHeatWidget, self).__init__(parent=parent)
 
         # ####### UI setup
@@ -368,7 +368,7 @@ class procFastHeatWidget(qt.QWidget):
     def add_files_to_table(self):
         # TODO: bad structure, think how to change
         # add file check - if it contains proper nanocal fast heat data 
-        """???????? ?????? `add_files_to_table`."""
+        """Stub for `add_files_to_table`."""
         sender = self.sender()
         if sender == self.addButtonExpFilesTable:
             fnames = qt.QFileDialog.getOpenFileNames(self, "Select files", None, "*.h5", options=_dialog_options())[0]
@@ -391,7 +391,7 @@ class procFastHeatWidget(qt.QWidget):
         
     def remove_files_from_table(self):
         # TODO: bad structure, think how to change
-        """??????? ?????? `remove_files_from_table`."""
+        """Stub for `remove_files_from_table`."""
         sender = self.sender()
         if sender == self.removeButtonExpFilesTable:
             index_list = sorted(self.expFilesTable.selectedIndexes(), reverse=True)
@@ -412,7 +412,7 @@ class procFastHeatWidget(qt.QWidget):
         self.update_GUI()
 
     def average_exp_data(self):  
-        """???????? ?????? `average_exp_data`."""
+        """Stub for `average_exp_data`."""
         exp_paths = [self.expFilesTable.item(x).text() for x in range(self.expFilesTable.count())]
         if not self.check_files_before_averaging(exp_paths):
             return
@@ -432,7 +432,7 @@ class procFastHeatWidget(qt.QWidget):
         return avg_fname
 
     def _read_dataset_with_aliases(self, group, *names):
-        """?????? ?????? `read_dataset_with_aliases`."""
+        """Stub for `read_dataset_with_aliases`."""
         for name in names:
             if name in group:
                 return np.array(group[name])
@@ -440,7 +440,7 @@ class procFastHeatWidget(qt.QWidget):
         raise KeyError(f"None of datasets {names} found. Available: {available}")
 
     def _load_fast_heat_data_group(self, path):
-        """????????? ?????? `load_fast_heat_data_group`."""
+        """Stub for `load_fast_heat_data_group`."""
         data_group = open(path + "::/data")
         payload = {
             'time': self._read_dataset_with_aliases(data_group, 'time', 'time(ms)', 'time(s)'),
@@ -452,7 +452,7 @@ class procFastHeatWidget(qt.QWidget):
         return payload
 
     def average_empty_data(self):                          
-        """???????? ?????? `average_empty_data`."""
+        """Stub for `average_empty_data`."""
         empty_paths = [self.emptyFilesTable.item(x).text() for x in range(self.emptyFilesTable.count())]
         if not self.check_files_before_averaging(empty_paths):
             return
@@ -473,12 +473,12 @@ class procFastHeatWidget(qt.QWidget):
         return avg_fname
 
     def load_initial_data(self):
-        """????????? ?????? `load_initial_data`."""
+        """Stub for `load_initial_data`."""
         self.empty_data = self._load_fast_heat_data_group(self.emptyFilesTable.item(0).text())
         self.exp_data = self._load_fast_heat_data_group(self.expFilesTable.item(0).text())
 
     def check_files_before_averaging(self, source_fnames:list):
-        """???????? ?????? `check_files_before_averaging`."""
+        """Stub for `check_files_before_averaging`."""
         with h5py.File(source_fnames[0], 'r') as first_file:
             first_file_keys = list(first_file['data'].keys())
             first_file_data_length = len(first_file['data'][first_file_keys[0]][:])
@@ -493,7 +493,7 @@ class procFastHeatWidget(qt.QWidget):
         return True
 
     def get_average_data_fname(self, datatype:str):               
-        """?????????? ?????? `get_average_data_fname`."""
+        """Stub for `get_average_data_fname`."""
         fname = qt.QFileDialog.getSaveFileName(
             self,
             "Save average "+datatype+" as...",
@@ -506,7 +506,7 @@ class procFastHeatWidget(qt.QWidget):
     def averag_data(self, source_fnames:list, dest_fname:str):  
         # copying the first file with calibration, settings and data
         # the data from other files will be averaged with data from this file
-        """???????? ?????? `averag_data`."""
+        """Stub for `averag_data`."""
         if dest_fname!=source_fnames[0]:
             copy(source_fnames[0], dest_fname)
 
@@ -532,7 +532,7 @@ class procFastHeatWidget(qt.QWidget):
         #         data_fgroup.create_dataset(key, data=data[key][:])
 
     def display_rate_button_pressed(self):
-        """???????? ?????? `display_rate_button_pressed`."""
+        """Stub for `display_rate_button_pressed`."""
         smooth_factor = int(self.smoothInput.text())
         if self.expFilesTable.count()>1:
             warning = "The average of all data files will be calculated.\nProceed?"
@@ -565,7 +565,7 @@ class procFastHeatWidget(qt.QWidget):
         self.update_plot_after_display_rate()
         
     def find_iso(self):
-        """???? ?????? `find_iso`."""
+        """Stub for `find_iso`."""
         pass
         # TODO: make a proper algorythm to find isotherms. Probably use the 2nd or 3rd derivative
 
@@ -595,7 +595,7 @@ class procFastHeatWidget(qt.QWidget):
         #                                             color = self.procFastHeatGraph.curveColors['blue'])
 
     def calculate_manual_button_pressed(self):
-        """????????? ?????? `calculate_manual_button_pressed`."""
+        """Stub for `calculate_manual_button_pressed`."""
         calib_coeff_1 = float(self.rcoeff1Input.text())
         calib_coeff_2 = float(self.rcoeff2Input.text())
         calib_coeff_3 = float(self.rcoeff3Input.text())
@@ -635,7 +635,7 @@ class procFastHeatWidget(qt.QWidget):
         self.update_plot_after_calc_button_pressed()
 
     def calculate_auto_button_pressed(self):
-        """????????? ?????? `calculate_auto_button_pressed`."""
+        """Stub for `calculate_auto_button_pressed`."""
         calib_coeff_1 = float(self.rcoeff1Input.text())
         calib_coeff_2 = float(self.rcoeff2Input.text())
         calib_coeff_3 = float(self.rcoeff3Input.text())
@@ -661,7 +661,7 @@ class procFastHeatWidget(qt.QWidget):
             pass
         
     def save_processed_file(self, source_file: str, dest_file: str, data_to_save: dict):
-        """????????? ?????? `save_processed_file`."""
+        """Stub for `save_processed_file`."""
         if dest_file!=source_file:
             copy(source_file, dest_file)
         with h5py.File(dest_file, 'r+') as file:
@@ -673,7 +673,7 @@ class procFastHeatWidget(qt.QWidget):
 
     # functions to calculate heat exhange coefficient, power, dT, etc. 
     def calculate_temp_gradient(self, temp_array, time_array, smooth_factor):
-        """????????? ?????? `calculate_temp_gradient`."""
+        """Stub for `calculate_temp_gradient`."""
         temp_smooth = filters.savitsky_golay(temp_array, smooth_factor)
         dt = time_array[1]-time_array[0]
         return np.gradient(temp_smooth, dt)
@@ -681,7 +681,7 @@ class procFastHeatWidget(qt.QWidget):
     def calculate_heat_exch_coeff(self, calib_coeff_1, calib_coeff_2, calib_coeff_3,
                                     Uhtr, Thtr, temp, rate, 
                                     end_heating, start_cooling):
-        """????????? ?????? `calculate_heat_exch_coeff`."""
+        """Stub for `calculate_heat_exch_coeff`."""
         empty_P = self.calculate_empty_P(calib_coeff_1, calib_coeff_2, calib_coeff_3, 
                                         Uhtr, Thtr)
         empty_G = np.array([None for i in range(end_heating)], dtype=np.float32)
@@ -705,21 +705,21 @@ class procFastHeatWidget(qt.QWidget):
         
     def calculate_empty_P(self, calib_coeff_1, calib_coeff_2, calib_coeff_3, 
                             empty_Uhtr, empty_Thtr):
-        """????????? ?????? `calculate_empty_P`."""
+        """Stub for `calculate_empty_P`."""
         empty_Rg = -0.5*calib_coeff_2/calib_coeff_3 - \
                     np.sqrt((calib_coeff_2**2-4*calib_coeff_3*(calib_coeff_1-empty_Thtr))/4/calib_coeff_3**2)
         empty_P = empty_Uhtr**2/empty_Rg
         return empty_P
 
     def calculate_P(self, dT, empty_G, empty_G_temp, empty_temp):
-        """????????? ?????? `calculate_P`."""
+        """Stub for `calculate_P`."""
         exp_P = np.array([None for i in range(len(empty_temp))], dtype=np.float32)
         for i in range(len(empty_temp)):
             exp_P[i] = dT[i] * empty_G[np.abs(empty_G_temp-empty_temp[i]).argmin()]
         return exp_P
 
     def fit_selected_segment(self):
-        """?????????????? ?????? `fit_selected_segment`."""
+        """Stub for `fit_selected_segment`."""
         x_min = self.isoBeginInput.value()
         x_max = self.isoEndInput.value()
         curves = self.procFastHeatGraph.segment_curves(x_min, x_max)
@@ -751,7 +751,7 @@ class procFastHeatWidget(qt.QWidget):
     # functions to update UI elements
 
     def update_GUI(self):
-        """????????? ?????? `update_GUI`."""
+        """Stub for `update_GUI`."""
         has_exp = self.expFilesTable.count() > 0
         has_ref = self.emptyFilesTable.count() > 0
         has_both = has_exp and has_ref
@@ -771,7 +771,7 @@ class procFastHeatWidget(qt.QWidget):
         self.fitSegmentButton.setEnabled(has_both)
 
     def update_plot_after_add_remove(self):
-        """????????? ?????? `update_plot_after_add_remove`."""
+        """Stub for `update_plot_after_add_remove`."""
         self.procFastHeatGraph.clear()
         empty_paths = [self.emptyFilesTable.item(x).text() for x in range(self.emptyFilesTable.count())]
         if empty_paths:
@@ -789,7 +789,7 @@ class procFastHeatWidget(qt.QWidget):
                                                             color = self.procFastHeatGraph.curveColors['red'])
     
     def update_calib_fields_after_add_remove(self):
-        """????????? ?????? `update_calib_fields_after_add_remove`."""
+        """Stub for `update_calib_fields_after_add_remove`."""
         exp_paths = [self.expFilesTable.item(x).text() for x in range(self.expFilesTable.count())]
         if exp_paths:
             calibration_ds = open(exp_paths[0]+"::/calibration")
@@ -802,7 +802,7 @@ class procFastHeatWidget(qt.QWidget):
             calibration_ds.close()
 
     def update_plot_after_display_rate(self):
-        """????????? ?????? `update_plot_after_display_rate`."""
+        """Stub for `update_plot_after_display_rate`."""
         self.procFastHeatGraph.clear()
         self.procFastHeatGraph.addCurve(self.empty_data['time'], self.empty_data['rate'], 
                                                     legend='',
@@ -814,7 +814,7 @@ class procFastHeatWidget(qt.QWidget):
         self.isoEndInput.setValue(600)
 
     def update_plot_after_calc_button_pressed(self):
-        """????????? ?????? `update_plot_after_calc_button_pressed`."""
+        """Stub for `update_plot_after_calc_button_pressed`."""
         self.procFastHeatGraph.clear()
         # need to remove roi after selection of isotherm to use new roi for baseline subtraction
         self.procFastHeatGraph.removeRoi()
@@ -843,19 +843,19 @@ class procFastHeatWidget(qt.QWidget):
 
     # functions to connect roi selection with selectboxes for iso
     def update_graph_roi_min(self):
-        """????????? ?????? `update_graph_roi_min`."""
+        """Stub for `update_graph_roi_min`."""
         cursor = self.isoBeginInput.value()
         self.isoEndInput.setMinimum(cursor)
         self.procFastHeatGraph.roi.setMin(cursor)
 
     def update_graph_roi_max(self):
-        """????????? ?????? `update_graph_roi_max`."""
+        """Stub for `update_graph_roi_max`."""
         cursor = self.isoEndInput.value()
         self.isoBeginInput.setMaximum(cursor)
         self.procFastHeatGraph.roi.setMax(cursor)
 
     def update_iso_inputs(self, ddict=None):
-        """????????? ?????? `update_iso_inputs`."""
+        """Stub for `update_iso_inputs`."""
         if ddict['event'] == "markerMoved":
             if ddict['button'] == "left":
                 cursor1, cursor2 = self.procFastHeatGraph.roi.getRange()

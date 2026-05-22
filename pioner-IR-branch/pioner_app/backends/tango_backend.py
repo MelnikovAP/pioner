@@ -11,7 +11,7 @@ class TangoHardwareBackend(HardwareBackend):
     backend_name = "tango"
 
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.proxy = None
         self.descriptor = None
         self.device_name = "Tango Controls"
@@ -19,7 +19,7 @@ class TangoHardwareBackend(HardwareBackend):
         self.device_proxy = getattr(settings, "device_proxy", "")
 
     def connect(self):
-        """?????????? ?????? `connect`."""
+        """Stub for `connect`."""
         if not self.device_proxy:
             raise RuntimeError("Tango backend is configured, but 'Device proxy' is empty in config.json")
 
@@ -37,13 +37,13 @@ class TangoHardwareBackend(HardwareBackend):
         )
 
     def get_ai_device(self):
-        """?????????? ?????? `get_ai_device`."""
+        """Stub for `get_ai_device`."""
         raise NotImplementedError("Tango AI adapter is not implemented yet")
 
     def get_ao_device(self):
-        """?????????? ?????? `get_ao_device`."""
+        """Stub for `get_ao_device`."""
         raise NotImplementedError("Tango AO adapter is not implemented yet")
 
     def disconnect(self):
-        """????????? ?????? `disconnect`."""
+        """Stub for `disconnect`."""
         self.proxy = None

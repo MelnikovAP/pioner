@@ -6,20 +6,20 @@ from pioner_app.ui.localization import tr, apply_language
 
 class _CompatRoi:
     def __init__(self):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self._min = 0.0
         self._max = 0.0
 
     def setMin(self, value):
-        """???????? ?????? `setMin`."""
+        """Stub for `setMin`."""
         self._min = float(value)
 
     def setMax(self, value):
-        """???????? ?????? `setMax`."""
+        """Stub for `setMax`."""
         self._max = float(value)
 
     def getRange(self):
-        """???????? ?????? `getRange`."""
+        """Stub for `getRange`."""
         return self._min, self._max
 
 
@@ -27,7 +27,7 @@ class _CompatRoi:
 class ResultsPlotOptionsDialog(qt.QDialog):
 
     def __init__(self, x_keys, mode_options, current_x, current_mode, segments, selected_ids, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(parent)
         self.setWindowTitle("Plot Options")
         self.setModal(True)
@@ -93,12 +93,12 @@ class ResultsPlotOptionsDialog(qt.QDialog):
         apply_language(self)
 
     def _select_all(self):
-        """???????? ?????? `select_all`."""
+        """Stub for `select_all`."""
         for row in range(self.segment_list.count()):
             self.segment_list.item(row).setSelected(True)
 
     def _select_group(self, group_name):
-        """???????? ?????? `select_group`."""
+        """Stub for `select_group`."""
         self.segment_list.clearSelection()
         for row in range(self.segment_list.count()):
             item = self.segment_list.item(row)
@@ -106,7 +106,7 @@ class ResultsPlotOptionsDialog(qt.QDialog):
                 item.setSelected(True)
 
     def selected_segment_ids(self):
-        """???????? ?????? `selected_segment_ids`."""
+        """Stub for `selected_segment_ids`."""
         return [item.data(qt.Qt.UserRole) for item in self.segment_list.selectedItems()]
 
 
@@ -125,7 +125,7 @@ class resultsDataWidget(qt.QWidget):
     }
 
     def __init__(self, parent=None):
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         super().__init__(parent)
 
         self.processed_data = None
@@ -184,24 +184,24 @@ class resultsDataWidget(qt.QWidget):
         apply_language(self)
 
     def clear(self):
-        """??????? ?????? `clear`."""
+        """Stub for `clear`."""
         self.plot.clear()
 
     def addCurve(self, *args, **kwargs):
-        """???????? ?????? `addCurve`."""
+        """Stub for `addCurve`."""
         return self.plot.addCurve(*args, **kwargs)
 
     def setRoi(self, x_min, x_max):
-        """???????? ?????? `setRoi`."""
+        """Stub for `setRoi`."""
         self.roi.setMin(x_min)
         self.roi.setMax(x_max)
 
     def removeRoi(self):
-        """???????? ?????? `removeRoi`."""
+        """Stub for `removeRoi`."""
         self.roi = _CompatRoi()
 
     def _ensure_array(self, arr, length):
-        """???????? ?????? `ensure_array`."""
+        """Stub for `ensure_array`."""
         if arr is None:
             return np.zeros(length)
         if np.isscalar(arr):
@@ -215,16 +215,16 @@ class resultsDataWidget(qt.QWidget):
         return arr
 
     def _quantity_label(self, key):
-        """???????? ?????? `quantity_label`."""
+        """Stub for `quantity_label`."""
         return self.QUANTITY_LABELS.get(key, key)
 
     def _selected_y_keys(self, selected_items, x_key):
-        """???????? ?????? `selected_y_keys`."""
+        """Stub for `selected_y_keys`."""
         keys = [item.text() for item in selected_items if item.text() != x_key]
         return keys or [item.text() for item in selected_items]
 
     def _multi_y_axis_label(self, y_keys):
-        """???????? ?????? `multi_y_axis_label`."""
+        """Stub for `multi_y_axis_label`."""
         if not y_keys:
             return tr("Signals")
         if len(y_keys) == 1:
@@ -232,7 +232,7 @@ class resultsDataWidget(qt.QWidget):
         return tr("Selected Quantities")
 
     def _segment_type_name(self, segment):
-        """???????? ?????? `segment_type_name`."""
+        """Stub for `segment_type_name`."""
         segment_type = str(getattr(segment, "type", "Segment"))
         if segment_type.startswith("VoltSine"):
             return tr("Sine")
@@ -243,7 +243,7 @@ class resultsDataWidget(qt.QWidget):
         return segment_type
 
     def _segment_group(self, segment):
-        """???????? ?????? `segment_group`."""
+        """Stub for `segment_group`."""
         seg_type = self._segment_type_name(segment)
         if seg_type == "Isotherm":
             return "isotherm"
@@ -258,7 +258,7 @@ class resultsDataWidget(qt.QWidget):
         return "other"
 
     def _segment_label(self, index, segment, duration_ms):
-        """???????? ?????? `segment_label`."""
+        """Stub for `segment_label`."""
         seg_type = self._segment_type_name(segment)
         group = self._segment_group(segment)
         suffix = ""
@@ -276,7 +276,7 @@ class resultsDataWidget(qt.QWidget):
         return f"{label_core} ({duration_ms:.0f} ms)"
 
     def _build_segment_defs(self, total_length):
-        """???????? ?????? `build_segment_defs`."""
+        """Stub for `build_segment_defs`."""
         self.segment_defs = []
 
         if not self.profile_segments or not self.sample_rate or total_length <= 0:
@@ -321,14 +321,14 @@ class resultsDataWidget(qt.QWidget):
         self._update_segment_info_label()
 
     def _selected_segments(self):
-        """???????? ?????? `selected_segments`."""
+        """Stub for `selected_segments`."""
         if not self.segment_defs or not self.selected_segment_ids:
             return []
         wanted = set(self.selected_segment_ids)
         return [segment for segment in self.segment_defs if segment["id"] in wanted]
 
     def _update_segment_info_label(self):
-        """????????? ?????? `update_segment_info_label`."""
+        """Stub for `update_segment_info_label`."""
         if not self.segment_defs:
             self.segment_info_label.setText(tr("Segments: full trace"))
             return
@@ -336,7 +336,7 @@ class resultsDataWidget(qt.QWidget):
         self.segment_info_label.setText(tr(f"Segments: {selected_count}/{len(self.segment_defs)}"))
 
     def _build_processed_sources(self):
-        """???????? ?????? `build_processed_sources`."""
+        """Stub for `build_processed_sources`."""
         self.x_sources = {}
         self.y_sources = {}
 
@@ -359,7 +359,7 @@ class resultsDataWidget(qt.QWidget):
         self._build_segment_defs(len(base))
 
     def set_processed_data(self, data_dict, profile_segments=None, sample_rate=None):
-        """????????????? ?????? `set_processed_data`."""
+        """Stub for `set_processed_data`."""
         self.clear()
         self.processed_data = data_dict
         self.profile_segments = list(profile_segments or [])
@@ -386,7 +386,7 @@ class resultsDataWidget(qt.QWidget):
         self.update_plot()
 
     def open_plot_options(self):
-        """????????? ?????? `open_plot_options`."""
+        """Stub for `open_plot_options`."""
         dialog = ResultsPlotOptionsDialog(
             x_keys=list(self.x_sources.keys()),
             mode_options=self.MODE_OPTIONS,
@@ -409,15 +409,15 @@ class resultsDataWidget(qt.QWidget):
         self.update_plot()
 
     def _slice_for_segment(self, arr, segment):
-        """???????? ?????? `slice_for_segment`."""
+        """Stub for `slice_for_segment`."""
         return arr[segment["start"]:segment["stop"]]
 
     def _default_segments(self, length):
-        """???????? ?????? `default_segments`."""
+        """Stub for `default_segments`."""
         return [{"id": -1, "label": "Full", "short_label": "Full", "start": 0, "stop": length, "type": "Full", "group": "other"}]
 
     def _plot_multi_y(self, x_key, x, selected_items, segments):
-        """???????? ?????? `plot_multi_y`."""
+        """Stub for `plot_multi_y`."""
         y_keys = self._selected_y_keys(selected_items, x_key)
         self.plot.getXAxis().setLabel(self._quantity_label(x_key))
         self.plot.getYAxis().setLabel(self._multi_y_axis_label(y_keys))
@@ -433,7 +433,7 @@ class resultsDataWidget(qt.QWidget):
                 self.plot.addCurve(x_seg, y_seg, legend=legend)
 
     def _plot_x_vs_y(self, x_key, x, selected_items, segments):
-        """???????? ?????? `plot_x_vs_y`."""
+        """Stub for `plot_x_vs_y`."""
         y_key = selected_items[0].text()
         if y_key == x_key and len(selected_items) > 1:
             y_key = selected_items[1].text()
@@ -449,7 +449,7 @@ class resultsDataWidget(qt.QWidget):
             self.plot.addCurve(x_seg, y_seg, legend=legend, linestyle=" ", symbol="o")
 
     def _plot_overlay_by_segment(self, x_key, x, selected_items, segments):
-        """???????? ?????? `plot_overlay_by_segment`."""
+        """Stub for `plot_overlay_by_segment`."""
         y_keys = self._selected_y_keys(selected_items, x_key)
         overlay_x_label = f"{self._quantity_label(x_key)} relative"
         self.plot.getXAxis().setLabel(overlay_x_label)
@@ -466,7 +466,7 @@ class resultsDataWidget(qt.QWidget):
                 self.plot.addCurve(x_local, y_seg, legend=legend)
 
     def update_plot(self):
-        """????????? ?????? `update_plot`."""
+        """Stub for `update_plot`."""
         self.plot.clear()
 
         if not self.x_sources or not self.y_sources:
@@ -492,7 +492,7 @@ class resultsDataWidget(qt.QWidget):
             self._plot_overlay_by_segment(x_key, x, selected_items, segments)
 
     def clear(self):
-        """??????? ?????? `clear`."""
+        """Stub for `clear`."""
         self.plot.clear()
         self.processed_data = None
         self.sample_rate = None

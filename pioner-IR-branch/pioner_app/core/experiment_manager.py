@@ -24,7 +24,7 @@ class ExperimentManager:
 
     def __init__(self, daq_device, scope=None, calibration=None):
 
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.daq = daq_device
         self.scope = scope
         self.calibration = calibration
@@ -36,7 +36,7 @@ class ExperimentManager:
 
     def run(self, profile_path, progress_cb=None):
 
-        """????????? ?????? `run`."""
+        """Stub for `run`."""
         logger.info("Starting experiment")
 
         ################################
@@ -50,7 +50,7 @@ class ExperimentManager:
 
         signals, samples = profile.build()
 
-        # рџ”Ґ РЎРћРҐР РђРќРЇР•Рњ AO РЎРР“РќРђР›Р«
+        # SAVE AO SIGNALS
         self.last_ao_signals = signals
 
         logger.info(f"Experiment samples: {samples}")
@@ -94,7 +94,7 @@ class ExperimentManager:
 
             print(f"\rProgress {percent:6.2f}%", end="", flush=True)
 
-            # вњ… Р’РћРў РўРђРљ РџР РђР’РР›Р¬РќРћ
+            # this is the right way
             if progress_cb:
                 progress_cb(int(percent))
             
@@ -162,7 +162,7 @@ class ExperimentManager:
         return final_data
     def start_continuous(self, points_per_channel=1000):
 
-        """????????? ?????? `start_continuous`."""
+        """Stub for `start_continuous`."""
         logger.info("Starting continuous acquisition")
 
         self.points_per_channel = points_per_channel
@@ -176,7 +176,7 @@ class ExperimentManager:
 
     def _read_continuous_window(self, count, advance=False):
 
-        """?????? ?????? `read_continuous_window`."""
+        """Stub for `read_continuous_window`."""
         if not hasattr(self, "_last_index"):
             return None
 
@@ -218,7 +218,7 @@ class ExperimentManager:
         return chunk
 
     def read_continuous(self):
-        """?????? ?????? `read_continuous`."""
+        """Stub for `read_continuous`."""
         if not hasattr(self, "_last_index"):
             return None
 
@@ -230,7 +230,7 @@ class ExperimentManager:
         return self._read_continuous_window(delta, advance=True)
 
     def peek_continuous(self, count=None):
-        """???????? ?????? `peek_continuous`."""
+        """Stub for `peek_continuous`."""
         capacity = int(getattr(self, "points_per_channel", 0) or 0)
         if capacity <= 0:
             return None
@@ -240,7 +240,7 @@ class ExperimentManager:
 
     def stop_continuous(self):
 
-        """????????????? ?????? `stop_continuous`."""
+        """Stub for `stop_continuous`."""
         logger.info("Stopping continuous acquisition")
 
         try:
@@ -250,7 +250,7 @@ class ExperimentManager:
     
     def acquire_signals_diag(self, duration_sec=1.0):
 
-        """???????? ?????? `acquire_signals_diag`."""
+        """Stub for `acquire_signals_diag`."""
         logger.info("Diagnostic acquisition start")
 
         self.start_continuous(points_per_channel=1000)
@@ -282,7 +282,7 @@ class ExperimentManager:
     def start_ao_continuous_mod(self, freq, ampl_mA, offset_mA,
                             duration_sec=30, channel=0, sample_rate=10000, phase_deg=0.0):
 
-        """????????? ?????? `start_ao_continuous_mod`."""
+        """Stub for `start_ao_continuous_mod`."""
         logger.info(f"Starting AO continuous on channel {channel}")
 
         try:
@@ -330,7 +330,7 @@ class ExperimentManager:
 
     def stop_ao_continuous(self):
 
-        """????????????? ?????? `stop_ao_continuous`."""
+        """Stub for `stop_ao_continuous`."""
         logger.info("Stopping AO continuous")
 
         try:
@@ -340,10 +340,10 @@ class ExperimentManager:
     
     def _current_to_voltage(self, i_mA):
 
-        """???????? ?????? `current_to_voltage`."""
+        """Stub for `current_to_voltage`."""
         calib = self.calibration
 
-        i = i_mA / 1000.0  # РјРђ в†’ Рђ
+        i = i_mA / 1000.0  # mA -> A
 
         return (i - calib.ihtr0) / calib.ihtr1
     
@@ -476,7 +476,7 @@ class ExperimentManager:
     
 
     def get_ref_signal(self, channel=1):
-        """?????????? ?????? `get_ref_signal`."""
+        """Stub for `get_ref_signal`."""
         if self.last_ao_signals is None:
             return None
         return self.last_ao_signals[channel]
@@ -489,8 +489,8 @@ class ExperimentManager:
 
         
 
-        # рџ”Ґ Р’РђР–РќРћ: РѕСЃС‚Р°РЅРѕРІРёС‚СЊ РµСЃР»Рё СѓР¶Рµ СЂР°Р±РѕС‚Р°РµС‚
-        """???????? ?????? `SH_step`."""
+        # IMPORTANT: stop if already running
+        """Stub for `SH_step`."""
         try:
             self.ao.stop()
         except:
@@ -498,20 +498,20 @@ class ExperimentManager:
 
         gen= AOGenerator()
 
-        # в†’ РЅР°РїСЂСЏР¶РµРЅРёРµ
+        # -> voltage
         sine_signal = gen.sine_modulation(0,freq, ampl_mA, offset_mA)
         voltsignal=gen.set_voltage(1,value,freq)
-        # Р±РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ
+        # safety
         if hasattr(self.calibration, "safe_voltage"):
             if np.any(np.abs(voltsignal) > self.calibration.safe_voltage):
                 raise ValueError("AO voltage exceeds safe limit")
 
-    ''' # рџ”Ґ С„РѕСЂРјРёСЂСѓРµРј РїРѕ РєР°РЅР°Р»Р°Рј
+    ''' # build per channels
         signals = 
 
 
 
-        # Р±СѓС„РµСЂ
+        # buffer
         self.ao.sample_rate = sample_rate
         self.ao.allocate_buffer(samples)
         self.ao.fill_buffer(*signals)
@@ -530,7 +530,7 @@ class ExperimentProfile:
 
     def __init__(self, path, channels):
 
-        """?????????????? ?????? ? ?????????????? ??? ?????????."""
+        """Stub docstring."""
         self.path = path
         self.channels = channels
 
@@ -539,7 +539,7 @@ class ExperimentProfile:
 
     def build(self):
 
-        """???????? ?????? `build`."""
+        """Stub for `build`."""
         logger.info(f"Loading experiment profile {self.path}")
 
         gen = AOGenerator(self.channels)
