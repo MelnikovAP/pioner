@@ -70,7 +70,7 @@ class mainWindow(mainWindowUi):
 
         self._values_timer = qt.QTimer(self)
         self._values_timer.timeout.connect(self.update_values_widget)
-        self._values_timer.start(250)
+        self._values_timer.start(250)  # EK: ???
         if hasattr(self, "valueswind"):
             self.valueswind.terror0Button.clicked.connect(self.zero_temperature_error)
             self.valueswind.tresetButton.clicked.connect(self.reset_temperature_error)
