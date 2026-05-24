@@ -305,10 +305,11 @@ PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
 The suite covers calibration round-trip, T↔V vectorised conversion,
-modulation/lock-in, the mock DAQ contract, the post-processing edge cases
-in `apply_calibration` (Uref tiling, Thtr-NaN), and an end-to-end pass
-through all three modes on the mock backend. **33 tests, ~7 seconds**
-locally.
+modulation/lock-in (including FFT integer-cycle window and AO period
+integrity), the mock DAQ contract, the post-processing edge cases
+in `apply_calibration` (Uref tiling, Thtr-NaN, Rhtr units regression),
+and an end-to-end pass through all three modes on the mock backend
+including the hardware-trigger path. **52 tests, ~10 seconds** locally.
 
 ---
 

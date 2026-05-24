@@ -2,7 +2,9 @@
 
 **Date:** 2026-05-23
 **Scope:** `src/pioner/back/ai_device.py`, README.md, design_notes.md,
-todo.md, known-issues.md, docs/ir-merge-questions.md
+todo.md, known-issues.md, docs/ir-merge-answers.md (was
+`ir-merge-questions.md` at the time of this postmortem; the two files
+were later consolidated into the answers file)
 **Impact:** dead-code fallback that would have failed loudly on real
 hardware if it had ever fired; multiple AI-introduced wrong facts in
 documentation; one diagnostic lead (operator's "switched single-ended
@@ -70,7 +72,7 @@ switch input mode to DIFFERENTIAL" workaround in the workarounds list.
    in scope, with claims about shared internal pacer clocks. None of
    those models is what is actually in the lab.
 
-4. **`docs/ir-merge-questions.md` H1** asked the IR-branch developer
+4. **`docs/ir-merge-answers.md` H1** (then `ir-merge-questions.md`) asked the IR-branch developer
    whether the "switch to default" fix was `ScanOption.DEFAULTIO` or
    `AiInputMode.DIFFERENTIAL`, treating both as live possibilities.
 
@@ -179,7 +181,7 @@ matters; the input-mode angle is impossible on this board.
   (it almost certainly meant DEFAULTIO, not DIFFERENTIAL); separate TODO
   for FIFO depth closed by citing the 4 kS / 2 kS values from the
   datasheet.
-- [docs/ir-merge-questions.md H1](../docs/ir-merge-questions.md#h1):
+- [docs/ir-merge-answers.md H1](../docs/ir-merge-answers.md#h1):
   question simplified -- no longer asks "DEFAULTIO or DIFFERENTIAL?";
   now asks only "please confirm the fix was DEFAULTIO."
 
@@ -259,7 +261,7 @@ Two compounding causes:
 
 - [ ] Confirm with the operator that the original OVERRUN fix was
   `ScanOption.DEFAULTIO` (not an input mode change), to formally close
-  [docs/ir-merge-questions.md H1](../docs/ir-merge-questions.md#h1).
+  [docs/ir-merge-answers.md H1](../docs/ir-merge-answers.md#h1).
   Low priority; current resolution is consistent.
 - [ ] Reproduce the FIFO-overrun crash on **mainline** `finite_scan`
   (which still uses `ScanOption.CONTINUOUS` with a 1 s buffer) at

@@ -9,7 +9,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **48 passed** (mock backend, ~10 s).
+- `pytest tests/`: **52 passed** (mock backend, ~10 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -116,8 +116,8 @@ that no current test catches because the columns are dropped at the end.
 hw.gain_utpl`, …) and never mutate raw `df[N]`. The final `df.drop` block
 already exists and continues to work.
 
-**Verification:** existing 33 tests + a new unit test asserting that raw
-integer-named columns are **not** modified before `df.drop`.
+**Verification:** the existing test suite + a new unit test asserting
+that raw integer-named columns are **not** modified before `df.drop`.
 
 ### P1-4. Silent modulation clipping to `safe_voltage`
 
@@ -358,7 +358,7 @@ channels, can drive two chips on one board. Need: extension of
 
 **What:** Mainline has no calibration workflow (JSON edited manually).
 Operator wants this implemented per the Martin calibration procedure
-(see [docs/Martin-calibration-provedure.docx](../docs/Martin-calibration-provedure.docx))
+(see [docs/Martin-calibration-procedure.md](../docs/Martin-calibration-procedure.md))
 with optimization of the polynomial fit stages.
 
 **Action:** Port IR-branch's `CalibrationWizard`
@@ -368,8 +368,8 @@ to the Martin algorithm specifics. Consider numerical-optimization
 improvements (constrained least squares vs unconstrained, robust fit
 against melting-plateau outliers). **Depends on P1-17** (live streaming
 required for the cursor-pick during ramp). See also B1-B4 in
-[docs/ir-merge-questions.md](../docs/ir-merge-questions.md) for
-procedure details to confirm with IR-branch dev.
+[docs/ir-merge-answers.md](../docs/ir-merge-answers.md) for
+procedure details (answers received from the IR-branch dev).
 
 ### P1-23. Thermostat / atmosphere control (cryogenic + gas-controlled experiments)
 
@@ -585,16 +585,17 @@ to our calibration / demod stack; document findings in
 
 ### P3-9. Process IR-branch answers and close merge questions
 
-**What:** [docs/ir-merge-questions.md](../docs/ir-merge-questions.md)
-contains 24 questions for the IR-branch developer (hardware topology,
-calibration procedure, algorithm choices, dead code, architectural
-intent). Answers expected via [docs/ir-merge-answers.md](../docs/ir-merge-answers.md).
+**What:** [docs/ir-merge-answers.md](../docs/ir-merge-answers.md) is the
+consolidated Q&A document (questions + answers from the IR-branch
+developer) covering hardware topology, calibration procedure, algorithm
+choices, dead code, and architectural intent. The five blockers
+(A1, A2, B1, D1, G1) are all answered.
 
-**Action:** When answers arrive, for each: update mainline doc / code
+**Action:** Walk through each answered Q and update mainline doc / code
 where the answer clarifies an assumption (especially A1-A3 hardware
 topology, B1-B4 calibration procedure, C1 calcaf_lockin canon, D1
 apply_fh_cal canon, G1 singleton intent). File follow-up todos for
-newly-revealed issues. Mark the questions doc as resolved when done.
+newly-revealed issues. Mark the Q&A doc as fully processed when done.
 
 ---
 

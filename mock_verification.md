@@ -79,7 +79,7 @@ activated automatically — no env var or flag required.
 - `test_modulation.py` — `apply_modulation`, lock-in amplitude/phase recovery
   with known phase lag, invalid input rejection.
 
-`pytest tests/` → **33 passed in ~7 s**. `python -m pioner.back.debug` runs
+`pytest tests/` → **52 passed in ~10 s**. `python -m pioner.back.debug` runs
 all three modes end-to-end without errors.
 
 ---
@@ -166,26 +166,15 @@ Iso mode: 20000 samples
 PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
-33 tests, ~7 s. If any fail, do not move on.
+52 tests, ~10 s. If any fail, do not move on. The pinned-down physics
+checks (FFT amplitude/frequency on the AC drive, lock-in amplitude vs
+the analytical expected value, `Uref` tiling for finite / CONTINUOUS /
+DC-iso paths, AO period integrity, T->V inversion endpoints and
+midpoint) all live as named tests in `tests/test_modulation.py`,
+`tests/test_apply_calibration.py`, and `tests/test_modes_e2e.py` —
+no separate verification script is needed.
 
-### 4.3 Physics-aware verification (FFT, lock-in amplitude, Uref tiling)
-
-The verification script lives at `/tmp/pioner_check/verify_pipelines.py`
-(generated during this audit). Run with:
-
-```bash
-PYTHONPATH=src .venv/bin/python /tmp/pioner_check/verify_pipelines.py
-```
-
-It exercises:
-- AO profile: peak voltage, length, AC FFT (frequency + amplitude).
-- AI collection: sample count = `rate × seconds`.
-- `Uref` tiling for finite, CONTINUOUS, and DC-iso paths.
-- Lock-in amplitude vs the analytical expected value (factor of 0.5..2×).
-- `temp-hr` FFT peak vs `f_mod`.
-- Temperature-program → voltage inversion endpoints and midpoint.
-
-### 4.4 Hand-driven scenarios
+### 4.3 Hand-driven scenarios
 
 ```python
 from pioner.shared.calibration import Calibration
@@ -224,7 +213,7 @@ iso_ac.arm(); df_iso_ac = iso_ac.run(duration_seconds=2.0)
 daq.disconnect()
 ```
 
-### 4.5 What to inspect on every DataFrame
+### 4.4 What to inspect on every DataFrame
 
 | Check                                                                                  | Expectation                                                                                |
 |----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -236,7 +225,7 @@ daq.disconnect()
 | `df['Thtr']`                                                                           | Either physically reasonable or `NaN` (heater idle). Must **not** be ≈ −1070 °C.           |
 | `df['Taux']`                                                                           | ≈ 25 °C (mock returns ~0.25 V on AI ch3, scaled ×100).                                     |
 
-### 4.6 Tango path (optional)
+### 4.5 Tango path (optional)
 
 The Tango server module imports cleanly without PyTango (no-op decorators) so
 the mock pipeline can be exercised through its public API without a Tango

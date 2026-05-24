@@ -13,6 +13,14 @@ Items covered:
 
 ## 1. P1-1 — `IsoMode`: external abort handle
 
+> **Status: implemented.** The `stop()` primitive sketched below has
+> shipped; `IsoMode.run` now blocks on a `threading.Event` and the
+> Tango `stop_run` command delegates to it. Both P1-1 and the
+> dependent P1-5 are tracked as resolved in `todo.md` (P1-5 references
+> "the `stop()` primitive that this fix relies on"). The text below
+> is kept as the historical design rationale; do not treat it as an
+> open plan.
+
 ### Problem
 
 `IsoMode.run(duration_seconds=N)` blocks for exactly `N` seconds via
@@ -286,6 +294,16 @@ verified on real hardware, full stop.
 
 ## 3. Killing `"ch1"` literals
 
+> **Status: implemented (Approach 1).** The shared
+> `src/pioner/shared/channels.py` module now exists with the named
+> constants (`HEATER_AO = "ch1"`, `HEATER_CURRENT_AI = 0`, etc.); all
+> internal call sites in `back/`, `front/`, and `shared/` use those
+> constants. The wire format (`"chN"` strings in JSON programs and HDF5
+> group keys) is preserved on purpose. `todo.md` reflects this in the
+> "Hardcoded values" note: "Heater channel `\"ch1\"` is now the named
+> constant `HEATER_AO`... the wire format remains `\"ch{N}\"`." The
+> text below is kept as the historical design rationale.
+
 ### Problem
 
 `"ch1"` (and friends) appear as raw strings in:
@@ -441,15 +459,13 @@ a P1 item describing this work.
 
 ## Summary — recommended order
 
-If all three land this cycle:
+Original sequencing kept for historical reference:
 
-1. **Channel constants (Approach 1)** — half-day, low-risk, makes the
-   subsequent two PRs more readable. Do this first.
-2. **P1-1 + P1-5 together** — same `Event`/`stop()` primitive solves both;
-   one PR, plus the Tango command. ~1 day.
-3. **P0-5** — needs real hardware to validate. Plan and prototype the
-   pacer-clock-sharing approach in code, but flag it as
-   blocked-on-hardware in `todo.md` until someone runs the loopback test.
+1. ~~**Channel constants (Approach 1)**~~ — **done** (see section 3 header).
+2. ~~**P1-1 + P1-5 together**~~ — **done** (see section 1 header).
+3. **P0-5** — still open. The trigger primitive is implemented and
+   mock-tested; the real-hardware loopback validation is the remaining
+   blocker. See `todo.md` P0-5.
 
-None of the three blocks declaring MVP on the mock backend. P0-5 does
-block declaring MVP on real hardware for FastHeat at >1000 K/s.
+P0-5 is the only remaining blocker for declaring MVP on real hardware
+at >1000 K/s; the mock-backend MVP is unblocked.

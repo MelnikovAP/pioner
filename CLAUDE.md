@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (33 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (52 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - Editable install: `.venv/bin/pip install -e .` (already done; required so
   Pylance can resolve `pioner.*` imports without red squiggles).
@@ -44,7 +44,7 @@ against a mock uldaq backend.
   is not confirmation.
 - **Never modify `pioner-IR-branch/`.** It is a read-only reference snapshot
   from a parallel branch, kept around for comparison and porting decisions
-  (see `README-IR.md`, `docs/ir-merge-questions.md`). Read it freely with
+  (see `README-IR.md`, `docs/ir-merge-answers.md`). Read it freely with
   Read / Grep / Bash, but never run Edit, Write, or any Bash command with
   side effects (mv, rm, sed -i, etc.) inside that directory. Any porting
   work goes into `src/pioner/` (or new files outside `pioner-IR-branch/`).

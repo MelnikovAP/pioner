@@ -15,9 +15,8 @@ Related references:
 - [Bondar-uCal.md](Bondar-uCal.md) - prior C++ design conventions
 - [live-streaming.md](live-streaming.md) - streaming / ring-buffer architecture
 - [../CLAUDE.md](../CLAUDE.md) - load-bearing physics / unit rules
-- [ir-merge-questions.md](ir-merge-questions.md),
-  [ir-merge-answers.md](ir-merge-answers.md) - open merge questions
-  (JSON program schema is still in flux)
+- [ir-merge-answers.md](ir-merge-answers.md) - consolidated Q&A from
+  the IR-branch developer; the JSON program schema is still in flux
 
 ---
 
@@ -234,8 +233,7 @@ Same channel arithmetic as Option B, but the two AOs now drive two
     needs to generalize to multiple areas. Note that there is
     already an open question about competing schemas between this
     branch and the IR branch
-    ([ir-merge-questions.md](ir-merge-questions.md),
-    [ir-merge-answers.md](ir-merge-answers.md)); the dual-area
+    ([ir-merge-answers.md](ir-merge-answers.md)); the dual-area
     schema should be decided jointly with that merge, not bolted on
     afterwards.
 16. **Calibration object.** Today `Calibration` is a single object
@@ -262,8 +260,8 @@ Same channel arithmetic as Option B, but the two AOs now drive two
     Decide which combinations are first-class in the UI.
 22. **`mock_uldaq` backend.** Extend the mock to expose multiple
     "heater" channels with independent R_htr and thermal response so
-    the test suite (33 tests today) can run on a dual-area
-    configuration without real hardware.
+    the test suite can run on a dual-area configuration without real
+    hardware.
 23. **Test suite.** Tests are written against a single channel.
     Either parameterize them across areas or duplicate the dual-area
     happy-path tests.
