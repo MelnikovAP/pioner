@@ -52,3 +52,6 @@ logs/*
 # mypy / ruff
 .mypy_cache/
 .ruff_cache/
+
+# Local reference snapshots (not tracked)
+Bondar-uCal/
