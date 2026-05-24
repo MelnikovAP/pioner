@@ -187,12 +187,13 @@ the very leading edge of fast scans.
 Both scans configured with `ScanOption.RETRIGGER` or `ScanOption.EXTTRIGGER`
 gated on the same digital trigger line.
 
-Boards in scope (`README.md` references USB-1808 and USB-2408):
+Boards in scope: **MCC USB-2637** (datasheet:
+[specs/USB-2637.pdf](specs/USB-2637.pdf)).
 
-- **USB-1808 / USB-1808X** — exposes a digital trigger input on `TRIG`
-  pin. Supports both `EXTTRIGGER` (one-shot) and `RETRIGGER`.
-- **USB-2408** — same idea; check that the trigger line is wired in your
-  socket harness.
+- Exposes a digital trigger input `TTLTRG`, software-selectable for edge
+  sensitive (rising/falling) or level sensitive (high/low) mode. Supports
+  `ScanOption.EXTTRIGGER` and `RETRIGGER`. Trigger latency 1 us + 1 clock
+  cycle max; trigger pulse width min 100 ns.
 
 Sequence:
 
@@ -214,11 +215,14 @@ Trigger source options, easiest to most flexible:
    software. One extra physical jumper, no extra equipment.
 2. **External pulse generator** — clean but requires an extra piece of lab
    gear and a cable to it.
-3. **Pacer-clock sharing** — if the board supports a single internal pacer
-   that drives both AO and AI (USB-1808 does — `SyncIo` mode), no trigger
-   line needed; both scans take samples on the same clock edge by
-   construction. This is the cleanest answer if the board supports it,
-   needs zero physical changes.
+3. **Pacer-clock sharing** — **not available on USB-2637.** Its AI scan
+   pacer (`XAPCR`) and AO scan pacer (`XDPCR`) are independent external
+   clock inputs (see datasheet section "External Clock I/O"), so there is
+   no single internal pacer that drives both. You could in principle wire
+   `XDPCR` (board's AO clock output) to `XAPCR` (board's AI clock input)
+   externally to share one clock domain, but that is essentially option 1
+   with extra wiring and no extra benefit. Stick with the trigger-based
+   sync (options 1-2 above) on this board.
 
 Validation procedure (real hardware, no chip in the socket):
 
