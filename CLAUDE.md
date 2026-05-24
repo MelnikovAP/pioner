@@ -42,6 +42,12 @@ against a mock uldaq backend.
   removing dependencies: list exactly what will be affected and ask for
   explicit confirmation in the current message. "You mentioned this earlier"
   is not confirmation.
+- **Never modify `pioner-IR-branch/`.** It is a read-only reference snapshot
+  from a parallel branch, kept around for comparison and porting decisions
+  (see `README-IR.md`, `docs/ir-merge-questions.md`). Read it freely with
+  Read / Grep / Bash, but never run Edit, Write, or any Bash command with
+  side effects (mv, rm, sed -i, etc.) inside that directory. Any porting
+  work goes into `src/pioner/` (or new files outside `pioner-IR-branch/`).
 - **Hard stops** — require explicit in-session confirmation, no exceptions:
   - Running against real DAQ hardware (anything that isn't `mock_uldaq`)
   - Overwriting calibration files or production config
@@ -113,6 +119,10 @@ against a mock uldaq backend.
 
 - ASCII only — in code, comments, docstrings, identifiers, and string
   literals.
+- English by default — all documentation files (`*.md` under `docs/`, repo
+  root, etc.) and all code comments are written in English unless the user
+  explicitly asks otherwise for a specific file. Chat replies follow the
+  user's language; persisted artifacts do not.
 - Hardcoded values left intentionally untouched per project convention:
   column name `Uref` (not `Uheater`), heater channel literal `"ch1"`, and the
   `total_ms % 1000 == 0` software constraint on profile durations. Don't
