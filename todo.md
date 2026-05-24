@@ -202,17 +202,18 @@ length (`>= 20 / frequency` seconds).
 **Verification:** unit test — lock-in on a 0.3 s, 37.5 Hz signal returns a
 mask with `False` on the edges.
 
-### P1-10. `AiDeviceHandler.__init__` mutates the shared `AiParams`
+### P1-10. ~~`AiDeviceHandler.__init__` mutates the shared `AiParams`~~ (resolved)
 
-**Where:** `src/pioner/back/ai_device.py:59-60`
-
-**What:** if `SINGLE_ENDED` is unsupported, the code switches to
-`DIFFERENTIAL` by mutating `params.input_mode` on the shared object.
-Sharing `AiParams` between two handlers (currently nobody does, but
-nothing prevents it) would silently couple them.
-
-**Action:** `self._params = copy.copy(params)` in the constructor, or keep
-the override on a local `self._input_mode_override`.
+Resolved by removing the offending fallback. PIONER is locked to MCC
+USB-2637 (single-ended only, 64 SE inputs; no DIFFERENTIAL mode exists
+on this board -- see `specs/USB-2637.pdf` and README). The original code
+silently flipped `params.input_mode` to `DIFFERENTIAL` if SINGLE_ENDED
+was unsupported, which (a) is dead code on USB-2637 (SINGLE_ENDED is
+always supported), (b) would have set an unsupported mode and crashed
+later if it had ever fired. The mutation has been replaced with a hard
+`RuntimeError` at `src/pioner/back/ai_device.py:73`, which also closes
+the original "shared params object" concern -- no mutation, no shared
+state coupling.
 
 ### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
 
@@ -280,6 +281,109 @@ Gaussian noise of the same RMS. Make the seed configurable via
 **Action:** wrap the field-extraction block in
 `try/except KeyError as exc: raise ValueError(f"Missing field {exc} in
 calibration file {path}")`.
+
+### P1-17. Live AI streaming architecture (persistent AI + dormant disk recorder)
+
+**What:** SlowMode / IsoMode / Calibration currently block until the run
+finishes. Operator wants real-time UI updates plus chip-alive monitoring
+between experiments. Full design + decision log captured in
+[docs/live-streaming.md](docs/live-streaming.md).
+
+**Action:** Implement persistent AI scan (`Connect` -> `Disconnect`),
+ring buffer with `peek` / `read_new(consumer_id)`, dormant `DiskRecorder`
+(open at Arm, close at experiment end), `MonitorAO` helper for
+between-experiment AC drive. Sliding-window FFT demod for UI display.
+~3-4 days back-end, ~1 week UI, ~1 week hardware soak. Six open
+questions in §11 of the design doc need answers before code lands.
+
+### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
+
+**What:** Multi-instrument workflow — chip sits in beam path, beamline
+fires TTLTRG, PIONER captures synchronized response. Pre-trigger
+baseline needed (no missed initial samples, no 500 ms gap on 1-second
+fast-heat experiments).
+
+**Action:** AO armed with `ScanOption.EXTTRIGGER`, AI persistent
+(see P1-17). DiskRecorder active from Arm onward — pre-trigger baseline
+captured naturally (= operator-controlled time between Arm press and
+trigger fire). UI emits DIO "Ready" signal to beamline. Sample-accurate
+trigger timestamping via counter input deferred until first synchrotron
+run requires it. See §5 of [docs/live-streaming.md](docs/live-streaming.md).
+
+### P1-19. Flash-chip support: additional AI channel for on-chip thermistor (Tamb)
+
+**What:** Flash-chip variants have an on-chip thermistor wired in for
+ambient-temperature sensing. Current AI channel map (6 channels:
+Uref / Umod / Uhtr / Uaux / Utpl / Uhtrabs) doesn't expose this.
+
+**Action:** Confirm pin allocation with operator. Extend
+`DEFAULT_AI_CHANNELS` in `shared/channels.py`, settings schema,
+`apply_calibration` to produce a `Tamb` engineering column.
+Config-driven so existing 6-channel setups don't break. **TODO:** clarify
+whether thermistor reads via the same Uaux/AD595 pipeline or a separate
+channel.
+
+### P1-20. Sample rate ceiling and per-segment dynamic rate
+
+**What:** Operator has run experiments at 166 kHz stably but considers
+that excessive. Suggested production ceiling: **50 kHz**. Higher rates
+inflate file size linearly (50 kHz x 6 ch x 8 B = 2.4 MB/s sustained
+vs current ~1 MB/s at 20 kHz). Idea: dynamic per-segment rate (fine
+resolution during transient, coarse during isothermal hold) to keep
+files manageable.
+
+**Action:** (a) Document a hard sample-rate ceiling — default suggestion
+50 kHz, capped in settings validator. (b) Investigate dynamic
+per-segment rate. **Constraint:** mid-experiment rate reconfigure
+breaks the persistent-AI assumption from P1-17. Alternatives: post-run
+downsampling per region, or per-segment AO programs that the recorder
+metadata-tags. **Open design question, requires operator + physics
+discussion.**
+
+### P1-21. Differential calorimetry (two chips or one chip with two regions)
+
+**What:** Standard nanocalorimetry technique: compare sample-loaded chip
+against reference chip to suppress common-mode drift. Either two
+physical chips on one board, or one chip with two heater regions.
+Not supported in current code.
+
+**Action:** Hardware decision first — USB-2637 has 4 AO and 64 AI SE
+channels, can drive two chips on one board. Need: extension of
+`ChannelProgram` to per-chip programs, differential demod step in
+`apply_calibration`, UI panel for two-chip setup, possibly new mode
+`DifferentialMode` orchestrating both chips' AO programs simultaneously.
+**Significant scope** — multi-week feature.
+
+### P1-22. CalibrationMode per Martin algorithm
+
+**What:** Mainline has no calibration workflow (JSON edited manually).
+Operator wants this implemented per the Martin calibration procedure
+(see [docs/Martin-calibration-provedure.docx](../docs/Martin-calibration-provedure.docx))
+with optimization of the polynomial fit stages.
+
+**Action:** Port IR-branch's `CalibrationWizard`
+([pioner-IR-branch/pioner_app/ui/calibration_wizard.py](../pioner-IR-branch/pioner_app/ui/calibration_wizard.py))
+as the UI scaffold. Adapt the three-stage flow (Thtr / Theater / Ttpl)
+to the Martin algorithm specifics. Consider numerical-optimization
+improvements (constrained least squares vs unconstrained, robust fit
+against melting-plateau outliers). **Depends on P1-17** (live streaming
+required for the cursor-pick during ramp). See also B1-B4 in
+[docs/ir-merge-questions.md](../docs/ir-merge-questions.md) for
+procedure details to confirm with IR-branch dev.
+
+### P1-23. Thermostat / atmosphere control (cryogenic + gas-controlled experiments)
+
+**What:** Open-air room-temperature experiments are limiting. To extend
+to cryogenic ranges or controlled atmospheres, PIONER would need to
+integrate with an intercooler / refrigerator / gas-flow system with
+PID feedback. Closes the chamber → enables far more experiment types
+(low-T phase transitions, oxidation-sensitive samples, etc.).
+
+**Action:** Survey candidate hardware (Eurotherm, Lakeshore, etc.) —
+choice TBD by operator. Design as a separate hardware abstraction
+layer (parallel to DAQ). Add T_ambient / setpoint / flow signals,
+PID command path, safety interlocks for chamber sealed-state.
+**Significant scope** — multi-month feature, not a fix.
 
 ---
 
@@ -353,7 +457,8 @@ exporter.
 **Action:** add `tests/test_ai_device.py`:
 - Buffer re-allocation on `samples_per_channel` change.
 - `scan()` without `allocate_buffer` raises `ValueError`.
-- `INPUT_MODE` fallback to `DIFFERENTIAL`.
+- Hard `RuntimeError` when the AI device reports zero SINGLE_ENDED
+  channels (post P1-10 fix; no silent fallback any more).
 
 ### P2-12. Legacy `fastheat.FastHeat` / `slow_mode.SlowMode` have no tests
 
@@ -416,6 +521,18 @@ quantises early.
 **Action:** drop `np.round` (the DAC quantises by itself) or expose the
 resolution as a parameter.
 
+### P2-20. Port simpleFastHeatWidget segmentation feature from IR-branch
+
+**What:** IR-branch's
+[pioner_app/ui/widgets/simpleProcessWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py)
+lets the operator segment a recorded experiment (full trace / heating /
+cooling / isotherm) and display only the segments of interest for
+fit / inspection. Useful workflow that mainline doesn't have.
+
+**Action:** Port the segmentation UI to mainline's `resultsDataWidget`
+(or a new dedicated widget). ~600 lines from IR-branch, mostly
+self-contained (silx + numpy + h5py only). ASCII cleanup needed.
+
 ---
 
 ## P3 — documentation / observability
@@ -454,6 +571,30 @@ modulation, run `SlowMode`, save HDF5, plot.
 
 **Action:** drop to DEBUG (or fire once per process), or only WARN when
 `PIONER_DEBUG=1`.
+
+### P3-8. Review external reference: NanoCalorimetry (J. Gregoire)
+
+**What:** External nanocalorimetry project at
+<https://github.com/johnmgregoire/NanoCalorimetry> — possibly relevant
+techniques, calibration algorithms, demodulation choices to compare
+against ours.
+
+**Action:** Read README and key modules; note any techniques relevant
+to our calibration / demod stack; document findings in
+[design_notes.md](../design_notes.md) or a comparison sub-doc.
+
+### P3-9. Process IR-branch answers and close merge questions
+
+**What:** [docs/ir-merge-questions.md](../docs/ir-merge-questions.md)
+contains 24 questions for the IR-branch developer (hardware topology,
+calibration procedure, algorithm choices, dead code, architectural
+intent). Answers expected via [docs/ir-merge-answers.md](../docs/ir-merge-answers.md).
+
+**Action:** When answers arrive, for each: update mainline doc / code
+where the answer clarifies an assumption (especially A1-A3 hardware
+topology, B1-B4 calibration procedure, C1 calcaf_lockin canon, D1
+apply_fh_cal canon, G1 singleton intent). File follow-up todos for
+newly-revealed issues. Mark the questions doc as resolved when done.
 
 ---
 
