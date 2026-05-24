@@ -10,10 +10,14 @@ microgram samples. The codebase covers three experimental modes — *fast*,
 
 ## 1. Hardware overview
 
-* **DAQ board:** any MCC device exposed by the [`uldaq` Python
-  bindings](https://files.digilent.com/manuals/UL-Linux/python/index.html). The
-  reference setup is a USB-1808 / USB-2408 paired with the PIONER chip
-  socket.
+* **DAQ board:** MCC **USB-2637** (USB-2600 series, 16-bit, 1 MS/s,
+  64 single-ended AI channels, 4 AO channels at +/-10 V), driven via the
+  [`uldaq` Python bindings](https://files.digilent.com/manuals/UL-Linux/python/index.html).
+  Datasheet: [specs/USB-2637.pdf](specs/USB-2637.pdf). The board uses
+  single-ended inputs only; there is no differential mode. AI and AO
+  scan pacers are independent (no shared internal clock), so synchronous
+  AO+AI start is achieved via the external trigger (TTLTRG), not via a
+  common pacer.
 * **Wiring (default channel layout):**
 
   | Direction | Channel | Purpose                                                       |
