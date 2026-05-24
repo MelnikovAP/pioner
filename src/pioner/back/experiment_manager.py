@@ -180,9 +180,14 @@ class ExperimentManager:
         # expected on the production board (validate with the loopback test:
         # drive a 1 kHz square wave on AO ch1, read it back on AI ch1, look
         # for the leading edge — should be within 1 sample of t=0):
-        #   1) Pacer-clock sharing (``ScanOption.PACEROUT`` on AO,
-        #      ``ScanOption.EXTCLOCK`` on AI). USB-1808 supports this and it
-        #      needs no external wiring.
+        #   1) External pacer-clock sharing — wire the AO scan clock output
+        #      (XDPCR) on USB-2637 to the AI external clock input (XAPCR);
+        #      arm AO with ``ScanOption.PACEROUT`` and AI with
+        #      ``ScanOption.EXTCLOCK``. Needs one physical jumper, no
+        #      software trigger. Note that USB-2637 has no internal shared
+        #      pacer (AO and AI pacers are independent by design — see
+        #      design_notes.md and specs/USB-2637.pdf), so the external
+        #      jumper is mandatory for clock-level sync.
         #   2) Software offset: measure the persistent skew once, store it
         #      as ``calibration.pre_trigger_samples``, and trim the leading
         #      ``N`` samples in ``apply_calibration``. Cheap but host-specific.

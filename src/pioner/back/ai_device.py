@@ -71,7 +71,17 @@ class AiDeviceHandler:
         if not info.has_pacer():
             raise RuntimeError("AiDevice does not support hardware pacing")
         if info.get_num_chans_by_mode(ul.AiInputMode.SINGLE_ENDED) <= 0:
-            self._params.input_mode = ul.AiInputMode.DIFFERENTIAL
+            # PIONER is locked to MCC USB-2637 (single-ended only, 64 SE
+            # inputs; see README.md and specs/USB-2637.pdf). USB-2637 does
+            # not expose a differential mode at all, so we cannot fall back
+            # silently. If we ever see this on real hardware it means the
+            # board is not USB-2637 (or is misconfigured) -- fail loudly
+            # rather than push an unsupported input_mode and crash later.
+            raise RuntimeError(
+                "AiDevice does not report any SINGLE_ENDED channels. "
+                "PIONER expects MCC USB-2637 (single-ended only); verify "
+                "the hardware model and the AI input range configuration."
+            )
 
     # ------------------------------------------------------------------
     # Buffer management
