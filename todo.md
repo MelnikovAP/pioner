@@ -28,26 +28,25 @@ format remains `"ch{N}"`.
 
 ## P0 — critical correctness bugs (open)
 
-### P0-3. `apply_calibration`: validate `Ihtr` / `Uhtr` dimensions with the physicist
+### P0-3. `apply_calibration`: Ihtr calibration is intentionally dimensionless
 
-**Where:** `src/pioner/back/modes.py:209-227`
+**Where:** `src/pioner/back/modes.py` (`apply_calibration`)
 
-**What:** `ih = ihtr0 + ihtr1 * df[0]` treats AI ch0 as a raw shunt voltage
-(V), but later feeds `ih` into `Rhtr = ... / ih` as if it were amperes. With
-the default identity calibration `ihtr1 = 1.0`, that is dimensionally "1 V"
-and `Rhtr` ends up in `[Ω·V/A]`, not Ω. In production, `ihtr1` is presumably
-`1/Rshunt ≈ 1/1700 ≈ 5.88e-4`, but no test pins this down.
+**Status (confirmed with physicist 2026-06-01):**
+Production calibration files use `ihtr0 = 0, ihtr1 = 1`. This is intentional:
+`ih = V_ch0` (volts, not amperes). AI ch0 is the node after the series resistor
+before the amplifier loop — it is a voltage proportional to heater current, not
+a shunt voltage with a known R_shunt. The `Thtr` polynomial is fitted against
+this voltage-proxy directly, so `Rhtr = V_heater / ih` is dimensionless
+(V/V), and the polynomial coefficients absorb the implicit scaling. The circuit
+does NOT use a separate shunt resistor measurable by AI ch0. The comment in
+modes.py claiming `ihtr1 = 1/R_shunt ≈ 5.88e-4` is wrong — it has been
+corrected.
 
-**Action:**
-1. Confirm with the physicist what `ihtr1` represents in production. If it
-   really is `1/Rshunt`, the production `calibration.json` must set it to
-   `≈5.88e-4`.
-2. Add explicit dimension comments next to each line in `apply_calibration`
-   (`# ih: amperes`, `# df[5]: millivolts`, …).
-3. Add a unit test: feed synthetic `V_shunt = 1 mA × 1700 Ω = 1.7 V` and
-   `V_heater_raw = …`, assert `Rhtr ≈ 1700 Ω` for a properly-set calibration.
-
-**Do not** modify the default identity calibration — it is the test fallback.
+**Open (low priority):** a proper physical calibration in SI units (ih in
+amperes, Rhtr in ohms) would require knowing the transfer function of the
+amplifier loop on ch0. If that becomes available, add a note to the calibration
+wizard and adjust the polynomial fitting accordingly.
 
 ### P0-4. IsoMode AO buffer is not seamless at the production f_mod = 37.5 Hz
 
@@ -58,9 +57,8 @@ and `Rhtr` ends up in `[Ω·V/A]`, not Ω. In production, `ihtr1` is presumably
 = 20000`). With `f_mod = 37.5 Hz` that is `37.5` cycles in the buffer ->
 the CONTINUOUS replay re-emits sample 0 with a phase offset of
 `pi rad` (half a period), producing a square-wave-like edge at every
-1 s wrap. Symptom: the chip drive contains 60 % spectral leakage outside
-the `f_mod` bin, the recovered C_p amplitude is biased, and the FFT-
-demodulated `temp-hr_fft` disagrees with the time-domain lock-in.
+1 s wrap. In practice it is quasi-seamless (a few periods of glitch at
+each wrap), not a hard discontinuity — confirmed with the physicist 2026-06-01.
 
 `shared.modulation.check_ao_period_integrity` now logs a WARNING at
 `IsoMode.arm()` quantifying the defect. The warning is the diagnostic;
@@ -75,12 +73,10 @@ the production fix is one of:
    37.5 Hz (= 1600 samples = 80 ms; LCM of 1600 and `n` ≤ rate is 19200
    samples = 0.96 s) by exposing the AO buffer length as a setting.
 
-**Action:** confirm with the physicist whether (1) is acceptable; if not,
-implement (2). Either way, follow up with a real-hardware verification
-that `temp-hr_fft.fundamental.amplitude` matches the time-domain lock-in
-within ~1 %.
+**Priority: low** (quasi-seamless is acceptable for current measurements).
+Confirm with the physicist whether (1) is acceptable before touching f_mod.
 
-### P0-5. AO/AI start skew — real-hardware validation pending
+### P0-5. AO/AI start skew — confirmed order, real-hardware validation pending
 
 **Where:** `src/pioner/back/experiment_manager.py` (`finite_scan`),
 `src/pioner/back/daq_device.py` (`DaqParams.hardware_trigger`,
@@ -92,6 +88,10 @@ Both AO and AI pre-arm with `ScanOption.EXTTRIGGER` when
 `BackSettings.daq_params.hardware_trigger=True`, and a single
 `fire_software_trigger` call releases them on a shared t=0. Default is
 `False` so existing callers and mock tests are unaffected.
+
+**Confirmed with physicist 2026-06-01:** correct start order is AI first,
+then AO — this matches the current code (`_start_ai_scan` is called before
+`_start_ao_scan` in `finite_scan`).
 
 **Open:** real-hardware loopback validation. Drive a 1 kHz square wave on
 AO ch1, read it back on AI ch1, find the leading edge — must be within 1
@@ -295,6 +295,29 @@ ring buffer with `peek` / `read_new(consumer_id)`, dormant `DiskRecorder`
 between-experiment AC drive. Sliding-window FFT demod for UI display.
 ~3-4 days back-end, ~1 week UI, ~1 week hardware soak. Six open
 questions in §11 of the design doc need answers before code lands.
+
+**Status (partial, done):** Persistent + per-experiment `AIProvider`
+(`back/acquisition/`), ring buffer `peek_last`/`read_new`, `AcquisitionMode`
+config flag, `DeviceController` adapter (`back/device_controller.py`,
+`LocalDeviceController` runs experiments on mock/real DAQ without Tango),
+single-window live streaming inside `mainWindow` (Signals tab scope +
+Values readout via `calibrate_window`), CLI `runUI --mock/--hardware`.
+The standalone `streamWindow`/`runStream` dev window was folded into
+`mainWindow` and removed.
+
+**Status (still open):** (a) Experiment modes are NOT yet refactored to
+call back through the provider, so `LocalDeviceController.run()` **pauses**
+the live stream for the duration of a run (resumes after). Streaming
+*during* an experiment needs FastHeat/SlowMode/IsoMode to stop arming
+their own AI scan and read the shared ring instead. (b) `DiskRecorder`
+(record-from-Arm) not built. (c) `MonitorAO` between-experiment drive not
+built. (d) Tango path is incompatible with persistent AI and is currently
+disabled (`nanocontrol_tango.py` raises); `TangoDeviceController` exists
+but is unverified -- repair when Tango becomes relevant again.
+(e) Live `Thtr`/`Rhtr` show the ~-1071 sentinel at idle (no heater
+current) because the NaN-at-zero-current threshold (1e-9 A) is below mock
+noise; suppress R/T readout when no AO drive is active, or raise the
+threshold. See P0-3.
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -532,6 +555,24 @@ fit / inspection. Useful workflow that mainline doesn't have.
 **Action:** Port the segmentation UI to mainline's `resultsDataWidget`
 (or a new dedicated widget). ~600 lines from IR-branch, mostly
 self-contained (silx + numpy + h5py only). ASCII cleanup needed.
+
+### P2-21. Physical Ihtr calibration in SI units (low priority)
+
+**What:** current production calibration uses `ihtr0=0, ihtr1=1`, so
+`ih = V_ch0` (volts, not amperes) and `Rhtr` is dimensionless V/V. The
+`Thtr` polynomial is fitted against this proxy directly. To calibrate in
+proper SI units (ih in amperes, Rhtr in ohms), the transfer function of
+the amplifier loop on AI ch0 must be measured. Low priority — the
+proxy-based calibration works for relative temperature measurements.
+
+### P2-22. Progress bar for slow/iso experiments (low priority)
+
+**Where:** `src/pioner/front/mainWindow.py`
+
+**What:** slow and iso scans run for tens of seconds with no UI feedback.
+Add an artificial progress bar driven by elapsed time vs expected
+`total_ms` from the armed program. Can be a `QProgressBar` updated by a
+`QTimer` in `run_mode()`.
 
 ---
 

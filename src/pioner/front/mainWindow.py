@@ -12,21 +12,25 @@ profile editor for slow-mode programs (DC ramp). The modulation block in
 import json
 import os
 import shutil
-from typing import Any
+from typing import Any, Optional
 
-import h5py
 import numpy as np
-import pandas as pd
-import requests
 from silx.gui import qt
 
+from pioner.back.device_controller import (
+    DeviceController,
+    LocalDeviceController,
+    TangoDeviceController,
+)
 from pioner.front.calibWindow import *
 from pioner.front.configWindow import *
 from pioner.front.mainWindowUi import mainWindowUi
 from pioner.front.messageWindows import *
+from pioner.front.scope_controls import ScopeControls, downsample_for_display
 from pioner.shared.channels import HEATER_AO
 from pioner.shared.constants import *
-from pioner.shared.settings import FrontSettings
+from pioner.shared.modulation import fft_demodulate
+from pioner.shared.settings import BackSettings, FrontSettings, UISettings
 from pioner.shared.utils import Dict2Class
 
 
@@ -49,12 +53,11 @@ class mainWindow(mainWindowUi):
     def __init__(self, parent=None):
         super(mainWindow, self).__init__(parent)
 
-        # Tango DeviceProxy when connected. Typed as ``Any`` (not Optional)
-        # because PyTango exposes commands/attributes/pipes via __getattr__:
-        # the static checker has no way of knowing them. Runtime ``None``
-        # checks (``if self.device is None``) protect against unconnected
-        # state at every call site that needs the wire.
-        self.device: Any = None
+        # Backend handle. ``None`` until ``set_connection`` builds either a
+        # LocalDeviceController (in-process DAQ / mock) or a
+        # TangoDeviceController (legacy network path). Runtime ``None``
+        # checks guard every call site that needs the wire.
+        self.controller: Optional[DeviceController] = None
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -81,6 +84,132 @@ class mainWindow(mainWindowUi):
 # for debugging
         self.terror0Button.clicked.connect(self.print_debug)
 
+        self._init_live_stream()
+
+    # ===================================
+    # Live streaming (Signals tab)
+    # ===================================
+    @staticmethod
+    def _pick_ui_settings_path() -> str:
+        if os.path.exists(UI_SETTINGS_FILE_REL_PATH):
+            return UI_SETTINGS_FILE_REL_PATH
+        return DEFAULT_UI_SETTINGS_FILE_REL_PATH
+
+    def _init_live_stream(self):
+        """Set up the Signals-tab scope controls + refresh timer.
+
+        Layout is left to mainWindowUi; we only append a compact scope
+        control strip under the existing (previously unused) signalsPlot.
+        """
+        self._ui_settings = UISettings(self._pick_ui_settings_path())
+        self.scopeControls = ScopeControls(self._ui_settings, self)
+        self.signalsTab.layout().addWidget(self.scopeControls)
+        self.scopeControls.changed.connect(self._on_scope_changed)
+        self._apply_signal_plot_limits()
+
+        self._live_timer = qt.QTimer(self)
+        self._live_timer.setInterval(self._ui_settings.refresh_interval_ms)
+        self._live_timer.timeout.connect(self._live_tick)
+
+    def _apply_signal_plot_limits(self):
+        plot = self.signalsPlot.resultPlot
+        x_scale = self.scopeControls.x_scale_seconds()
+        y_span = self.scopeControls.y_span_volts()
+        midpoint = (self._ui_settings.y_min + self._ui_settings.y_max) / 2.0
+        plot.getXAxis().setLimits(0.0, x_scale)
+        plot.getYAxis().setLimits(midpoint - y_span / 2.0, midpoint + y_span / 2.0)
+
+    def _on_scope_changed(self):
+        # Drop curves for channels the operator just disabled.
+        for ch_idx, label in self._ui_settings.channel_labels.items():
+            if not self.scopeControls.channel_enabled(ch_idx):
+                self.signalsPlot.resultPlot.removeCurve(label)
+        self._apply_signal_plot_limits()
+
+    def start_live_stream(self):
+        if self.controller is None or not self.controller.is_streaming():
+            return
+        self.controlTabsWidget.setCurrentIndex(0)  # show Signals tab
+        self._live_timer.start()
+
+    def stop_live_stream(self):
+        if hasattr(self, "_live_timer"):
+            self._live_timer.stop()
+
+    def _live_tick(self):
+        if self.controller is None:
+            return
+        sample_rate = self.controller.ai_sample_rate
+        if sample_rate <= 0:
+            return
+        x_scale = self.scopeControls.x_scale_seconds()
+        x_shift = self.scopeControls.x_shift_seconds()
+        window_samples = int(round(x_scale * sample_rate))
+        shift_samples = int(round(x_shift * sample_rate))
+        data = self.controller.peek_last(window_samples + shift_samples)
+        if data.size == 0:
+            return
+        if shift_samples > 0 and data.shape[0] > shift_samples:
+            data = data[:-shift_samples]
+        if data.size == 0:
+            return
+        self._draw_live_signals(data, sample_rate)
+        self._update_live_values(data, sample_rate)
+
+    def _draw_live_signals(self, data, sample_rate):
+        display = downsample_for_display(data, self._ui_settings.max_plot_points)
+        n = display.shape[0]
+        dt = data.shape[0] / sample_rate / max(n, 1)
+        x = np.arange(n) * dt
+        for ch_idx in sorted(self._ui_settings.channel_labels):
+            if not self.scopeControls.channel_enabled(ch_idx):
+                continue
+            if ch_idx >= display.shape[1]:
+                continue
+            self.signalsPlot.resultPlot.addCurve(
+                x, display[:, ch_idx],
+                legend=self._ui_settings.channel_labels[ch_idx],
+                color=self._ui_settings.channel_colors.get(ch_idx, "#000000"),
+                resetzoom=False,
+            )
+
+    def _update_live_values(self, data, sample_rate):
+        # Engineering-unit readout via the controller's calibration.
+        calibrate = getattr(self.controller, "calibrate_window", None)
+        if calibrate is not None:
+            try:
+                cal = calibrate(data)
+            except Exception:
+                cal = None
+            if cal is not None and not cal.empty:
+                last = cal.iloc[-1]
+                self.tauxValueLabel.setText(self._fmt(last.get("Taux")))
+                self.ttplValueLabel.setText(self._fmt(last.get("temp")))
+                self.thtrValueLabel.setText(self._fmt(last.get("Thtr")))
+                self.thtrdynValueLabel.setText(self._fmt(last.get("temp-hr")))
+
+        # Modulation frequency + Umod amplitude via FFT demod.
+        freq = float(self.settings.modulation_frequency)
+        self.frequencyValueLabel.setText(f"{freq:.1f}")
+        if freq > 0 and data.shape[1] >= 2:
+            samples_per_period = sample_rate / freq
+            if data.shape[0] >= int(samples_per_period):
+                try:
+                    result = fft_demodulate(
+                        data[:, 1], sample_rate=sample_rate,
+                        frequency=freq, harmonics=(1,),
+                    )
+                    self.umodhtrValueLabel.setText(
+                        f"{result.fundamental.amplitude * 1000.0:.3f}")
+                except ValueError:
+                    pass
+
+    @staticmethod
+    def _fmt(value) -> str:
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            return " ---"
+        return f"{float(value):.2f}"
+
     def print_debug(self):
         print(self.settings.sample_rate)
         calibration = getattr(self, "calibration", None)
@@ -89,42 +218,58 @@ class mainWindow(mainWindowUi):
     
     def sysOnButtonPressed(self):
         self.set_connection()
-        # TODO: add continious aquisition after modulation starts to check signals
 
     def set_connection(self):
-        
-        if self.sysNoHardware.isChecked() != True:
-            # AM: cannot install TANGO on MAC OS. so I've added importing tango here
-            # in order to include feature with no-hardware mode 
-            try:
-                import tango
-                self.device = tango.DeviceProxy(self.settings.device_proxy)
-                self.device.set_timeout_millis(10000000)
-                print(self.settings.get_server_settings())
-                self.device.set_connection()
-                print('success')
+        # Backend choice: the "run without hardware" checkbox selects the
+        # in-process LocalDeviceController, which talks to the real MCC
+        # board when present and the pure-Python mock otherwise (see
+        # ``mock_uldaq.DAQ_AVAILABLE``). Unchecked selects the legacy Tango
+        # network path. Either way the GUI only sees a DeviceController.
+        if self.sysNoHardware.isChecked():
+            self._connect_local()
+            return
+        try:
+            self.controller = TangoDeviceController(self.settings)
+            self.controller.connect()
+            self._after_connect()
+        except Exception:
+            error_text = ("No connection to the device or\nTANGO module not found!\n"
+                          "Falling back to local (mock) mode.")
+            ErrorWindow(error_text)
+            self.controller = None
+            self.run_no_hardware()
 
-                if self.settings.calib_path == DEFAULT_CALIBRATION_FILE_REL_PATH:
-                    self.apply_default_calib()
-                else: 
-                    self.apply_calib()
-                [item.setEnabled(True) for item in [self.experimentBox, self.controlTab]]
+    def _connect_local(self):
+        """Open the in-process backend (real DAQ if present, else mock)."""
+        try:
+            back_settings = BackSettings(os.path.abspath(SETTINGS_FILE_REL_PATH))
+            self.controller = LocalDeviceController(
+                back_settings,
+                calibration_path=self.settings.calib_path,
+            )
+            self.controller.connect()
+            self._after_connect()
+            self.start_live_stream()
+        except Exception as exc:
+            ErrorWindow(f"Local backend failed to start:\n{exc}")
+            self.controller = None
 
-                self.device.set_sample_scan_rate(self.settings.sample_rate)
-
-            except Exception:
-                ## No-hardware mode for data processing
-                error_text = "No connection to the device or\nTANGO module not found!\nOnly no-hardware mode is possible."
-                ErrorWindow(error_text)
-                self.run_no_harware()
+    def _after_connect(self):
+        """Shared post-connect setup for both backends."""
+        if self.settings.calib_path == DEFAULT_CALIBRATION_FILE_REL_PATH:
+            self.apply_default_calib()
         else:
-            self.run_no_harware()
+            self.apply_calib()
+        for item in (self.experimentBox, self.controlTab):
+            item.setEnabled(True)
+        if self.controller is not None:
+            self.controller.set_sample_rate(self.settings.sample_rate)
 
-
-    
     def disconnect(self):
-        if self.device:
-           self.device.disconnect()
+        self.stop_live_stream()
+        if self.controller is not None:
+            self.controller.disconnect()
+            self.controller = None
         [item.setEnabled(False) for item in [self.experimentBox, self.controlTab]]
         self.sysNoHardware.setEnabled(True)
     
@@ -143,15 +288,15 @@ class mainWindow(mainWindowUi):
         self.configWindow = configWindow(parent=self)
         self.configWindow.show()
 
-    def run_no_harware(self):
+    def run_no_hardware(self):
+        # Fallback when the Tango path is unavailable: switch to the
+        # in-process LocalDeviceController (mock when no DAQ is attached),
+        # so experiments and live streaming still work.
         self.sysNoHardware.setChecked(True)
-        # Keep experiment widgets interactive so the operator can explore the
-        # program editor / plots without hardware. Tango calls in fh_arm,
-        # set_temp_volt etc. guard against ``self.device is None``.
-        for item in (self.experimentBox, self.controlTab):
-            item.setEnabled(True)
-        self.controlTabsWidget.setCurrentIndex(1)
-        self.mainTabWidget.setCurrentIndex(1)
+        self.controlTabsWidget.setCurrentIndex(0)
+        self.mainTabWidget.setCurrentIndex(0)
+        if self.controller is None:
+            self._connect_local()
     # ===================================
     # Calibration   
 
@@ -163,24 +308,29 @@ class mainWindow(mainWindowUi):
         self.calibPathInput.setCursorPosition(0)
 
     def apply_calib(self):
+        if self.controller is None:
+            return
         fpath = self.calibPathInput.text()
         if os.path.exists(os.path.abspath(fpath)):
             with open(self.calibPathInput.text(), 'r') as f:
                 raw_calib = json.load(f)
                 str_calib = json.dumps(raw_calib)
-                self.device.load_calibration(str_calib)
-                self.device.apply_calibration()
+                self.controller.load_calibration(str_calib)
+                self.controller.apply_calibration()
                 self.get_calib_from_device()
 
     def apply_default_calib(self):
-        self.device.apply_default_calibration()
+        if self.controller is None:
+            return
+        self.controller.apply_default_calibration()
         self.get_calib_from_device()
         self.calibPathInput.setText(os.path.abspath(DEFAULT_CALIBRATION_FILE_REL_PATH))
         self.calibPathInput.setCursorPosition(0)
 
     def get_calib_from_device(self):
-        calib_str = self.device.get_current_calibration[1][0]['value']
-        calib_dict = json.loads(calib_str)
+        if self.controller is None:
+            return
+        calib_dict = self.controller.get_calibration()
         self.calibration = Dict2Class(calib_dict)
 
     def view_calibraton_info(self):
@@ -222,16 +372,22 @@ class mainWindow(mainWindowUi):
         self.offsetInput.setText(str(self.settings.modulation_offset))  
 
     def apply_sample_rate(self):
+        if self.controller is None:
+            return
         self.settings.sample_rate = int(self.scanSampleRateInput.text())
-        self.device.set_sample_scan_rate(self.settings.sample_rate)
-    
+        self.controller.set_sample_rate(self.settings.sample_rate)
+
     def reset_sample_rate(self):
-        self.device.reset_sample_scan_rate()
+        if self.controller is None:
+            return
+        self.controller.reset_sample_rate()
         self.settings.sample_rate = self.get_sample_rate_from_device()
         self.scanSampleRateInput.setText(str(self.settings.sample_rate))
 
     def get_sample_rate_from_device(self):
-        return self.device.get_sample_rate[1][0]['value']
+        if self.controller is None:
+            return self.settings.sample_rate
+        return self.controller.get_sample_rate()
 
     def apply_modulation_params(self):
         try:
@@ -290,7 +446,7 @@ class mainWindow(mainWindowUi):
         self.progPlot.resultPlot.getYAxis().setLabel(y_label)
 
         # generating time_temp_volt_tables as dict, converting it to str
-        # to pass to run_fast_heat (tango)
+        # to pass to controller.arm_fast_heat
         self.time_temp_volt_tables = {'ch0':{}, 'ch1':{}, 'ch2':{}}
 
         # 0.1V on 0 channel
@@ -310,67 +466,35 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables['ch2']['volt'][-1] = 0
 
         self.time_temp_volt_tables_str = json.dumps(self.time_temp_volt_tables)
-        if self.device is None:
-            return  # no-hardware mode: program plotted, but cannot be armed
-        self.device.arm_fast_heat(self.time_temp_volt_tables_str)
+        if self.controller is None:
+            return  # no backend: program plotted, but cannot be armed
+        self.controller.arm_fast_heat(self.time_temp_volt_tables_str)
 
-    def _fh_download_raw_data(self):
-        URL = self.settings.http_host+"data/raw_data/raw_data.h5"
-        response = requests.get(URL, verify=False)
-        with open('./data/raw_data.h5', 'wb') as f:
-            f.write(response.content)
-    
-    def _fh_download_exp_data(self):
-        URL = self.settings.http_host+"data/exp_data.h5"
-        response = requests.get(URL, verify=False)
-        fname = qt.QFileDialog.getSaveFileName(self, "Save data to file", 
-                                                self.settings.data_path+'/exp_data.h5', 
-                                                "*.h5")[0]
-        if fname:
-            with open(fname, 'wb') as f:
-                f.write(response.content)
-        self.currentExpFilePath = fname
-
-    def _fh_transform_exp_data(self):
-        self.exp_data = pd.DataFrame({})
-        if self.currentExpFilePath:
-            with h5py.File(self.currentExpFilePath, 'r') as f:
-                # h5py['name'] returns Group|Dataset|Datatype; for our exp file
-                # 'data' is always a Group, and each child is a Dataset.
-                data = f['data']
-                assert isinstance(data, h5py.Group)
-                for key in list(data.keys()):
-                    ds = data[key]
-                    assert isinstance(ds, h5py.Dataset)
-                    self.exp_data[key] = ds[:]
-
-    def _fh_plot_data(self):
+    def _fh_plot_df(self, df):
+        """Plot the result DataFrame returned by ``controller.run_*``."""
         self.resultsDataWidget.clear()
-        if not self.exp_data.empty:
-            _keys = list(self.exp_data.keys())
-            _keys.remove('time')
+        if df is not None and not df.empty:
+            _keys = list(df.keys())
+            if 'time' in _keys:
+                _keys.remove('time')
             for idx, key in enumerate(_keys):
-                color = self.resultsDataWidget.curveColors[list(self.resultsDataWidget.curveColors.keys())[idx]]
-                self.resultsDataWidget.addCurve(self.exp_data['time'], 
-                                                self.exp_data[key], 
-                                                legend = key,
+                color = self.resultsDataWidget.curveColors[list(self.resultsDataWidget.curveColors.keys())[idx % len(self.resultsDataWidget.curveColors)]]
+                self.resultsDataWidget.addCurve(df['time'],
+                                                df[key],
+                                                legend=key,
                                                 color=color)
             for curve in self.resultsDataWidget.resultPlot.getItems():
-                if curve.getName()!="temp":
+                if curve.getName() != "temp":
                     curve.setVisible(False)
-            self.mainTabWidget.setCurrentIndex(1) 
+            self.mainTabWidget.setCurrentIndex(1)
         self.resultsDataWidget.resultPlot.resetZoom()
-        
 
     def fh_run(self):
-        if self.device is None:
-            ErrorWindow("No hardware connection: cannot run experiment.")
+        if self.controller is None:
+            ErrorWindow("No backend connection: cannot run experiment.")
             return
-        self.device.run_fast_heat()
-        self._fh_download_raw_data()
-        self._fh_download_exp_data()
-        self._fh_transform_exp_data()
-        self._fh_plot_data()
+        df = self.controller.run_fast_heat()
+        self._fh_plot_df(df)
 
     # ===================================
     # Iso (set) mode
@@ -381,8 +505,8 @@ class mainWindow(mainWindowUi):
     HEATER_CHANNEL_KEY = HEATER_AO
 
     def set_temp_volt(self):
-        if self.device is None:
-            ErrorWindow("No hardware connection: cannot set iso value.")
+        if self.controller is None:
+            ErrorWindow("No backend connection: cannot set iso value.")
             return
         try:
             value = float(self.setInput.text())
@@ -392,16 +516,16 @@ class mainWindow(mainWindowUi):
         key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
-        self.device.arm_iso_mode(self.chan_temp_volt_str)
-        self.device.run_iso_mode()
+        self.controller.arm_iso_mode(self.chan_temp_volt_str)
+        self.controller.run_iso_mode()
 
     def unset_temp_volt(self):
-        if self.device is None:
+        if self.controller is None:
             return
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
-        self.device.arm_iso_mode(self.chan_temp_volt_str)
-        self.device.run_iso_mode()
+        self.controller.arm_iso_mode(self.chan_temp_volt_str)
+        self.controller.run_iso_mode()
 
 
 

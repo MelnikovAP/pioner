@@ -326,6 +326,58 @@ drain ring on a worker thread, close file at experiment end.
 
 ## 8. Implementation plan
 
+### Implementation status (what has landed)
+
+A first iteration is in the tree. It delivers the persistent ring buffer,
+the provider abstraction, and single-window live streaming on the mock
+backend, but defers the mode refactor and the disk recorder.
+
+**Done:**
+
+- **`AIProvider` abstraction** (`back/acquisition/`): `PersistentAIProvider`
+  (singleton-fixed, default) and `PerExperimentAIProvider` (pause/resume
+  shape), selectable via the top-level `AcquisitionMode` field in
+  `settings.json` (`"persistent"` | `"per_experiment"`). Factory:
+  `create_ai_provider(mode, em, ring_max_seconds)`.
+- **Ring-buffer extensions** on `ExperimentManager`: `peek_last_samples(N)`
+  (no cursor advance) and `read_new_samples(consumer_id)` (per-consumer
+  cursor), plus `reset_ring_cursor`, `stop_ao`.
+- **`DeviceController` adapter** (`back/device_controller.py`): one surface,
+  two backends. `LocalDeviceController` owns DAQ + `ExperimentManager` +
+  `AIProvider` + `Calibration` in-process, runs experiments via
+  `create_mode` and returns the result `DataFrame` directly (no HTTP), and
+  exposes `peek_last` / `calibrate_window` for the live readout. Picks real
+  `uldaq` vs mock automatically. `TangoDeviceController` preserves the
+  legacy network surface (unverified; see "Tango deferred" below).
+- **Single-window GUI**: live streaming lives inside the existing (formerly
+  unused) "Signals" tab of `mainWindow` -- raw scope plot + Bondar-style
+  scope controls (`front/scope_controls.py`: X scale / X shift / Y span +
+  per-channel checkboxes) + the existing "Values" readout populated from
+  `calibrate_window` and an FFT demod. No separate streaming window. The
+  old `streamWindow.py` / `runStream.py` were folded in and removed.
+- **Backend selection**: `python -m pioner.runUI --mock | --hardware`
+  (default autodetects -- no PyTango => local/mock). The "run without
+  hardware" checkbox selects `LocalDeviceController`.
+- **Tests**: provider + ring (`test_acquisition_*.py`), device controller
+  on mock (`test_device_controller.py`), UI settings (`test_ui_settings.py`).
+
+**Not done (deferred):**
+
+- **Mode refactor (the crux of P1-17).** `FastHeat` / `SlowMode` / `IsoMode`
+  still arm their own finite AI scan, which collides with the persistent
+  ring buffer. As a stopgap, `LocalDeviceController.run()` **pauses** the
+  live stream for the duration of the run and resumes it afterwards (both
+  acquisition modes behave identically until this lands). Streaming
+  *during* an experiment -- the whole point of the persistent design --
+  requires steps 1 and 4 below.
+- **`DiskRecorder`** (record-from-Arm) -- step 3 below. Not built; the
+  result `DataFrame` is still accumulated in-memory by the mode.
+- **`MonitorAO`** between-experiment AC drive -- step 5 below. The Demo AO
+  button that existed in the dev window is gone; re-add as `MonitorAO`.
+- **Mode-selection UI** (fast/slow/iso/calibration combo). The controller
+  already accepts `arm("slow"/"iso", ...)`; the GUI exposes only fast +
+  iso-set today.
+
 ### Back-end work (~3-4 days)
 
 1. **Modify `ExperimentManager`** to keep the AI scan persistent across

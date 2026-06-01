@@ -1,4 +1,6 @@
 {
+    "AcquisitionMode": "persistent",
+
     "DAQ settings": {
         "DAQ": {
             "InterfaceType": [

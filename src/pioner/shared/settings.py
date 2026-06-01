@@ -115,7 +115,19 @@ class BackSettings:
         self.parse_ai_params()
         self.parse_ao_params()
         self.parse_modulation()
+        self.parse_acquisition_mode(json_dict)
         self.check_invalid_fields()
+
+    def parse_acquisition_mode(self, json_dict: dict) -> None:
+        """Pull the top-level ``AcquisitionMode`` field, default if missing.
+
+        Valid values are ``"persistent"`` (default) and ``"per_experiment"``.
+        Unknown values are accepted at this layer (the AIProvider factory
+        validates and falls back to ``persistent``); the field is purely
+        a string here.
+        """
+        value = json_dict.get(ACQUISITION_MODE_FIELD, ACQUISITION_MODE_DEFAULT)
+        self.acquisition_mode = str(value) if value is not None else ACQUISITION_MODE_DEFAULT
 
     def parse_modulation(self) -> None:
         """Pull AC modulation defaults (Hz, V) into ``self.modulation``."""
@@ -379,6 +391,123 @@ class FrontSettings:
         if self._invalid_fields:
             invalid_fields_str = ", ".join(self._invalid_fields)
             raise ValueError("Wrong or missing inputs in the settings file: {}.".format(invalid_fields_str))
+
+
+class UISettings:
+    """Front-end UI parameters loaded from ``ui_settings.json``.
+
+    Independent of :class:`BackSettings` / :class:`FrontSettings` -- this
+    file describes purely how the live-streaming UI is laid out and
+    behaves: plot window seconds, fixed Y range, channel labels /
+    colours / enabled-by-default, refresh cadence, slider bounds, demo
+    AO defaults. No DAQ dependencies.
+
+    Missing or absent fields fall back to baked-in defaults rather than
+    raising -- the file is meant to be edited freely by the operator and
+    we don't want a typo to crash the UI. Type coercion is permissive
+    (str -> float etc.) for the same reason.
+    """
+
+    # Baked-in fallback defaults. Keep in sync with
+    # ``settings/default_ui_settings.json`` -- the JSON file is what an
+    # operator edits; this dict is just the safety net when the file is
+    # missing or malformed.
+    _DEFAULTS = {
+        "window_seconds": 2.0,
+        "y_min": -0.005,
+        "y_max": 0.015,
+        "max_plot_points": 2000,
+        "refresh_interval_ms": 250,
+        "channel_indices": (0, 1, 4, 5),
+        "channel_labels": {0: "Uref", 1: "Umod", 2: "ch2", 3: "Uaux", 4: "Utpl", 5: "Uhtr"},
+        "channel_colors": {
+            0: "#D22525", 1: "#2544D2", 2: "#46D225",
+            3: "#9F25D2", 4: "#D2B325", 5: "#5D5D5D",
+        },
+        "channel_enabled": {0: True, 1: True, 2: False, 3: False, 4: True, 5: True},
+        "ring_max_seconds": 4.0,
+        "demod_window_periods": 5,
+        "demo_duration_seconds": 4.0,
+        "demo_modulation_frequency": 37.5,
+        "demo_modulation_amplitude": 2.0,
+        "demo_ramp_peak": 2.0,
+        "x_window_min": 0.1,
+        "x_window_max": 10.0,
+        "x_shift_max": 4.0,
+        "y_span_min": 0.001,
+        "y_span_max": 0.1,
+    }
+
+    def __init__(self, path: str = DEFAULT_UI_SETTINGS_FILE_REL_PATH):
+        try:
+            data = JsonReader(path).json()
+        except (FileNotFoundError, ValueError) as exc:
+            logging.getLogger(__name__).warning(
+                "UISettings: failed to load %s (%s); using baked-in defaults", path, exc,
+            )
+            data = {}
+
+        plot = data.get("Plot", {})
+        ring = data.get("Ring", {})
+        demod = data.get("Demod", {})
+        demo = data.get("DemoAO", {})
+        sliders = data.get("Sliders", {})
+
+        self.window_seconds = float(plot.get("WindowSeconds", self._DEFAULTS["window_seconds"]))
+        self.y_min = float(plot.get("YMin", self._DEFAULTS["y_min"]))
+        self.y_max = float(plot.get("YMax", self._DEFAULTS["y_max"]))
+        self.max_plot_points = int(plot.get("MaxPoints", self._DEFAULTS["max_plot_points"]))
+        self.refresh_interval_ms = int(plot.get("RefreshIntervalMs", self._DEFAULTS["refresh_interval_ms"]))
+        self.channel_indices = tuple(int(i) for i in plot.get("ChannelIndices", self._DEFAULTS["channel_indices"]))
+
+        # JSON object keys are strings; coerce back to ints. Drop entries
+        # whose key is not a valid int rather than crashing.
+        self.channel_labels = self._coerce_int_dict(
+            plot.get("ChannelLabels"), self._DEFAULTS["channel_labels"], str,
+        )
+        self.channel_colors = self._coerce_int_dict(
+            plot.get("ChannelColors"), self._DEFAULTS["channel_colors"], str,
+        )
+        self.channel_enabled = self._coerce_int_dict(
+            plot.get("ChannelEnabled"), self._DEFAULTS["channel_enabled"], bool,
+        )
+
+        self.ring_max_seconds = float(ring.get("MaxSeconds", self._DEFAULTS["ring_max_seconds"]))
+        self.demod_window_periods = int(demod.get("WindowPeriods", self._DEFAULTS["demod_window_periods"]))
+
+        self.demo_duration_seconds = float(demo.get("DurationSeconds", self._DEFAULTS["demo_duration_seconds"]))
+        self.demo_modulation_frequency = float(demo.get("ModulationFrequency", self._DEFAULTS["demo_modulation_frequency"]))
+        self.demo_modulation_amplitude = float(demo.get("ModulationAmplitudeV", self._DEFAULTS["demo_modulation_amplitude"]))
+        self.demo_ramp_peak = float(demo.get("RampPeakV", self._DEFAULTS["demo_ramp_peak"]))
+
+        self.x_window_min = float(sliders.get("XWindowMinSeconds", self._DEFAULTS["x_window_min"]))
+        self.x_window_max = float(sliders.get("XWindowMaxSeconds", self._DEFAULTS["x_window_max"]))
+        self.x_shift_max = float(sliders.get("XShiftMaxSeconds", self._DEFAULTS["x_shift_max"]))
+        self.y_span_min = float(sliders.get("YSpanMinV", self._DEFAULTS["y_span_min"]))
+        self.y_span_max = float(sliders.get("YSpanMaxV", self._DEFAULTS["y_span_max"]))
+
+    @staticmethod
+    def _coerce_int_dict(raw, default: dict, value_cast):
+        """Convert a JSON-loaded ``{"0": "label", ...}`` dict to ``{0: "label", ...}``.
+
+        Drops entries whose key cannot be parsed as int; falls back to
+        ``default`` entirely if ``raw`` is missing.
+        """
+        if not isinstance(raw, dict):
+            return dict(default)
+        result = {}
+        for key, value in raw.items():
+            try:
+                ik = int(key)
+            except (TypeError, ValueError):
+                continue
+            result[ik] = value_cast(value)
+        # Backfill any missing channel indices from defaults so the UI
+        # always has a label/color/enabled flag for every channel.
+        for ik, default_value in default.items():
+            result.setdefault(ik, default_value)
+        return result
+
 
 if __name__ == '__main__':
 

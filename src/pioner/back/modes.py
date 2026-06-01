@@ -234,22 +234,23 @@ def apply_calibration(
             calibration.ttpl0 * ax_hr + calibration.ttpl1 * (ax_hr**2)
         )
 
-    # Heater temperature derived from V/I.
+    # Heater temperature derived from V_heater / ih.
     #
-    # Circuit: AO drives a series (heater + shunt). AI ch5 reads the AO drive
-    # feedback (total V across heater+shunt), AI ch0 reads V across the shunt
-    # only. Heater current is ``I = V_shunt / R_shunt = ihtr0 + ihtr1*V_shunt``
-    # (with production ``ihtr1 = 1/R_shunt`` so ``ih`` is in amperes, see
-    # todo P0-3). Heater voltage drop is ``V_heater = V_AO - V_shunt``,
-    # so ``R_heater = (V_AO - V_shunt) / I``.
+    # AI ch0 (HEATER_CURRENT_AI): node between the series resistor and the
+    # amplifier loop -- a voltage proxy for heater current. It is NOT a shunt
+    # voltage with a known R_shunt. Production calibration uses ihtr0=0,
+    # ihtr1=1, so ih = V_ch0 in volts (not amperes). The Thtr polynomial is
+    # fitted against this proxy directly, so Rhtr = V_heater / ih is
+    # dimensionless (V/V) and the polynomial coefficients absorb the
+    # implicit scaling (todo P2-21 tracks proper SI calibration).
     #
-    # Units: keep both V_AO and V_shunt in **volts**. Dividing V/A yields R
-    # in **ohms**, which is what the production ``Thtr`` polynomial expects
-    # (``thtr0=-1069.7, thtr1=0.78336, thtr2=-8.67e-5`` gives T(R=1700 Ohm)
-    # ~ 11.5 C, plausible for room temperature). The historical code
-    # multiplied both by 1000 (mV/mV), which divided by ih (A) produced
-    # milliohms and made ``Thtr`` off by a factor of 1000. The polynomial
-    # then drove e.g. R=1.7e6 mOhm to ``thtr2*R^2 ~ -2.5e8 C`` -- absurd.
+    # AI ch5 (UHTR_AI): inverted heater drive signal after the amplifier --
+    # proportional to the voltage applied to the heater, without gain.
+    # V_heater_proxy = (AI5 - AI0 + uhtr0) * uhtr1.
+    #
+    # The Thtr polynomial (thtr0=-1069.7, thtr1=0.78336, thtr2=-8.67e-5)
+    # was fitted against proxy Rhtr (V/V), NOT physical ohms.
+    # At idle (ih ~ 0) Rhtr is undefined; mark NaN (see nz guard below).
     if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
         ih = cast(
             pd.Series,

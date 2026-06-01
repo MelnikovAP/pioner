@@ -83,12 +83,21 @@ class ExperimentManager:
         self._ao_buffer: Optional[Sequence[float]] = None
         self._ai_buffer_samples_per_channel: int = 0
 
-        # Background ring-buffer worker (used by iso_scan).
+        # Background ring-buffer worker (used by iso_scan and the
+        # AIProvider live-streaming layer).
         self._ring_thread: Optional[threading.Thread] = None
         self._ring_stop = threading.Event()
         self._ring_lock = threading.Lock()
         self._ring_data: deque[np.ndarray] = deque()
         self._ring_max_seconds: float = 10.0
+        # Total samples ever appended to the ring buffer (monotonic counter,
+        # incremented in ``_ring_loop``). Used as the cursor space for
+        # ``read_new_samples``.
+        self._ring_total_samples: int = 0
+        # Per-consumer cursors for ``read_new_samples`` -- maps an opaque
+        # consumer id to the value of ``_ring_total_samples`` at the time of
+        # its last successful read. Guarded by ``_ring_lock``.
+        self._ring_cursors: dict[str, int] = {}
 
         self._prime_pandas()
 
@@ -301,7 +310,12 @@ class ExperimentManager:
             self._daq_device_handler.fire_software_trigger()
 
         self._ring_max_seconds = float(max_seconds)
-        self._ring_data.clear()
+        with self._ring_lock:
+            self._ring_data.clear()
+            # New scan: reset the monotonic sample counter and any stale
+            # consumer cursors from a previous session.
+            self._ring_total_samples = 0
+            self._ring_cursors.clear()
         self._ring_stop.clear()
         self._ring_thread = threading.Thread(
             target=self._ring_loop,
@@ -326,6 +340,104 @@ class ExperimentManager:
                 return np.empty((0, 0), dtype=float)
             return np.concatenate(list(self._ring_data), axis=0)
 
+    # ------------------------------------------------------------------
+    # Ring buffer extensions for the AIProvider layer.
+    #
+    # Two access patterns coexist:
+    # * UI live display (Values sidebar, slow-heat plot): wants "give me the
+    #   most recent N samples to compute a sliding-window demod" -- use
+    #   ``peek_last_samples``.
+    # * Disk recorder / mode finalisers: want "give me everything new since
+    #   my last call" -- use ``read_new_samples`` with a per-consumer
+    #   cursor.
+    #
+    # Cursors are expressed in terms of total samples ever appended to the
+    # ring buffer (``_ring_total_samples``). That counter is incremented in
+    # ``_ring_loop`` as each half-buffer is copied into ``_ring_data``.
+    # Samples that have already fallen off the front of the deque (because
+    # ``max_chunks`` was exceeded) are gone -- a consumer that fell that
+    # far behind sees the gap reported as ``samples_lost`` in the metadata
+    # of the next ``read_new_samples`` call.
+    # ------------------------------------------------------------------
+    def peek_last_samples(self, samples: int) -> np.ndarray:
+        """Return the most recent ``samples`` rows from the ring buffer.
+
+        Read-only: no cursor is advanced. If fewer than ``samples`` rows
+        are available, returns whatever is in the ring (possibly empty).
+        """
+        if samples <= 0:
+            return np.empty((0, 0), dtype=float)
+        with self._ring_lock:
+            if not self._ring_data:
+                return np.empty((0, 0), dtype=float)
+            collected: List[np.ndarray] = []
+            remaining = int(samples)
+            # Walk chunks from the back (newest) to the front, take the
+            # tail of each as needed.
+            for chunk in reversed(self._ring_data):
+                if remaining <= 0:
+                    break
+                take = min(len(chunk), remaining)
+                collected.append(chunk[-take:])
+                remaining -= take
+            collected.reverse()
+            return np.concatenate(collected, axis=0)
+
+    def read_new_samples(self, consumer_id: str) -> np.ndarray:
+        """Return everything appended since this consumer's previous call.
+
+        Advances the consumer's private cursor. First call for a given
+        ``consumer_id`` returns whatever is currently in the ring buffer
+        (the consumer effectively "joins" at the current head).
+        """
+        with self._ring_lock:
+            head = int(self._ring_total_samples)
+            last_seen = self._ring_cursors.get(consumer_id)
+            if last_seen is None:
+                # First read for this consumer: start from the oldest
+                # sample currently in the ring.
+                start = head - self._ring_buffered_samples_locked()
+            else:
+                start = int(last_seen)
+            # If the consumer fell behind further than the ring holds,
+            # the oldest still-available sample is the best we can do.
+            oldest_available = head - self._ring_buffered_samples_locked()
+            samples_lost = max(0, oldest_available - start)
+            start = max(start, oldest_available)
+            if start >= head:
+                self._ring_cursors[consumer_id] = head
+                return np.empty((0, 0), dtype=float)
+
+            # Walk chunks from the front. Need to skip ``start - oldest_available``
+            # rows from the head of the visible ring.
+            skip = max(0, start - oldest_available)
+            collected: List[np.ndarray] = []
+            for chunk in self._ring_data:
+                if skip >= len(chunk):
+                    skip -= len(chunk)
+                    continue
+                if skip > 0:
+                    collected.append(chunk[skip:])
+                    skip = 0
+                else:
+                    collected.append(chunk)
+            self._ring_cursors[consumer_id] = head
+            if samples_lost:
+                logger.warning(
+                    "Ring buffer consumer %s fell behind by %d samples (dropped from ring)",
+                    consumer_id, samples_lost,
+                )
+            return np.concatenate(collected, axis=0) if collected else np.empty((0, 0), dtype=float)
+
+    def reset_ring_cursor(self, consumer_id: str) -> None:
+        """Drop the cursor for ``consumer_id``. Next read starts at head."""
+        with self._ring_lock:
+            self._ring_cursors.pop(consumer_id, None)
+
+    def _ring_buffered_samples_locked(self) -> int:
+        """Sum of rows currently in the ring deque. Caller holds ``_ring_lock``."""
+        return sum(len(chunk) for chunk in self._ring_data)
+
     def stop(self) -> None:
         """Abort any running scans and clean up workers.
 
@@ -342,6 +454,16 @@ class ExperimentManager:
         self.stop_ring_buffer()
         if self._ai_handler is not None:
             self._ai_handler.stop()
+
+    def stop_ao(self) -> None:
+        """Stop AO output only; AI keeps running.
+
+        Useful when the GUI wants to halt a CONTINUOUS modulation drive
+        (``ao_modulated``) without tearing down the persistent AI scan
+        held by the AIProvider.
+        """
+        if self._ao_handler is not None:
+            self._ao_handler.stop()
 
     # ------------------------------------------------------------------
     # Internal: finite AI collection (no point loss)
@@ -512,6 +634,7 @@ class ExperimentManager:
             if chunk is not None:
                 with self._ring_lock:
                     self._ring_data.append(chunk)
+                    self._ring_total_samples += int(chunk.shape[0])
                     while len(self._ring_data) > max_chunks:
                         self._ring_data.popleft()
 

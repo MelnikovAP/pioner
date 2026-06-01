@@ -8,8 +8,14 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (52 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (92 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
+- GUI (single window, all modes + live streaming): `python -m pioner.runUI
+  --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
+  through a `DeviceController` (`back/device_controller.py`):
+  `LocalDeviceController` (in-process DAQ/mock) or `TangoDeviceController`
+  (legacy network path, currently unverified). See `docs/live-streaming.md`
+  section 8 for what has landed vs deferred.
 - Editable install: `.venv/bin/pip install -e .` (already done; required so
   Pylance can resolve `pioner.*` imports without red squiggles).
 - Pipeline reference: `spec.md`. Open backlog: `todo.md`. Mock pipeline check:

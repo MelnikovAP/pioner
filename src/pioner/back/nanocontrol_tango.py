@@ -90,6 +90,18 @@ class NanoControl(Device):  # type: ignore[misc]
         self.apply_default_calibration()
 
         self._settings = BackSettings(SETTINGS_FILE_REL_PATH)
+        # Persistent AcquisitionMode owns AI scan lifecycle in the GUI layer
+        # (see docs/live-streaming.md section 3). The Tango server was
+        # designed around per-call ExperimentManager construction and is
+        # incompatible with a shared persistent AI session. Refuse to start
+        # rather than silently fight the GUI for the DAQ device.
+        if getattr(self._settings, "acquisition_mode", "persistent").strip().lower() == "persistent":
+            raise RuntimeError(
+                "Tango server is disabled when AcquisitionMode='persistent' "
+                "(see docs/live-streaming.md). Switch settings.json to "
+                "\"AcquisitionMode\": \"per_experiment\" before running the "
+                "Tango server, or run only the GUI in persistent mode."
+            )
         self._daq_device_handler = DaqDeviceHandler(self._settings.daq_params)
         self._mode = None
         self._mode_name = "fast"

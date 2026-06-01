@@ -20,6 +20,13 @@ DEFAULT_SETTINGS_FOLDER_REL_PATH = path.join(ROOT_PATH, SETTINGS_FOLDER)    # us
 DEFAULT_SETTINGS_FILE = "default_settings.json"
 DEFAULT_SETTINGS_FILE_REL_PATH = path.join(DEFAULT_SETTINGS_FOLDER_REL_PATH, DEFAULT_SETTINGS_FILE)
 
+# Front-end UI settings (plot layout, sliders, demo AO defaults). Lives
+# alongside DAQ settings; see ``shared/settings.UISettings``.
+UI_SETTINGS_FILE = "ui_settings.json"
+UI_SETTINGS_FILE_REL_PATH = path.join(SETTINGS_FOLDER_REL_PATH, UI_SETTINGS_FILE)
+DEFAULT_UI_SETTINGS_FILE = "default_ui_settings.json"
+DEFAULT_UI_SETTINGS_FILE_REL_PATH = path.join(DEFAULT_SETTINGS_FOLDER_REL_PATH, DEFAULT_UI_SETTINGS_FILE)
+
 # JSON fields backend
 DAQ_SETTINGS_FIELD = "DAQ settings"
 
@@ -113,6 +120,12 @@ HARDWARE_FIELD = "Hardware"
 HARDWARE_GAIN_UTPL_FIELD = "Gain Utpl"
 HARDWARE_GAIN_UMOD_FIELD = "Gain Umod"
 HARDWARE_AD595_LOW_FIELD = "AD595 low correction"
+
+# AI acquisition strategy ("persistent" | "per_experiment"). See
+# docs/live-streaming.md for the semantics. Top-level key in
+# settings.json, not inside any sub-block.
+ACQUISITION_MODE_FIELD = "AcquisitionMode"
+ACQUISITION_MODE_DEFAULT = "persistent"
 # =================================================================================
 
 
