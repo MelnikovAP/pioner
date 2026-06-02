@@ -28,7 +28,7 @@ class configWindow(qt.QDialog):
         labl.setAlignment(qt.Qt.AlignHCenter)
         labl.setFont(qt.QFont("Times", weight=qt.QFont.Bold))
         mainLayout.addWidget(labl)
-        labl = qt.QLabel("Melnikov Alexey & Komov Evgenii")
+        labl = qt.QLabel("Melnikov A. & Komov E. & Rulyov I.")
         labl.setAlignment(qt.Qt.AlignHCenter)
         mainLayout.addWidget(labl)
         labl = qt.QLabel(u"<p><a href='"'mailto:alexey.melnikov@esrf.fr'"'>alexey.melnikov@esrf.fr</a>  </p>")

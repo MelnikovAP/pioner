@@ -117,3 +117,48 @@ class TestExperiment:
         assert local_controller.is_streaming()
         data = _wait_for_stream(local_controller)
         assert data.shape[0] > 0
+
+    def test_iso_run_keeps_stream_live(self, local_controller):
+        # Iso drives only AO and reads AI from the persistent ring buffer
+        # (P1-17, Approach C), so the live stream must NOT pause for an iso
+        # run -- unlike fast/slow which still pause their finite AI scan.
+        _wait_for_stream(local_controller)
+        local_controller.arm_iso_mode(
+            '{"ch1": {"time": [0, 1000], "volt": [0.5, 0.5]}}'
+        )
+        df = local_controller.run_iso_mode()
+        assert local_controller.is_streaming()
+        assert df is not None
+        for col in ("time", "Taux", "Thtr", "temp"):
+            assert col in df.columns
+
+    def test_iso_run_streams_during_run(self, local_controller):
+        # Fresh samples must keep arriving WHILE an iso run is in flight.
+        import threading
+
+        _wait_for_stream(local_controller)
+        local_controller.arm_iso_mode(
+            '{"ch1": {"time": [0, 2000], "volt": [0.5, 0.5]}}'
+        )
+        done = threading.Event()
+
+        def _go():
+            local_controller.run_iso_mode()
+            done.set()
+
+        worker = threading.Thread(target=_go)
+        worker.start()
+        try:
+            seen_active = []
+            # peek_last has no cursor, so probing here does not disturb the
+            # run's own read_new cursor; a non-empty window each tick proves
+            # the persistent scan keeps producing data during the run.
+            seen_rows = []
+            for _ in range(6):
+                time.sleep(0.2)
+                seen_active.append(local_controller.is_streaming())
+                seen_rows.append(local_controller.peek_last(200).shape[0])
+        finally:
+            worker.join(timeout=5.0)
+        assert all(seen_active), seen_active
+        assert all(r > 0 for r in seen_rows), seen_rows

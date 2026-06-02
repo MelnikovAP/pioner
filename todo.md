@@ -9,7 +9,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **52 passed** (mock backend, ~10 s).
+- `pytest tests/`: **94 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -305,13 +305,23 @@ Values readout via `calibrate_window`), CLI `runUI --mock/--hardware`.
 The standalone `streamWindow`/`runStream` dev window was folded into
 `mainWindow` and removed.
 
-**Status (still open):** (a) Experiment modes are NOT yet refactored to
-call back through the provider, so `LocalDeviceController.run()` **pauses**
-the live stream for the duration of a run (resumes after). Streaming
-*during* an experiment needs FastHeat/SlowMode/IsoMode to stop arming
-their own AI scan and read the shared ring instead. (b) `DiskRecorder`
-(record-from-Arm) not built. (c) `MonitorAO` between-experiment drive not
-built. (d) Tango path is incompatible with persistent AI and is currently
+**Status (iso live -- done, 2026-06-01):** `IsoMode.run()` takes an
+optional injected `ExperimentManager` + `snapshot` callable. The GUI iso
+path (`LocalDeviceController._run_iso_streaming`) drives only AO on the
+controller's manager and reads AI from the persistent ring (primed
+`read_new` cursor -> captures just the run window), stopping only AO
+afterwards. The live stream stays active for the whole iso run.
+Mode-selection UI (Fast/Slow/Iso combo) wired in `mainWindow`. Regression
+tests `test_iso_run_keeps_stream_live` / `test_iso_run_streams_during_run`.
+
+**Status (still open):** (a) **Fast / slow** modes still arm their own
+finite AI scan, so `LocalDeviceController.run()` **pauses** the live stream
+for the duration of a fast/slow run (resumes after). Lifting this needs
+FastHeat/SlowMode to read the shared ring like iso now does, plus
+real-hardware sample-alignment validation at >1000 K/s (mock cannot verify
+it). (b) `DiskRecorder` (record-from-Arm) not built. (c) `MonitorAO`
+between-experiment drive not built. (d) Tango path is incompatible with
+persistent AI and is currently
 disabled (`nanocontrol_tango.py` raises); `TangoDeviceController` exists
 but is unverified -- repair when Tango becomes relevant again.
 (e) Live `Thtr`/`Rhtr` show the ~-1071 sentinel at idle (no heater
@@ -460,14 +470,22 @@ old name as an alias for one release.
 
 **Action:** extract to `pioner.back.hdf5_export.save_experiment(...)`.
 
-### P2-9. Iso mode does not save its result to disk
+### P2-9. Iso mode does not save its result to disk — RESOLVED
 
-**Where:** `src/pioner/back/iso_mode.py`
+**Where:** `src/pioner/back/device_controller.py`,
+`src/pioner/back/nanocontrol_tango.py`
 
-**What:** asymmetry — fast/slow → `exp_data.h5`; iso → nothing.
+**Status (2026-06-01):** resolved through the modern run paths. Both
+`LocalDeviceController.run()` and the Tango server's `run()` call the
+shared `save_run_to_h5` for *any* armed mode (fast / slow / iso), so an iso
+run now writes `exp_data.h5` with the same `data` / `calibration` /
+`settings` / `temp_volt_programs` / `voltage_profiles` layout as fast/slow.
+Verified for the controller iso-streaming path (P1-17 Approach C).
 
-**Action:** after **P2-8**, route all three modes through the shared
-exporter.
+The legacy `iso_mode.py` shim's own `run()` still returns the frame without
+persisting, but its only caller is `back/debug.py` (a smoke print that does
+not need a file). No further action needed unless a standalone iso script
+wants persistence, in which case it should call `save_run_to_h5` itself.
 
 ### P2-10. Remove or implement `FAST_HEAT_CUSTOM_FLAG`
 

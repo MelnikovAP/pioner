@@ -56,16 +56,61 @@ pip install -e .[hardware]       # adds uldaq python bindings
 `pioner.back.mock_uldaq` automatically substitutes a pure-Python simulator
 (see [Mock backend](#5-mock-daq-backend)).
 
-### 2.2 Raspberry Pi
+Launch the single-window GUI (all three modes + live streaming):
 
-Follow `docs/source/installation.md` for the system packages (libusb,
-mariadb, tango). The MCC C library has to be compiled separately:
+```bash
+python -m pioner.runUI --mock        # in-process LocalDeviceController (mock DAQ)
+python -m pioner.runUI --hardware    # legacy Tango network backend
+python -m pioner.runUI               # autodetect (no PyTango -> mock/local)
+```
+
+### 2.2 Raspberry Pi (back-end only, no GUI)
+
+The front-end (Qt) and back-end (DAQ + Tango) are intentionally split via
+optional-dependency groups. Install only what each host needs:
+
+| Host | Command | Gets |
+|------|---------|------|
+| **Raspberry Pi** (instrument) | `pip install -e .[hardware,server]` | uldaq + pytango, no Qt |
+| **Laptop / workstation** (GUI) | `pip install -e .[gui,server]` | pyqt5 + silx + pytango, no uldaq |
+| **Dev machine** (all + tests) | `pip install -e .[hardware,gui,server,dev]` | everything |
+
+`pyqt5` / `silx` are never pulled in on the Pi with this install. The
+`src/pioner/front/` source directory is present on disk (it comes with
+`git clone`) but nothing imports it unless `runUI.py` is invoked explicitly —
+which will fail with `ImportError` on the Pi, as expected.
+
+**System packages (Pi, one-time).**
+Build `libuldaq` from source before `pip install -e .[hardware]`:
 
 ```bash
 sudo apt install gcc g++ make libusb-1.0-0-dev
 wget https://github.com/mccdaq/uldaq/releases/download/v1.2.1/libuldaq-1.2.1.tar.bz2
 tar -xvjf libuldaq-1.2.1.tar.bz2
 cd libuldaq-1.2.1 && ./configure && make && sudo make install
+```
+
+After that, clone the repo on the Pi and install:
+
+```bash
+git clone <repo-url> pioner
+cd pioner
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip wheel
+pip install -e .[hardware,server]
+```
+
+Verify DAQ is visible (USB-2637 must be connected and powered):
+
+```bash
+python -c "import uldaq; print(uldaq.get_daq_device_inventory(uldaq.InterfaceType.USB))"
+```
+
+Run the back-end smoke check (no hardware needed, uses mock):
+
+```bash
+python -m pioner.back.debug
 ```
 
 ### 2.3 Compatibility notes
@@ -309,7 +354,7 @@ modulation/lock-in (including FFT integer-cycle window and AO period
 integrity), the mock DAQ contract, the post-processing edge cases
 in `apply_calibration` (Uref tiling, Thtr-NaN, Rhtr units regression),
 and an end-to-end pass through all three modes on the mock backend
-including the hardware-trigger path. **52 tests, ~10 seconds** locally.
+including the hardware-trigger path. **94 tests, ~30 seconds** locally.
 
 ---
 
@@ -319,15 +364,22 @@ including the hardware-trigger path. **52 tests, ~10 seconds** locally.
   software constraint imposed by the 1-second AI buffer. Lifting it
   requires a small refactor in `ExperimentManager._collect_finite_ai`
   (allocate a sub-second tail buffer for the last fractional second).
-* **AO/AI start skew.** The two scans are armed sequentially with a few ms
-  between starts. For the 1000+ K/s fast mode the leading 1–2 ms of the
-  trace is therefore not trustworthy. Once the DAQ board exposes a hardware
-  trigger, both scans should be configured with `RETRIGGER` and gated on
-  the same digital line.
-* **No iso/slow on the existing GUI.** The GUI in `front/` still talks to
-  the legacy `arm_fast_heat`/`run_fast_heat` Tango commands. To expose the
-  new modes a small dropdown plus the `select_mode` call needs to be added
-  there. The new commands work today via the Tango CLI.
+* **AO/AI start skew.** By default the two scans are armed sequentially
+  (AI first, then AO, so no leading AO edge is missed) with a few ms
+  between starts; for the 1000+ K/s fast mode the leading 1-2 ms of the
+  trace is therefore not perfectly aligned. A hardware-trigger path exists
+  (`DaqParams.hardware_trigger`, default off): both scans pre-arm with
+  `ScanOption.EXTTRIGGER` and a single `fire_software_trigger` releases
+  them on a shared t=0. It is mock-tested; real-hardware loopback
+  validation is still pending (todo P0-5).
+* **GUI mode selection (fast / slow / iso).** The main window has a
+  `Mode` combo: fast and slow share the ramp-table editor (slow layers AC
+  modulation in the backend), iso uses the Set/Off controls. The GUI talks
+  to the instrument through a `DeviceController` (`arm(mode_name, ...)` /
+  `run()`), not the legacy `arm_fast_heat` Tango command. Iso runs stream
+  live against the persistent ring buffer; fast/slow still pause the live
+  stream for the run's duration (see `docs/live-streaming.md`). A dedicated
+  CalibrationMode is not yet a run mode (todo P1-22).
 * **Mock data is not a thermal model.** The synthetic AI signal mirrors the
   AO voltage scaled by hand-picked constants. It is sufficient for
   pipeline shape validation, not for closed-loop control development.

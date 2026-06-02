@@ -251,7 +251,22 @@ class mainWindowUi(qt.QWidget):
         lout_2 = qt.QVBoxLayout()
         lout_2.setSpacing(0)
         self.progGroupBox.setLayout(lout_2)
-        
+
+        # Mode selector (fast / slow / iso). Fast and slow share the ramp
+        # editor below (slow adds AC modulation in the backend, driven by the
+        # Modulation block on the left); iso uses the Set/Off controls. The
+        # handler in mainWindow toggles which block is visible.
+        lout_mode = qt.QHBoxLayout()
+        lout_mode.setSpacing(3)
+        lout_2.addLayout(lout_mode)
+        lout_mode.addWidget(qt.QLabel("Mode:"))
+        self.modeComboBox = qt.QComboBox()
+        self.modeComboBox.addItem("Fast")
+        self.modeComboBox.addItem("Slow")
+        self.modeComboBox.addItem("Iso")
+        lout_mode.addWidget(self.modeComboBox, 1)
+        lout_2.addSpacing(3)
+
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(0)
         lout_2.addLayout(lout_3)
@@ -328,9 +343,9 @@ class mainWindowUi(qt.QWidget):
         lout_3 = qt.QVBoxLayout()
         lout_3.setSpacing(5)
         lout_2.addLayout(lout_3)
-        isoLabel = qt.QLabel("Isothermal mode")
-        isoLabel.setAlignment(qt.Qt.AlignCenter)
-        lout_3.addWidget(isoLabel)
+        self.isoLabel = qt.QLabel("Isothermal mode")
+        self.isoLabel.setAlignment(qt.Qt.AlignCenter)
+        lout_3.addWidget(self.isoLabel)
         lout_4 = qt.QHBoxLayout()
         lout_4.setSpacing(3)
         lout_3.addLayout(lout_4)

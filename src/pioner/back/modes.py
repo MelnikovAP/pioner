@@ -30,7 +30,7 @@ import abc
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, cast
+from typing import Callable, Dict, List, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -601,13 +601,32 @@ class IsoMode(BaseMode):
                 )
         return profiles
 
-    def run(self, duration_seconds: Optional[float] = None) -> pd.DataFrame:
+    def run(
+        self,
+        duration_seconds: Optional[float] = None,
+        em: Optional[ExperimentManager] = None,
+        snapshot: Optional[Callable[[], np.ndarray]] = None,
+    ) -> pd.DataFrame:
         """Stream AI until ``stop()`` or ``duration_seconds`` elapses.
 
         ``duration_seconds`` is a *maximum* timeout. ``None`` means "block
         until ``stop()`` is called" (used by long iso runs from the GUI).
         ``stop()`` from any other thread returns ``run()`` cleanly with
         whatever the ring buffer has captured so far.
+
+        Two execution paths:
+
+        * **Owned** (``em is None``, the default / legacy path): the mode
+          creates its own :class:`ExperimentManager`, starts a private ring
+          buffer, drives AO, snapshots, and tears everything down. Used by
+          the Tango server and standalone scripts.
+        * **Injected** (``em`` supplied, plus a ``snapshot`` callable): the
+          mode drives AO on the *caller's* manager and reads AI from the
+          caller's already-running persistent ring buffer (via ``snapshot``)
+          without ever touching the AI scan. On stop it halts **only AO**
+          (``stop_ao``), so the persistent live stream keeps running. This
+          is how :class:`LocalDeviceController` keeps the GUI live plot
+          alive during an iso run (todo P1-17, Approach C: iso only).
         """
         if not self.is_armed():
             raise RuntimeError("IsoMode is not armed; call arm() first")
@@ -625,7 +644,9 @@ class IsoMode(BaseMode):
         # not leak into this one.
         self._stop_event.clear()
 
-        em = ExperimentManager(self._daq, self._settings)
+        injected = em is not None
+        if not injected:
+            em = ExperimentManager(self._daq, self._settings)
         try:
             if params.enabled:
                 em.ao_modulated(self._voltage_profiles)
@@ -634,14 +655,23 @@ class IsoMode(BaseMode):
                 for ch, profile in self._voltage_profiles.items():
                     em.ao_set(channel_index(ch), float(profile[0]))
 
-            em.start_ring_buffer(self._ai_channels, max_seconds=self._ring_buffer_seconds)
-            # Block until either the timeout expires or stop() is called.
-            self._stop_event.wait(timeout=duration_seconds)
-            em.stop_ring_buffer()
-
-            samples = em.snapshot_ring_buffer()
+            if injected:
+                # The caller owns a persistent ring buffer; do not start a
+                # second AI scan. Just hold the AO drive for the duration.
+                self._stop_event.wait(timeout=duration_seconds)
+                samples = snapshot() if snapshot is not None else np.empty((0, 0), dtype=float)
+            else:
+                em.start_ring_buffer(self._ai_channels, max_seconds=self._ring_buffer_seconds)
+                # Block until either the timeout expires or stop() is called.
+                self._stop_event.wait(timeout=duration_seconds)
+                em.stop_ring_buffer()
+                samples = em.snapshot_ring_buffer()
         finally:
-            em.stop()
+            if injected:
+                # Drop only the AO drive; leave the caller's AI scan running.
+                em.stop_ao()
+            else:
+                em.stop()
 
         if samples.size == 0:
             return pd.DataFrame(columns=["time", "Taux", "Thtr", "temp", "temp-hr"])

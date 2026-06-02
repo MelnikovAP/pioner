@@ -47,7 +47,7 @@ def pioner_run_ui(argv=None):
         except Exception:
             window.sysNoHardware.setChecked(True)
 
-    window.show()
+    window.showMaximized()
     app.exec()
 
 

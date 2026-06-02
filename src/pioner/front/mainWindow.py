@@ -1,12 +1,16 @@
 """Main window of the PIONER GUI.
 
-TODO(global): only the *fast* mode is wired up here. The Tango server now
-exposes a ``select_mode`` command that takes ``"fast"``, ``"slow"``, or
-``"iso"`` plus the unified ``arm(programs_json)`` / ``run`` pair. Add a UI
-element (combo box) that drives ``select_mode`` and re-uses the existing
-profile editor for slow-mode programs (DC ramp). The modulation block in
-``settings.json`` (Frequency / Amplitude / Offset) is already plumbed via
-``BackSettings.modulation`` and used by :class:`pioner.back.modes.SlowMode`.
+Mode selection (``modeComboBox``: Fast / Slow / Iso) drives the unified
+``DeviceController.arm(mode_name, programs_json)`` / ``run`` pair. Fast and
+slow share the ramp-table editor (``fh_arm`` / ``fh_run``); slow layers AC
+modulation on top in the backend, configured from the Modulation block
+(Frequency / Amplitude / Offset) which feeds ``BackSettings.modulation`` and
+:class:`pioner.back.modes.SlowMode`. Iso uses the Set/Off controls
+(``set_temp_volt`` / ``unset_temp_volt``) for static set-and-hold; the
+backend streams it live against the persistent ring buffer.
+
+Not wired here yet: a dedicated CalibrationMode (todo P1-22) -- calibration
+today is the separate ``calibWindow`` file-apply flow, not a run mode.
 """
 
 import json
@@ -81,6 +85,9 @@ class mainWindow(mainWindowUi):
         self.setTempVoltButton.clicked.connect(self.set_temp_volt)
         self.unsetTempVoltButton.clicked.connect(self.unset_temp_volt)
 
+        self.modeComboBox.currentIndexChanged.connect(self._on_mode_changed)
+        self._on_mode_changed()  # apply initial visibility (Fast)
+
 # for debugging
         self.terror0Button.clicked.connect(self.print_debug)
 
@@ -103,7 +110,12 @@ class mainWindow(mainWindowUi):
         """
         self._ui_settings = UISettings(self._pick_ui_settings_path())
         self.scopeControls = ScopeControls(self._ui_settings, self)
-        self.signalsTab.layout().addWidget(self.scopeControls)
+        # signalsTab's layout is set in mainWindowUi (setLayout), so it is
+        # never None here; assert for the type-checker and fail loud if the
+        # Ui is ever changed to drop it.
+        signals_layout = self.signalsTab.layout()
+        assert signals_layout is not None, "signalsTab has no layout (mainWindowUi)"
+        signals_layout.addWidget(self.scopeControls)
         self.scopeControls.changed.connect(self._on_scope_changed)
         self._apply_signal_plot_limits()
 
@@ -404,7 +416,40 @@ class mainWindow(mainWindowUi):
 
 
     # ===================================
-    # Fast heating
+    # Mode selection (fast / slow / iso)
+    # ===================================
+    #: Ramp-editor widgets shared by fast and slow modes.
+    _RAMP_WIDGET_NAMES = (
+        "experimentTimeComboBox", "experimentTempComboBox", "experimentTable",
+        "loadTxtButton", "armButton", "stopButton", "startButton",
+        "holdFinalValue",
+    )
+    #: Set/Off widgets used by iso mode only.
+    _ISO_WIDGET_NAMES = (
+        "isoLabel", "setComboBox", "setInput", "setInputUnits",
+        "unsetTempVoltButton", "setTempVoltButton",
+    )
+
+    def _selected_mode(self) -> str:
+        """Backend mode name for the current combo selection."""
+        return self.modeComboBox.currentText().strip().lower()
+
+    def _on_mode_changed(self):
+        """Show the ramp editor for fast/slow, the Set/Off block for iso.
+
+        Fast and slow are identical from the GUI's side -- both drive the
+        ramp table; the only difference is the mode name sent on arm/run
+        (slow adds AC modulation in the backend). Iso is a static
+        set-and-hold, so it uses its own controls.
+        """
+        is_iso = self._selected_mode() == "iso"
+        for name in self._RAMP_WIDGET_NAMES:
+            getattr(self, name).setVisible(not is_iso)
+        for name in self._ISO_WIDGET_NAMES:
+            getattr(self, name).setVisible(is_iso)
+
+    # ===================================
+    # Fast / slow heating (ramp editor)
 
     def fh_arm(self):
         xOption = 1000 if self.experimentTimeComboBox.currentIndex()==1 else 1    # 0 - time in ms, 1 - time in s
@@ -468,7 +513,9 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables_str = json.dumps(self.time_temp_volt_tables)
         if self.controller is None:
             return  # no backend: program plotted, but cannot be armed
-        self.controller.arm_fast_heat(self.time_temp_volt_tables_str)
+        # Fast and slow share this ramp program; the backend mode name picks
+        # whether AC modulation is layered on (slow) or not (fast).
+        self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
 
     def _fh_plot_df(self, df):
         """Plot the result DataFrame returned by ``controller.run_*``."""
@@ -493,7 +540,9 @@ class mainWindow(mainWindowUi):
         if self.controller is None:
             ErrorWindow("No backend connection: cannot run experiment.")
             return
-        df = self.controller.run_fast_heat()
+        # run() executes whatever was armed (fast or slow); the result frame
+        # is plotted the same way for both.
+        df = self.controller.run()
         self._fh_plot_df(df)
 
     # ===================================

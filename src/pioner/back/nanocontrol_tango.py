@@ -135,7 +135,7 @@ class NanoControl(Device):  # type: ignore[misc]
         return (
             "Information",
             dict(
-                developer="Alexey Melnikov & Evgenii Komov",
+                developer="Melnikov A. & Komov E. & Rulyov I.",
                 contact="alexey0703@esrf.fr",
                 model="pioner 1.0",
                 version_number=1.0,

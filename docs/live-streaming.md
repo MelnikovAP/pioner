@@ -358,25 +358,39 @@ backend, but defers the mode refactor and the disk recorder.
 - **Backend selection**: `python -m pioner.runUI --mock | --hardware`
   (default autodetects -- no PyTango => local/mock). The "run without
   hardware" checkbox selects `LocalDeviceController`.
+- **Iso streams live during the run (P1-17, Approach C).** `IsoMode.run()`
+  accepts an injected `ExperimentManager` + `snapshot` callable. When the
+  GUI runs iso, `LocalDeviceController._run_iso_streaming()` drives only AO
+  on the controller's manager and reads AI from the *already-running*
+  persistent ring buffer (via a primed `read_new` cursor that captures just
+  the run window), then stops **only AO** (`stop_ao`). The live plot keeps
+  updating throughout. Fast / slow still pause (see deferred below).
+- **Mode-selection UI** (`modeComboBox`: Fast / Slow / Iso). Fast and slow
+  share the ramp-table editor (`fh_arm` / `fh_run` route to
+  `controller.arm(mode_name, ...)` / `run()`); slow layers AC modulation in
+  the backend from the Modulation block. Iso uses the Set/Off controls. The
+  handler `_on_mode_changed` toggles which block is visible.
+- **Iso disk save** (todo P2-9): `LocalDeviceController.run()` and the Tango
+  `run()` persist `exp_data.h5` for any mode including iso.
 - **Tests**: provider + ring (`test_acquisition_*.py`), device controller
-  on mock (`test_device_controller.py`), UI settings (`test_ui_settings.py`).
+  on mock (`test_device_controller.py`, incl. iso live-stream regression),
+  UI settings (`test_ui_settings.py`).
 
 **Not done (deferred):**
 
-- **Mode refactor (the crux of P1-17).** `FastHeat` / `SlowMode` / `IsoMode`
-  still arm their own finite AI scan, which collides with the persistent
-  ring buffer. As a stopgap, `LocalDeviceController.run()` **pauses** the
-  live stream for the duration of the run and resumes it afterwards (both
-  acquisition modes behave identically until this lands). Streaming
-  *during* an experiment -- the whole point of the persistent design --
-  requires steps 1 and 4 below.
+- **Fast / slow mode refactor (the crux of P1-17, Approach A).** `FastHeat`
+  / `SlowMode` still arm their own finite AI scan, which collides with the
+  persistent ring buffer. As a stopgap, `LocalDeviceController.run()`
+  **pauses** the live stream for the duration of a fast/slow run and resumes
+  it afterwards. Lifting this needs the modes to read AI from the persistent
+  ring (like iso now does) plus real-hardware validation of sample
+  alignment at fast-mode rates (>1000 K/s) -- which the mock cannot verify.
 - **`DiskRecorder`** (record-from-Arm) -- step 3 below. Not built; the
   result `DataFrame` is still accumulated in-memory by the mode.
 - **`MonitorAO`** between-experiment AC drive -- step 5 below. The Demo AO
   button that existed in the dev window is gone; re-add as `MonitorAO`.
-- **Mode-selection UI** (fast/slow/iso/calibration combo). The controller
-  already accepts `arm("slow"/"iso", ...)`; the GUI exposes only fast +
-  iso-set today.
+- **CalibrationMode** run mode (todo P1-22). Calibration today is the
+  separate `calibWindow` file-apply flow, not a combo run mode.
 
 ### Back-end work (~3-4 days)
 

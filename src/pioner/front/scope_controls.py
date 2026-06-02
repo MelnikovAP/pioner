@@ -76,7 +76,7 @@ class ScopeControls(qt.QGroupBox):
 
         # X scale (log)
         grid.addWidget(qt.QLabel("X scale (s):"), 0, 0)
-        self._x_scale_slider = qt.QSlider(qt.Qt.Horizontal)
+        self._x_scale_slider = qt.QSlider(qt.Qt.Orientation.Horizontal)
         self._x_scale_slider.setRange(0, self._SLIDER_RESOLUTION)
         self._x_scale_slider.setValue(
             log_slider_position(
@@ -92,7 +92,7 @@ class ScopeControls(qt.QGroupBox):
 
         # X shift (linear, 0..x_shift_max)
         grid.addWidget(qt.QLabel("X shift (s):"), 1, 0)
-        self._x_shift_slider = qt.QSlider(qt.Qt.Horizontal)
+        self._x_shift_slider = qt.QSlider(qt.Qt.Orientation.Horizontal)
         self._x_shift_slider.setRange(0, self._SLIDER_RESOLUTION)
         self._x_shift_slider.setValue(0)
         self._x_shift_value = qt.QLabel("0.00")
@@ -103,7 +103,7 @@ class ScopeControls(qt.QGroupBox):
 
         # Y span (log)
         grid.addWidget(qt.QLabel("Y span (V):"), 2, 0)
-        self._y_span_slider = qt.QSlider(qt.Qt.Horizontal)
+        self._y_span_slider = qt.QSlider(qt.Qt.Orientation.Horizontal)
         self._y_span_slider.setRange(0, self._SLIDER_RESOLUTION)
         default_span = self._ui.y_max - self._ui.y_min
         self._y_span_slider.setValue(

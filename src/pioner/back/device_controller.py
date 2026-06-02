@@ -168,6 +168,7 @@ class LocalDeviceController(DeviceController):
     """
 
     _STREAM_CONSUMER = "local_controller_default"
+    _ISO_CONSUMER = "local_controller_iso_run"
 
     def __init__(
         self,
@@ -184,6 +185,7 @@ class LocalDeviceController(DeviceController):
         self._em: Optional[ExperimentManager] = None
         self._provider: Optional[AIProvider] = None
         self._mode: Any = None
+        self._mode_name: str = ""
         self._last_programs: dict = {}
         self._ai_channels: list[int] = []
 
@@ -289,8 +291,9 @@ class LocalDeviceController(DeviceController):
         if self._daq is None:
             raise RuntimeError("LocalDeviceController is not connected")
         programs = json.loads(programs_json)
+        self._mode_name = mode_name.lower().strip()
         self._mode = create_mode(
-            mode_name.lower().strip(),
+            self._mode_name,
             self._daq,
             self._settings,
             self._calibration,
@@ -304,16 +307,21 @@ class LocalDeviceController(DeviceController):
         if self._mode is None or not self._mode.is_armed():
             logger.warning("run() called with no armed mode")
             return None
-        # Iteration 1: experiment modes have not been refactored to the
-        # AIProvider yet, so a mode's own finite AI scan collides with
-        # the persistent ring buffer. Pause the live stream around the
-        # run and resume it afterwards (see docs/live-streaming.md,
-        # P1-17 lifts this).
-        self._pause_stream()
-        try:
-            df = self._mode.run()
-        finally:
-            self._resume_stream()
+        # Iso streams live (P1-17, Approach C): it drives only AO and reads
+        # AI from the persistent ring buffer, so the GUI live plot keeps
+        # updating during the run. Fast / slow still own a finite AI scan
+        # that collides with the persistent ring, so for those we pause the
+        # live stream around the run and resume afterwards. Lifting the
+        # pause for fast/slow needs the mode-side AI refactor (P1-17,
+        # Approach A) and real-hardware sample-alignment validation.
+        if self._mode_name == "iso" and self._provider is not None and self._provider.is_active():
+            df = self._run_iso_streaming()
+        else:
+            self._pause_stream()
+            try:
+                df = self._mode.run()
+            finally:
+                self._resume_stream()
         if df is not None and not df.empty:
             try:
                 save_run_to_h5(
@@ -327,6 +335,54 @@ class LocalDeviceController(DeviceController):
             except Exception:
                 logger.exception("Failed to persist exp_data.h5")
         return df
+
+    def _run_iso_streaming(self) -> Optional[pd.DataFrame]:
+        """Run the armed iso mode against the live persistent ring buffer.
+
+        The mode drives AO on the controller's :class:`ExperimentManager`
+        (the one whose ring buffer the live plot reads) and reads AI back
+        through the provider's snapshot, never starting a second AI scan.
+        The persistent stream stays active for the whole run.
+
+        The persistent ring keeps the full hardware AI range
+        (``self._ai_channels``), but the iso mode expects only its own
+        curated subset (``mode._ai_channels``, e.g. ch2/guard dropped). The
+        snapshot therefore selects the mode's channels, by position, out of
+        the ring layout before handing them to the mode.
+        """
+        if self._em is None or self._provider is None:
+            return None
+        provider = self._provider  # local binding keeps the non-None narrowing
+        mode_channels = list(getattr(self._mode, "_ai_channels", self._ai_channels))
+        # Map each mode channel to its column position in the ring layout.
+        try:
+            keep = [self._ai_channels.index(ch) for ch in mode_channels]
+        except ValueError as exc:
+            raise RuntimeError(
+                f"iso mode AI channels {mode_channels} are not a subset of the "
+                f"streamed channels {self._ai_channels}"
+            ) from exc
+
+        # Capture only the run window. read_new establishes its cursor at the
+        # current head on the first call (returning the existing ring) and
+        # thereafter returns only samples appended since. So we prime the
+        # cursor *now* (drop the pre-run backlog) and read the delta in the
+        # snapshot, giving the samples taken while AO was driving rather than
+        # the trailing ring contents (which would include pre-run baseline).
+        # reset_ring_cursor first guarantees a clean "first call" even if a
+        # previous iso run left a stale cursor. The AO drive starts inside
+        # mode.run() a sub-millisecond after priming, so at most a couple of
+        # pre-drive samples leak in -- negligible for a stationary iso run.
+        self._em.reset_ring_cursor(self._ISO_CONSUMER)
+        provider.read_new(self._ISO_CONSUMER)  # prime cursor at head
+
+        def snapshot() -> np.ndarray:
+            raw = provider.read_new(self._ISO_CONSUMER)
+            if raw.size == 0:
+                return raw
+            return raw[:, keep]
+
+        return self._mode.run(em=self._em, snapshot=snapshot)
 
     def stop_run(self) -> None:
         stop = getattr(self._mode, "stop", None) if self._mode is not None else None

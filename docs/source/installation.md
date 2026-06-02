@@ -81,20 +81,21 @@ The **uldaq** package contains programming libraries and components for developi
       $ ./configure && make
       $ sudo make install
    ```
-### 1.3. Install uldaq Python interface
-   - Install the uldaq Python API with:  
+### 1.3. Install Pioner (includes uldaq Python bindings)
+   Clone the repo, create a venv, and install with the `hardware` and `server`
+   extras — this pulls in `uldaq` automatically, no separate `pip install uldaq`
+   needed:
    ```
-      $ pip install uldaq
+   $ git clone <repo-url> pioner
+   $ cd pioner
+   $ python3 -m venv .venv
+   $ source .venv/bin/activate
+   $ pip install --upgrade pip wheel
+   $ pip install -e .[hardware,server]
    ```
-   - Refer to https://pypi.org/project/uldaq/ for more detailes.  
-   **Note:** sometimes one needs to change date on raspberry pi:
+   **Note:** sometimes one needs to set the date on Raspberry Pi first:
    ```
       $ sudo date -s "YYYY-MM-DD HH:MM:SS"
-   ```
-### 1.4. Installing Pioner libraries
-   ```
-   $ pip install pioner
-   $ pip install pioner[server]
    ```
 ### 1.5. Installing Tango server
    - The following packages need to be installed for Tango server:
@@ -192,25 +193,24 @@ The **uldaq** package contains programming libraries and components for developi
    ```
 
 ---
-## 2. Frontend installation
-### 2.1. Install uldaq Python interface
-   - Install the uldaq Python API with:  
-   ```
-      $ pip install uldaq
-   ```
-   - Refer to https://pypi.org/project/uldaq/ for more detailes.  
-   **Note:** sometimes one needs to change date on raspberry pi:
-   ```
-      $ sudo date -s "YYYY-MM-DD HH:MM:SS"
-   ```
-### 2.2. Installing Pioner libraries
-   ```
-   $ pip install pioner
-   ```
-   - To use GUI:
-   ```
-   $ pip install pioner[GUI]
-   ```
+## 2. Frontend installation (laptop / workstation)
+
+No DAQ hardware required on this host. Clone the repo and install with the
+`gui` and `server` extras — do **not** install `[hardware]` here:
+```
+$ git clone <repo-url> pioner
+$ cd pioner
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+$ pip install --upgrade pip wheel
+$ pip install -e .[gui,server]
+```
+
+Launch the GUI:
+```
+$ python -m pioner.runUI --mock      # in-process mock DAQ (no Pi needed)
+$ python -m pioner.runUI             # autodetect (connects to Tango on Pi if available)
+```
 
 ---
 ## 3. Bliss installation
