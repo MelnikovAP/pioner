@@ -370,7 +370,7 @@ backend, but defers the mode refactor and the disk recorder.
   `controller.arm(mode_name, ...)` / `run()`); slow layers AC modulation in
   the backend from the Modulation block. Iso uses the Set/Off controls. The
   handler `_on_mode_changed` toggles which block is visible.
-- **Iso disk save** (todo P2-9): `LocalDeviceController.run()` and the Tango
+- **Iso disk save**: `LocalDeviceController.run()` and the Tango
   `run()` persist `exp_data.h5` for any mode including iso.
 - **Tests**: provider + ring (`test_acquisition_*.py`), device controller
   on mock (`test_device_controller.py`, incl. iso live-stream regression),

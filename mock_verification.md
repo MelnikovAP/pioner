@@ -79,7 +79,7 @@ activated automatically — no env var or flag required.
 - `test_modulation.py` — `apply_modulation`, lock-in amplitude/phase recovery
   with known phase lag, invalid input rejection.
 
-`pytest tests/` → **94 passed in ~30 s**. `python -m pioner.back.debug` runs
+`pytest tests/` → **100 passed in ~30 s**. `python -m pioner.back.debug` runs
 all three modes end-to-end without errors.
 
 ---
@@ -166,7 +166,7 @@ Iso mode: 20000 samples
 PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
-94 tests, ~30 s. If any fail, do not move on. The pinned-down physics
+100 tests, ~30 s. If any fail, do not move on. The pinned-down physics
 checks (FFT amplitude/frequency on the AC drive, lock-in amplitude vs
 the analytical expected value, `Uref` tiling for finite / CONTINUOUS /
 DC-iso paths, AO period integrity, T->V inversion endpoints and

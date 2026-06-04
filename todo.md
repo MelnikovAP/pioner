@@ -9,7 +9,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **94 passed** (mock backend, ~30 s).
+- `pytest tests/`: **100 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -236,19 +236,6 @@ length (`>= 20 / frequency` seconds).
 
 **Verification:** unit test — lock-in on a 0.3 s, 37.5 Hz signal returns a
 mask with `False` on the edges.
-
-### P1-10. ~~`AiDeviceHandler.__init__` mutates the shared `AiParams`~~ (resolved)
-
-Resolved by removing the offending fallback. PIONER is locked to MCC
-USB-2637 (single-ended only, 64 SE inputs; no DIFFERENTIAL mode exists
-on this board -- see `specs/USB-2637.pdf` and README). The original code
-silently flipped `params.input_mode` to `DIFFERENTIAL` if SINGLE_ENDED
-was unsupported, which (a) is dead code on USB-2637 (SINGLE_ENDED is
-always supported), (b) would have set an unsupported mode and crashed
-later if it had ever fired. The mutation has been replaced with a hard
-`RuntimeError` at `src/pioner/back/ai_device.py:73`, which also closes
-the original "shared params object" concern -- no mutation, no shared
-state coupling.
 
 ### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
 
@@ -603,23 +590,6 @@ old name as an alias for one release.
 
 **Action:** extract to `pioner.back.hdf5_export.save_experiment(...)`.
 
-### P2-9. Iso mode does not save its result to disk — RESOLVED
-
-**Where:** `src/pioner/back/device_controller.py`,
-`src/pioner/back/nanocontrol_tango.py`
-
-**Status (2026-06-01):** resolved through the modern run paths. Both
-`LocalDeviceController.run()` and the Tango server's `run()` call the
-shared `save_run_to_h5` for *any* armed mode (fast / slow / iso), so an iso
-run now writes `exp_data.h5` with the same `data` / `calibration` /
-`settings` / `temp_volt_programs` / `voltage_profiles` layout as fast/slow.
-Verified for the controller iso-streaming path (P1-17 Approach C).
-
-The legacy `iso_mode.py` shim's own `run()` still returns the frame without
-persisting, but its only caller is `back/debug.py` (a smoke print that does
-not need a file). No further action needed unless a standalone iso script
-wants persistence, in which case it should call `save_run_to_h5` itself.
-
 ### P2-10. Remove or implement `FAST_HEAT_CUSTOM_FLAG`
 
 **Where:** `src/pioner/back/fastheat.py:55-68`
@@ -632,7 +602,8 @@ wants persistence, in which case it should call `save_run_to_h5` itself.
 - Buffer re-allocation on `samples_per_channel` change.
 - `scan()` without `allocate_buffer` raises `ValueError`.
 - Hard `RuntimeError` when the AI device reports zero SINGLE_ENDED
-  channels (post P1-10 fix; no silent fallback any more).
+  channels (the device raises instead of silently falling back to
+  DIFFERENTIAL; see `ai_device.py:73`).
 
 ### P2-12. Legacy `fastheat.FastHeat` / `slow_mode.SlowMode` have no tests
 
