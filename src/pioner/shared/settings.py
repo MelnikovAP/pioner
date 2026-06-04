@@ -415,8 +415,8 @@ class UISettings:
     """
 
     # Baked-in fallback defaults. Keep in sync with
-    # ``settings/default_ui_settings.json`` -- the JSON file is what an
-    # operator edits; this dict is just the safety net when the file is
+    # ``src/pioner/settings/default_ui_settings.json`` -- the JSON file is what
+    # an operator edits; this dict is just the safety net when the file is
     # missing or malformed.
     _DEFAULTS = {
         "window_seconds": 2.0,

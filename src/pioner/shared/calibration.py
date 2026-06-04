@@ -8,7 +8,7 @@ gains, AD595 thermocouple correction polynomial, etc.). Storing these next to
 the chip-specific coefficients keeps everything that the experiment manager
 needs in one place.
 
-JSON layout (see ``settings/default_calibration.json``)::
+JSON layout (see ``src/pioner/settings/default_calibration.json``)::
 
     {
       "Info": "...",
@@ -46,6 +46,7 @@ from pioner.shared.constants import (
     AMPLITUDE_CORRECTION_FIELD,
     CALIBRATION_COEFFS_FIELD,
     CORR_FIELD,
+    DEFAULT_CALIBRATION_FILE_REL_PATH,
     HARDWARE_FIELD,
     HARDWARE_AD595_LOW_FIELD,
     HARDWARE_GAIN_UMOD_FIELD,
@@ -303,5 +304,5 @@ class Calibration:
 
 if __name__ == "__main__":
     cal = Calibration()
-    cal.read("./settings/default_calibration.json")
+    cal.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
     print(cal.get_str())

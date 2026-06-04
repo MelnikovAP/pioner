@@ -272,6 +272,33 @@ Buffer-side details:
 * `_prime_pandas` warms up `to_hdf` once at process start so the first scan
   doesn't lose ~1 second of data to the lazy initialisation of PyTables.
 
+### Constraints & invariants (load-bearing)
+
+These hold across the back-end; breaking one usually produces numbers that
+*look* right but aren't (see CLAUDE.md for the full list):
+
+* **AI buffer = exactly one second** (`samples_per_channel = sample_rate`).
+  This is the fixed unit the slow/iso half-buffer flip works on. Program
+  **duration may be fractional** now (the whole-second `total_ms % 1000 == 0`
+  rule was lifted) -- `finite_scan` trims the collected frame to
+  `round(sample_rate * seconds)` -- but the buffer itself stays 1 s.
+* **Fast-heat uses a single-shot `DEFAULTIO` full-buffer scan** (read once at
+  the end, no FIFO overrun); **slow/iso use the `CONTINUOUS` 1 s half-flip**.
+* **Sample rate must be even** for the half-flip reshape (slow/iso); the
+  fast single-shot path does not require it. There is **one global sample
+  rate** today shared by all modes (per-mode rate is planned -- TODO P1-31).
+* **AO and AI share one sample rate / clock domain** -- they are set equal.
+* **Lock-in needs `f_mod < sample_rate / 2`**; iso replays a 1 s AO buffer
+  CONTINUOUS, so `f_mod` should give an integer number of cycles per second to
+  avoid a phase jump at the wrap (37.5 Hz does not -- a known WARNING).
+* **Safe-voltage clamp**: heater drive is clipped to `[0, safe_voltage]`
+  (default 9 V); the heater is driven to **0 V on Off / disconnect / abort**
+  (`zero_ao`) so it is never left latched (the DAC holds its last sample).
+* **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
+  sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
+* **Start order is AI then AO** so the AO leading edge is not missed (without a
+  hardware trigger there is a small ~100 us start skew -- todo P0-5).
+
 ---
 
 ## 5. Mock DAQ backend

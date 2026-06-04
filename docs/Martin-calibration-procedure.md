@@ -114,7 +114,7 @@ output coefficient set.
 
 ### 3.1 Step 1 -- bootstrap and chip-specific constants
 
-- "Load `direct.ini`" = `Calibration().read("settings/default_calibration.json")`
+- "Load `direct.ini`" = `Calibration().read("src/pioner/settings/default_calibration.json")`
   in [src/pioner/shared/calibration.py:164](../src/pioner/shared/calibration.py#L164).
   The file ships pre-populated with identity polynomials; see
   [src/pioner/settings/default_calibration.json](../src/pioner/settings/default_calibration.json).

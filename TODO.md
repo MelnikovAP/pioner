@@ -518,6 +518,75 @@ mock for whole + fractional seconds.
 - Investigate whether `DEFAULTIO` issues larger DMA transfers than `CONTINUOUS`
   (would further raise the effective drain rate). Not yet verified.
 
+### P1-31. Per-mode sample rate (high)
+
+**Priority: high.** **Where:** `shared/settings.py` (one global
+`Experiment settings.Scan.Sample rate`), `back/experiment_manager.py`,
+`back/modes.py`, `settings/settings.json` + `src/pioner/settings/default_settings.json`.
+
+**What:** the sample rate is a single global value (20 kHz) shared by all three
+modes. Only fast-heat needs it that high (ballistic >1000 K/s); slow and iso
+run AC at `f_mod = 37.5 Hz`, where even 1-2 kHz is far above Nyquist, so 20 kHz
+just wastes samples, RAM, and host bandwidth (and raises the FIFO-OVERRUN risk
+on the slow CONTINUOUS path -- see P1-30).
+
+**Action:** allow a per-mode AI/AO sample rate (default: keep fast at 20 kHz,
+drop slow/iso to e.g. 2 kHz), chosen at `arm`. Plumb it through `ai_params` /
+`ao_params` instead of one shared `Scan.Sample rate`.
+
+**Constraints to respect (see the invariants in README / CLAUDE.md):**
+- AO and AI rate must stay equal (the pipeline assumes one clock domain).
+- The half-flip CONTINUOUS path requires an **even** rate (slow/iso); fast's
+  single-shot DEFAULTIO path does not.
+- The AI buffer is sized to one second of the chosen rate.
+- `f_mod < rate / 2` (lock-in Nyquist) must hold at the lower rate -- trivially
+  true for 37.5 Hz at >= 2 kHz, but assert it.
+
+**Verification:** mock e2e for each mode at its own rate; lock-in amplitude on
+slow/iso at the lower rate still matches the analytical value
+(`docs/mock-verification.md` tolerances).
+
+### P1-32. Apply AC amplitude correction (`ac0..ac3`) -- from Bondar uCal
+
+**Priority: high.** **Where:** `shared/calibration.py` (`ac0..ac3` exist),
+`back/modes.py` (lock-in amplitude in `SlowMode`/`IsoMode.run`).
+
+**What:** the amplitude-correction polynomial `kamp(T) = ac0 + ac1*T + ac2*T^2
++ ac3*T^3` is loaded, saved and shown in the GUI, but **never applied at
+runtime** -- the demodulated lock-in amplitude is not divided by it. Bondar
+divides the AC amplitude by this temperature-dependent factor before reporting
+(Bondar-uCal.md §10.3 / Unit4.cpp:3414-3644). If the thermopile gain varies
+with T, our C_p is biased. Apply `amplitude /= kamp(temp)` after demod.
+
+**Verification:** unit test that a non-identity `ac*` scales the reported
+amplitude as expected; identity (`ac1=1`, others 0) leaves it unchanged.
+
+### P1-33. In-situ R-correction auto-zero (`Rhcorr` / `Rhdcorr`) -- from Bondar uCal
+
+**Priority: high.** **Where:** `shared/calibration.py` (`thtrcorr` /
+`thtrdcorr` fields exist), new operator action.
+
+**What:** Bondar runs a damped Newton iteration (gain 0.1, tol 0.01 C, up to
+1000 steps) that trims the heater-resistance correction so `Thtr` agrees with
+`Ttpl + Taux` at the current operating point (Bondar-uCal.md §4.3 /
+Unit1.cpp:1308-1342). PIONER has the `thtrcorr`/`thtrdcorr` fields but no way
+to compute/update them in the field. Port as `Calibration.compute_rhcorr(...)`
+so daily drift is corrected without re-fitting the whole Thtr polynomial.
+
+### P1-34. Lock-in reference = measured heater current (AI ch0) -- from Bondar uCal
+
+**Priority: high (needs bench confirmation).** **Where:**
+`shared/modulation.py` (`lockin_demodulate` uses a synthetic `sin(omega*t)`),
+`back/modes.py` (never passes AI ch0 to the lock-in).
+
+**What:** Bondar correlates the signal against the **measured** shunt/current
+reference (AI ch0), not the commanded sine (Bondar-uCal.md §6 / Unit1.cpp:
+721-963). At higher `f_mod` the real heater current lags the AO command, so the
+measured reference puts the phase zero on the actual driving force. Add an
+optional `reference: np.ndarray | None` to `lockin_demodulate`; when given, use
+it instead of the synthetic sine. Confirm the phase-lag magnitude on the bench
+before making it the default.
+
 ---
 
 ## P2 — code quality / DX
@@ -668,6 +737,70 @@ Add an artificial progress bar driven by elapsed time vs expected
 `total_ms` from the armed program. Can be a `QProgressBar` updated by a
 `QTimer` in `run_mode()`.
 
+### P2-23. IR-drop-corrected heater voltage `Uhtr_eff` -- from Bondar uCal
+
+**What:** Bondar shows the voltage across the heater itself, not the raw ch5
+feedback, by subtracting the shunt IR drop: `Uhtr_eff = AI5 - AI0`
+(Bondar-uCal.md §10.9 / Unit1.cpp:1172-1183, per-buffer mean). PIONER computes
+both raw channels in `apply_calibration` but never derives this. Add a
+per-sample derived column `Uhtr_eff`. Cosmetic/diagnostic, not physics.
+
+### P2-24. Configurable heater broken/shorted thresholds + verify safe_voltage -- from Bondar uCal
+
+**What:** Bondar flags `R > 9000 Ohm` -> "broken", `R < 50 Ohm` -> "shorted"
+(hardcoded, Bondar-uCal.md §9.12) and ships `heatersafeV = 5.61 V` vs PIONER's
+`safe_voltage = 9.0 V` (Bondar-uCal.md §4.1). Two actions: (1) add optional
+`r_heater_broken_ohms` / `r_heater_shorted_ohms` to `Calibration` for a
+fail-loud diagnostic; (2) **verify the 5.61 V vs 9.0 V discrepancy with the
+physicist/EE** before the first real run (chip/era difference, or a stale
+value). Diagnostic only -- low urgency for code, but the safe_voltage check is
+a bring-up prerequisite.
+
+### P2-25. Median + symmetric moving-average post-filter helpers -- from Bondar uCal
+
+**What:** Bondar's `filter_it` offers a median smoother + symmetric IIR moving
+average for denoising amplitude/phase/temperature traces (Bondar-uCal.md §10.6
+/ Unit4.cpp:2672-2723). PIONER leaves all post-filtering to downstream
+scipy/pandas. Add `shared/filters.py` (`median_filter`, `symmetric_ma`) as
+opt-in post-processing for the result frame / HDF5 export.
+
+### P2-26. Fast-heat exponential-fit deconvolution (`removexep`) -- from Bondar uCal
+
+**What:** Bondar fits a bi-exponential rise+fall around the heater pulse and
+subtracts it to recover the small calorimetric signal underneath (Bondar-uCal.md
+§10.7 / Unit4.cpp:3085-3121). Useful for extracting heat capacity from noisy
+fast-heat traces. Port as an optional analysis helper (`scipy.optimize`).
+Advanced/expert feature.
+
+### P2-27. In-situ phase zeroing (`addphase`) -- from Bondar uCal
+
+**What:** Bondar lets the operator zero the lock-in phase reference at the start
+of a session and subtracts that offset from all reported phases (Bondar-uCal.md
+§10.1 / Unit1.cpp:2596-2605). Add a `phase_offset_rad` to run metadata + a
+"zero phase" UI control; apply post-demod. Useful, non-critical.
+
+### P2-28. Auto-save checkpoints on long runs -- from Bondar uCal
+
+**What:** Bondar flushes an autosave every ~10 min during long ramps
+(Bondar-uCal.md §5.3 / Unit1.cpp:556-559); PIONER only writes HDF5 at run end,
+so a crash during a multi-hour iso/slow run loses everything. Periodically
+flush the in-progress frame to an "in-progress" HDF5 group; move to the final
+group on clean completion. Reliability feature.
+
+### P2-29. (front-end) 7-LED calibration-deviation bar -- from Bondar uCal
+
+**(front-end).** **What:** Bondar shows a live LED strip of `Thtr - (Ttpl +
+Taux)` lighting at +/-1/2/3/5 C (Bondar-uCal.md §10.10 / Unit1.cpp:2929-3021)
+-- at-a-glance calibration-drift feedback. Implement as a small PyQt widget in
+the live-monitor panel. UX polish.
+
+> Not borrowed from Bondar (reviewed + rejected): X2 harmonic mode (our FFT
+> `harmonics=(1,2,3)` is better), Telnet remote protocol (Tango/HTTP supersedes),
+> IOtech driver specifics, hardware-license gate, and the `Sleep(rand())` mains
+> de-sync jitter (anti-pattern; integer-cycle alignment is the right fix).
+> AD595 low-T correction is already applied (`modes.py:234`); only its
+> whole-scan averaging drift remains (already noted, P0-3 area).
+
 ---
 
 ## P3 — documentation / observability
@@ -740,15 +873,17 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
    do not touch calibration coefficients without a new SI procedure (P2-21).
 2. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
    boundary mapping early; it constrains where later work lands.
-3. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
+3. **P1-31 (high)** — per-mode sample rate (drop slow/iso off 20 kHz). Small,
+   mock-testable, and cuts the slow-path OVERRUN risk (ties into P1-30).
+4. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
    per-host software offset-trim (not the `EXTTRIGGER` loopback).
-4. **P1-24 (medium)** — closed-loop PID control (iso hold is now in place as
+5. **P1-24 (medium)** — closed-loop PID control (iso hold is now in place as
    the test bed); iso first.
 6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +
    acquisition-path work; coordinate with P1-27 SPICE model).
 7. **P1-6 → P1-16** — two or three at a time.
-9. **P2-\*** — code-quality round after P0/P1 close.
-10. **P3-\*** — last, or piggy-back on each P0/P1 PR.
+8. **P2-\*** — code-quality round after P0/P1 close.
+9. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 
 ## Notes
 

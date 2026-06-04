@@ -16,7 +16,7 @@ modify the back-end or to interface with it.
 
 * **DAQ board**: Measurement Computing USB-DAQ (`uldaq` driver). Six AI
   channels (0..5) and four AO channels (0..3) at up to 1 MS/s. Default
-  scan rate `fs = 20 kHz` (see `settings/default_settings.json`,
+  scan rate `fs = 20 kHz` (see `src/pioner/settings/default_settings.json`,
   `Experiment settings.Scan.Sample rate`). The half-buffer flip protocol
   (§3) requires `fs` to be **even**; non-even values are rejected at
   `_collect_finite_ai` and `start_ring_buffer`.
@@ -69,7 +69,7 @@ heat capacity. We recover them in software via single-frequency lock-in
 (`scipy.signal.sosfiltfilt` Butterworth LP, zero phase lag) and, in iso, also
 via integer-cycle FFT for harmonic-resolved scalars.
 
-**Modulation defaults** (in `settings/default_settings.json`,
+**Modulation defaults** (in `src/pioner/settings/default_settings.json`,
 `Experiment settings.Modulation`): `Frequency = 37.5 Hz`, `Amplitude = 0.1 V`,
 `Offset = 0.0 V`. The 37.5 Hz default is **not seamless** in the 1-second
 AO buffer at `fs = 20 kHz` (37.5 cycles → π-rad jump per CONTINUOUS wrap);
