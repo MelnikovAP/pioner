@@ -198,7 +198,7 @@ a smoke/demo front.
   default; realistic chip signals are a nanocal plug-in.
 - **Tests:** split the suite -- generic DAQ/acquisition/mock tests ship with the
   library; calibration/modulation/modes tests stay private. ~half the current
-  108 tests are library-side (DAQ, mock, acquisition, settings parsing).
+  112 tests are library-side (DAQ, mock, acquisition, settings parsing).
 
 ## 9. Risks / open questions
 

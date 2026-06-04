@@ -11,6 +11,11 @@ need the physical board.
 > not `mock_uldaq`). Each requires explicit in-session confirmation before
 > running. Do not run them unattended, and never against the production chip
 > without sign-off.
+>
+> **Heater safety.** "Off", the system disconnect button, and an iso-hold abort
+> all drive the heater AO to 0 V (`ExperimentManager.zero_ao`), so a clean stop
+> leaves the chip cold -- a scan-stop alone would latch the last setpoint on the
+> DAC. This does NOT cover a GUI/process crash, so keep bring-up attended.
 
 ## Required configuration (verified on mock, 2026-06-03)
 

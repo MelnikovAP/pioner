@@ -15,9 +15,12 @@ three public entry points:
 
 Implementation notes
 --------------------
-* AI is always paced with ``CONTINUOUS`` so that we do not block on a fixed
-  ``samples_per_channel`` count and can stop cleanly at any time.
-* The AI buffer is sized to exactly **one second** of data. The reader loop
+* AI is paced ``CONTINUOUS`` for slow/iso (drain a 1 s buffer via the
+  half-buffer flip, stop cleanly at any time), but fast-heat uses a single-shot
+  ``DEFAULTIO`` scan with a full-length buffer read once at the end -- no drain
+  race, hence no FIFO ``OVERRUN`` (todo P1-30).
+* For the CONTINUOUS path the AI buffer is sized to exactly **one second** of
+  data. The reader loop
   flips between the lower and upper half of the buffer based on the actual
   ``current_index`` returned by the driver, which makes it robust against
   slow callers (we will detect a "skipped" half by index comparison and
@@ -164,21 +167,36 @@ class ExperimentManager:
         voltage_profiles: dict,
         ai_channels: Sequence[int],
         seconds: float,
+        single_shot: bool = False,
     ) -> ScanResult:
         """Run a finite paced AO + AI experiment.
 
         ``voltage_profiles`` is an iterable per-channel array of floats with
         length ``round(seconds * sample_rate)``. ``ai_channels`` is the subset
         of AI channels to keep in the resulting DataFrame. ``seconds`` may be
-        fractional (the AI buffer stays one second; the collected frame is
-        trimmed to the exact sample count).
+        fractional.
+
+        Two AI collection strategies:
+
+        * ``single_shot=False`` (default, used by slow): AI runs ``CONTINUOUS``
+          into a one-second buffer and the host drains it with the half-buffer
+          flip; the frame is trimmed to the exact sample count.
+        * ``single_shot=True`` (used by fast-heat): AI runs ``DEFAULTIO`` into a
+          host buffer sized to the **whole** scan; the DAQ DMAs everything and
+          the host reads once at the end. No half-buffer drain race means no
+          FIFO ``OVERRUN`` -- the IR-branch fix for the fast-heat crash class
+          (todo P1-30 / postmortem 2026-05-23-fifo-overrun-continuous-ai).
         """
         if seconds <= 0:
             raise ValueError("seconds must be > 0")
         if not voltage_profiles:
             raise ValueError("voltage_profiles is empty")
 
-        ai_handler = self._ensure_ai_handler(self._ai_params.sample_rate)
+        total_samples = int(round(self._ai_params.sample_rate * seconds))
+        # Single-shot sizes the AI buffer to the full scan (DEFAULTIO, read once
+        # at the end); the CONTINUOUS path keeps the 1 s half-flip buffer.
+        ai_buffer_spc = total_samples if single_shot else self._ai_params.sample_rate
+        ai_handler = self._ensure_ai_handler(ai_buffer_spc)
         ao_handler = self._ensure_ao_handler()
 
         # Configure AO for finite output; AI stays continuous. When
@@ -205,7 +223,7 @@ class ExperimentManager:
         triggered = bool(getattr(self._daq_device_handler._params,
                                   "hardware_trigger", False))
         ao_options = ul.ScanOption.BLOCKIO
-        ai_options = ul.ScanOption.CONTINUOUS
+        ai_options = ul.ScanOption.DEFAULTIO if single_shot else ul.ScanOption.CONTINUOUS
         if triggered:
             ao_options |= ul.ScanOption.EXTTRIGGER
             ai_options |= ul.ScanOption.EXTTRIGGER
@@ -231,7 +249,12 @@ class ExperimentManager:
         if triggered:
             self._daq_device_handler.fire_software_trigger()
 
-        df = self._collect_finite_ai(ai_handler, ao_handler, seconds, ai_channels)
+        if single_shot:
+            df = self._collect_finite_ai_single_shot(
+                ai_handler, total_samples, ai_channels, seconds
+            )
+        else:
+            df = self._collect_finite_ai(ai_handler, ao_handler, seconds, ai_channels)
 
         ao_handler.stop()
         ai_handler.stop()
@@ -467,6 +490,25 @@ class ExperimentManager:
         if self._ao_handler is not None:
             self._ao_handler.stop()
 
+    def zero_ao(self) -> None:
+        """Drive every configured AO channel to 0 V (best-effort safety net).
+
+        Called on disconnect / abort so the heater is not left latched at its
+        last commanded value. A bare ``stop_ao`` only halts the scan; the MCC
+        DAC then holds its last sample until reset, which on a real chip means
+        the heater stays powered after the operator pressed Off / disconnected.
+        ``set_voltage`` stops any running scan first, so this also tears down a
+        CONTINUOUS modulation drive. Errors are swallowed -- this runs on the
+        teardown path and must not mask the original shutdown.
+        """
+        try:
+            for ch in range(
+                self._ao_params.low_channel, self._ao_params.high_channel + 1
+            ):
+                self.ao_set(ch, 0.0)
+        except Exception:
+            logger.exception("Failed to drive AO to 0 V on shutdown")
+
     # ------------------------------------------------------------------
     # Internal: finite AI collection (no point loss)
     # ------------------------------------------------------------------
@@ -585,6 +627,56 @@ class ExperimentManager:
 
         # Build a DataFrame with the AI channel numbers as columns, then drop
         # the channels the caller does not care about.
+        all_channels = list(
+            range(self._ai_params.low_channel, self._ai_params.high_channel + 1)
+        )
+        df = pd.DataFrame(full, columns=all_channels)
+        return df.loc[:, list(ai_channels)]
+
+    def _collect_finite_ai_single_shot(
+        self,
+        ai_handler: AiDeviceHandler,
+        total_samples_per_channel: int,
+        ai_channels: Sequence[int],
+        seconds: float,
+    ) -> pd.DataFrame:
+        """Collect a single-shot ``DEFAULTIO`` scan (fast-heat).
+
+        The host buffer is the full scan length, so the DAQ DMAs everything and
+        we read it once after the scan reaches IDLE -- the host never has to
+        keep up mid-scan, which removes the FIFO-OVERRUN failure mode of the
+        CONTINUOUS half-flip path (todo P1-30). We only poll the scan status;
+        we do not read or copy the buffer until the scan is done.
+        """
+        n_ai_chans = self._ai_params.channel_count()
+        deadline = time.monotonic() + seconds + 5.0  # generous safety margin
+        completed = False
+        while time.monotonic() < deadline:
+            ai_status, _ = ai_handler.status()
+            if ai_status != ul.ScanStatus.RUNNING:
+                completed = True
+                break
+            time.sleep(0.002)
+
+        if completed:
+            logger.info(
+                "AI single-shot scan complete: %d samples per channel",
+                total_samples_per_channel,
+            )
+        else:
+            logger.warning(
+                "AI single-shot scan did not reach IDLE before the deadline; "
+                "buffer may be partially filled (%d samples per channel expected)",
+                total_samples_per_channel,
+            )
+
+        expected = total_samples_per_channel * n_ai_chans
+        buf = np.asarray(ai_handler.get_buffer(), dtype=float)[:expected]
+        # Reshape to (samples, channels); a short buffer (deadline hit) is
+        # trimmed to whole rows so the DataFrame stays rectangular.
+        rows = buf.size // n_ai_chans
+        full = buf[: rows * n_ai_chans].reshape(rows, n_ai_chans)
+
         all_channels = list(
             range(self._ai_params.low_channel, self._ai_params.high_channel + 1)
         )

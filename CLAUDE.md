@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (108 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (112 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - GUI (single window, all modes + live streaming): `python -m pioner.runUI
   --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
@@ -210,6 +210,13 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
 - **Safe-voltage clamp protects the chip.** `temperature_to_voltage` clamps
   to `[0, safe_voltage]`; `SlowMode`/`IsoMode` re-clip after adding the AC
   modulation. Don't bypass these — overshoot melts the heater.
+- **Heater must reach 0 V on Off / disconnect / abort.** A bare scan-stop only
+  halts the scan; the MCC DAC then holds its last sample until reset, so an
+  eternal iso hold would leave the chip powered. `ExperimentManager.zero_ao`
+  drives every AO channel to 0 and is called by `LocalDeviceController`
+  `disconnect()` and on iso-hold abort (`stop_run`). Never stop a hold with a
+  bare `stop_ao` — zero it. (Software can't protect against a GUI crash; real
+  bring-up stays attended.)
 - **AD595 cold-junction.** Channel 3, scaled 100 °C/V, with a polynomial
   correction below −12 °C (`hardware.correct_ad595`). Currently averaged over
   the whole scan, so for slow ramps >30 s expect up to ~0.5 °C drift error;

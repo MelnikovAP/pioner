@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **108 passed** (mock backend, ~30 s).
+- `pytest tests/`: **112 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -500,38 +500,27 @@ they cannot silently regress:
 `_ring_loop`). Background: the FIFO-overrun incident,
 [postmortem/2026-05-23-fifo-overrun-continuous-ai.md](postmortem/2026-05-23-fifo-overrun-continuous-ai.md).
 
-**What:** mainline arms AI as `CONTINUOUS` with a one-second buffer and a
-half-buffer flip — the same class of design as the legacy path that hit
-`ULError.OVERRUN`, just with a larger buffer. Open items carried over from the
-incident:
+**Done for fast-heat:** `finite_scan(single_shot=True)` now arms AI as
+`DEFAULTIO` with a host buffer sized to the whole scan and reads it once at IDLE
+(`_collect_finite_ai_single_shot`); `FastHeat.run` uses it. No half-buffer drain
+race -> the fast-heat OVERRUN class is removed (the IR-branch fix). Verified on
+mock for whole + fractional seconds.
 
-- Reproduce the failing run on mainline at 20 kHz x 6 ch x 3 s (bare metal and
-  VM) and confirm whether mainline is safe or should adopt a full-buffer
-  `DEFAULTIO` finite scan for fast-heat (as the IR branch did).
-- Decide whether the live-signals / slow-heat `CONTINUOUS` paths need the same
-  treatment, or document a sample-rate ceiling.
+**Still open:**
+- **Slow-heat + live streaming stay on the `CONTINUOUS` one-second half-flip
+  path** (`_collect_finite_ai` / `_ring_loop`) -- same risk class at 20 kHz x 6
+  ch. Decide whether to move slow to single-shot too, or document a sample-rate
+  ceiling for the streaming paths.
+- **Hardware validation:** the mock cannot reproduce `ULError.OVERRUN`, so the
+  fast-heat fix and the slow/live margin must be confirmed on the real board
+  (20 kHz x 6 ch x 3 s, bare metal and VM). The B3 sample-count logging
+  (`AI finite scan short ...` WARNING) surfaces a short frame at runtime.
 - Investigate whether `DEFAULTIO` issues larger DMA transfers than `CONTINUOUS`
-  (would raise the effective drain rate). Not yet verified.
-- The B3 sample-count logging (`AI finite scan short ...` WARNING) now makes a
-  short frame visible at runtime; use it during the bring-up runs.
+  (would further raise the effective drain rate). Not yet verified.
 
 ---
 
 ## P2 — code quality / DX
-
-### P2-1. `pyproject.toml`: drop unused runtime dependencies
-
-**Where:** `pyproject.toml:25-34`
-
-**What:** `matplotlib`, `requests`, `sortedcontainers` are not imported
-from `src/`. `tables` is only needed by `_prime_pandas` (which is already
-fault-tolerant).
-
-**Action:** move into `optional-dependencies`:
-- `matplotlib` → `dev`.
-- `requests` → `gui`.
-- `sortedcontainers` → remove entirely.
-- `tables` → `optional-dependencies.hdf5`.
 
 ### P2-2. Typo: "(former Nanocal)" → "(formerly Nanocal)"
 

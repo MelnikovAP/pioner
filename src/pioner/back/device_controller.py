@@ -245,6 +245,14 @@ class LocalDeviceController(DeviceController):
         logger.info("LocalDeviceController connected (channels=%s)", self._ai_channels)
 
     def disconnect(self) -> None:
+        # Safety: drive the heater (all AO channels) to 0 V before tearing the
+        # device down, so an eternal iso hold (or any latched DC) does not
+        # leave the chip powered -- the DAC holds its last sample until reset.
+        if self._em is not None:
+            try:
+                self._em.zero_ao()
+            except Exception:
+                logger.exception("Failed to zero AO on disconnect")
         if self._provider is not None:
             try:
                 self._provider.on_disconnect()
@@ -440,9 +448,11 @@ class LocalDeviceController(DeviceController):
         # An eternal iso hold drives AO on our ExperimentManager directly (no
         # run() in flight), so stop it by halting AO rather than via mode.stop.
         if self._iso_holding and self._em is not None:
-            self._em.stop_ao()
+            # Drive the heater to 0 V (not just stop the scan, which would
+            # latch the last setpoint) so aborting a hold leaves the chip cold.
+            self._em.zero_ao()
             self._iso_holding = False
-            logger.info("iso hold stopped")
+            logger.info("iso hold stopped (AO driven to 0 V)")
             return
         stop = getattr(self._mode, "stop", None) if self._mode is not None else None
         if stop is not None:

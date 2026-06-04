@@ -34,6 +34,11 @@ def local_controller():
         controller.disconnect()
 
 
+def _ao_shared(controller):
+    """Reach the mock AO device's shared state (mock-only introspection)."""
+    return controller._daq.get_ao_device()._shared  # type: ignore[union-attr]
+
+
 def _wait_for_stream(controller: DeviceController, timeout: float = 2.0) -> np.ndarray:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -198,3 +203,26 @@ class TestIsoHold:
     def test_start_iso_hold_requires_armed_iso(self, local_controller):
         with pytest.raises(RuntimeError):
             local_controller.start_iso_hold()  # nothing armed
+
+    def test_stop_run_zeroes_heater_after_hold(self, local_controller):
+        # Aborting a hold must drive the heater to 0 V (not just stop the
+        # scan, which would latch the setpoint and leave the chip powered).
+        local_controller.arm("iso", json.dumps({"ch1": {"volt": 0.5}}))
+        local_controller.start_iso_hold()
+        local_controller.stop_run()
+        assert local_controller.is_holding is False
+        shared = _ao_shared(local_controller)
+        assert shared.iso_voltages.get(1) == 0.0
+
+    def test_disconnect_zeroes_heater_after_hold(self):
+        # A clean system-off (disconnect) while holding must leave AO at 0 V.
+        settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+        settings.modulation = settings.modulation.with_amplitude(0.0)
+        controller = LocalDeviceController(settings)
+        controller.connect()
+        controller.arm("iso", json.dumps({"ch1": {"volt": 0.5}}))
+        controller.start_iso_hold()
+        shared = _ao_shared(controller)
+        controller.disconnect()
+        # zero_ao ran before release, so the last commanded heater value is 0.
+        assert shared.iso_voltages.get(1) == 0.0

@@ -150,12 +150,14 @@ the IR branch never tried to use this code path for iso.
   - the live signals widget reads relatively rarely (~1 Hz),
   - the slow-heat widget reads at 100 ms cadence,
   - neither writes data to disk inside the read loop.
-- Mainline `src/pioner/back/experiment_manager.py::finite_scan` arms AI
-  as `CONTINUOUS` with a *one-second* buffer and uses a half-buffer flip
-  protocol to copy data out as the scan progresses
-  ([experiment_manager.py:192](../src/pioner/back/experiment_manager.py#L192),
-  `_collect_finite_ai`). That is closer to the failing legacy approach
-  than to the IR-branch fix. It works in the lab today but the same
+- **Fast-heat (mainline) now uses the IR-branch fix.**
+  `finite_scan(single_shot=True)` arms AI as `DEFAULTIO` with a host buffer
+  sized to the whole scan and reads it once at IDLE
+  (`_collect_finite_ai_single_shot`) -- no drain race, so the fast-heat
+  OVERRUN class is removed (todo P1-30). **Slow-heat and live streaming still
+  use the `CONTINUOUS` one-second half-flip path** (`_collect_finite_ai`),
+  which is closer to the failing legacy approach. It works in the lab today
+  but the same
   OVERRUN risk applies if the half-buffer reader is delayed (GC, disk,
   VM USB latency). See TODO below.
 

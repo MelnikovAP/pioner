@@ -406,10 +406,14 @@ class FastHeat(BaseMode):
             raise RuntimeError("FastHeat is not armed; call arm() first")
 
         with ExperimentManager(self._daq, self._settings) as em:
+            # Fast-heat uses the single-shot DEFAULTIO full-buffer scan: the
+            # host reads once at the end, so the ballistic high-rate scan cannot
+            # hit a FIFO OVERRUN (todo P1-30). Slow keeps the CONTINUOUS path.
             result = em.finite_scan(
                 self._voltage_profiles,
                 self._ai_channels,
                 seconds=self.duration_seconds,
+                single_shot=True,
             )
         return apply_calibration(
             result.data,

@@ -58,7 +58,7 @@ the named constants above.
 
 | Mode       | Heating rate     | DC profile | AC modulation | Demodulation                | AO ScanOption | AI ScanOption | Use case                                  |
 |------------|------------------|------------|---------------|-----------------------------|---------------|---------------|-------------------------------------------|
-| `FastHeat` | up to >1000 K/s  | ramps      | no            | none                        | `BLOCKIO`     | `CONTINUOUS`  | ballistic transitions, glass / melting    |
+| `FastHeat` | up to >1000 K/s  | ramps      | no            | none                        | `BLOCKIO`     | `DEFAULTIO` (single-shot, full buffer) | ballistic transitions, glass / melting    |
 | `SlowMode` | 0.01–10 K/s      | ramps      | yes (lockin)  | per-sample time-domain      | `BLOCKIO`     | `CONTINUOUS`  | small-signal AC calorimetry on ramps      |
 | `IsoMode`  | `T = const`      | constant   | optional      | per-sample lock-in **+ FFT** harmonics 1f/2f/3f when AC on | DC: `a_out`; AC: `CONTINUOUS` | `CONTINUOUS` (ring buffer) | AC heat capacity at fixed T |
 
@@ -633,7 +633,7 @@ working end-to-end on mock or on real hardware.
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input, **Rhtr units in Ω with production calibration** (regression for #1) |
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest tests/              # 108 tests, ~30 s
+PYTHONPATH=src .venv/bin/pytest tests/              # 112 tests, ~30 s
 PYTHONPATH=src .venv/bin/python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

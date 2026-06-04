@@ -359,3 +359,35 @@ def test_clip_modulation_silent_when_within_range(caplog):
     with caplog.at_level(logging.WARNING):
         _clip_modulation_to_safe(arr, 9.0, "ch1")
     assert "clipped" not in caplog.text
+
+
+def test_zero_ao_drives_all_channels_to_zero(connected_daq, settings):
+    """Safety: zero_ao must drive every configured AO channel to 0 V so the
+    heater is not left latched at its last value on disconnect/abort."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    em = ExperimentManager(connected_daq, settings)
+    em.ao_set(1, 0.5)
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.5  # sanity: drive applied
+
+    em.zero_ao()
+    for ch in range(settings.ao_params.low_channel, settings.ao_params.high_channel + 1):
+        assert shared.iso_voltages.get(ch) == 0.0, f"AO ch{ch} not zeroed"
+
+
+def test_finite_scan_single_shot_full_buffer(connected_daq, settings):
+    """Fast-heat single-shot DEFAULTIO path (P1-30): full-length host buffer,
+    read once at the end, exact sample count for whole and fractional seconds."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    rate = settings.ai_params.sample_rate
+    ai_channels = list(range(settings.ai_params.low_channel,
+                             settings.ai_params.high_channel + 1))
+    for secs in (1.0, 1.5):
+        n = int(round(rate * secs))
+        em = ExperimentManager(connected_daq, settings)
+        profiles = {"ch1": np.linspace(0.0, 1.0, n).tolist()}
+        result = em.finite_scan(profiles, ai_channels, seconds=secs, single_shot=True)
+        assert len(result.data) == n, f"{secs}s -> {len(result.data)} != {n}"
+        assert list(result.data.columns) == ai_channels
