@@ -115,14 +115,14 @@ output coefficient set.
 ### 3.1 Step 1 -- bootstrap and chip-specific constants
 
 - "Load `direct.ini`" = `Calibration().read("settings/default_calibration.json")`
-  in [src/pioner/shared/calibration.py:164](src/pioner/shared/calibration.py#L164).
+  in [src/pioner/shared/calibration.py:164](../src/pioner/shared/calibration.py#L164).
   The file ships pre-populated with identity polynomials; see
-  [src/pioner/settings/default_calibration.json](src/pioner/settings/default_calibration.json).
+  [src/pioner/settings/default_calibration.json](../src/pioner/settings/default_calibration.json).
 - "Enter heater safe voltage" -> `Calibration.safe_voltage` (JSON key
   `"Heater safe voltage"`). This value is the clamp applied by
-  `temperature_to_voltage` [src/pioner/shared/utils.py:63](src/pioner/shared/utils.py#L63)
+  `temperature_to_voltage` [src/pioner/shared/utils.py:63](../src/pioner/shared/utils.py#L63)
   and by `SlowMode`/`IsoMode` after summing the AC drive
-  [src/pioner/back/modes.py:569](src/pioner/back/modes.py#L569).
+  [src/pioner/back/modes.py:569](../src/pioner/back/modes.py#L569).
 - "Enter `Rhtr`" -> `Calibration.rhtr` (JSON key `"R heater"`).
   Currently informational; the heater R used downstream in `Thtr` is
   computed sample-by-sample from V and I (see 3.3), not from this
@@ -134,8 +134,8 @@ output coefficient set.
   stage. PIONER currently exposes only two of them --
   `Hardware.gain_utpl` (default 11.0) and `Hardware.gain_umod`
   (default 121.0) -- consumed inside `apply_calibration` at
-  [src/pioner/back/modes.py:224](src/pioner/back/modes.py#L224) and
-  [src/pioner/back/modes.py:231](src/pioner/back/modes.py#L231). Martin's
+  [src/pioner/back/modes.py:224](../src/pioner/back/modes.py#L224) and
+  [src/pioner/back/modes.py:231](../src/pioner/back/modes.py#L231). Martin's
   "1, 2, 10, 2" probably refers to the older 4-channel front-end and
   needs explicit mapping (see Discrepancies).
 - "Sampling rate 20000": the production AI sample rate. Already aligned
@@ -149,7 +149,7 @@ output coefficient set.
 ### 3.3 Steps 9-11 -- `Thtr` and `Thtrd` polynomials (R -> T)
 
 This is the path computed by `apply_calibration` at
-[src/pioner/back/modes.py:253-276](src/pioner/back/modes.py#L253-L276):
+[src/pioner/back/modes.py:253-276](../src/pioner/back/modes.py#L253-L276):
 
 ```
 ih       = ihtr0 + ihtr1 * V_shunt              # A (production ihtr1 ~= 1/R_shunt)
@@ -161,11 +161,11 @@ Thtrd    = (same shape with thtrd0..thtrd2)
 So Martin's "fit `_amp vs _Thtr` table with poly 3" produces
 `thtr0, thtr1, thtr2` (plus `thtrcorr` if used), written into the JSON
 fields `"Thtr": {"0", "1", "2", "corr"}` and `"Thtrd": {...}` -- see
-[src/pioner/shared/calibration.py:189-197](src/pioner/shared/calibration.py#L189-L197).
+[src/pioner/shared/calibration.py:189-197](../src/pioner/shared/calibration.py#L189-L197).
 
 The `_amp` signal Martin plots is the AC amplitude from the lock-in. In
 PIONER this is the amplitude output of
-[`lockin_demodulate`](src/pioner/shared/modulation.py#L121) (or the
+[`lockin_demodulate`](../src/pioner/shared/modulation.py#L121) (or the
 sliding-window demod described in `live-streaming.md` section 2),
 applied to the `Umod` thermopile trace at f = 37.5 Hz.
 
@@ -178,8 +178,8 @@ program -> AO voltage) and by `_add_params` to derive `max_temp`:
 T = theater0*U + theater1*U^2 + theater2*U^3
 ```
 
-See [src/pioner/shared/calibration.py:140-143](src/pioner/shared/calibration.py#L140-L143)
-and [src/pioner/shared/utils.py:64-67](src/pioner/shared/utils.py#L64-L67).
+See [src/pioner/shared/calibration.py:140-143](../src/pioner/shared/calibration.py#L140-L143)
+and [src/pioner/shared/utils.py:64-67](../src/pioner/shared/utils.py#L64-L67).
 
 Martin says "fit poly 4, write k1, k2, k3". Our model is poly 3 in U
 with no constant term, which matches Martin once you drop k0 (k0 ~= 0
@@ -198,12 +198,12 @@ Utpl_corrected = (AI_ch * 1000 / gain_utpl) + utpl0
 temp           = ttpl0 * Utpl_corrected + ttpl1 * Utpl_corrected^2
 ```
 
-See [src/pioner/back/modes.py:223-235](src/pioner/back/modes.py#L223-L235).
+See [src/pioner/back/modes.py:223-235](../src/pioner/back/modes.py#L223-L235).
 "Press the arrow after Utpl settles" = capture the current measured
 `Utpl` (in mV) with the sign flipped and store it in `utpl0`. There is
 **no helper in the back-end today that performs this latch**; today it
 is purely a UI action (legacy IR UI has the button on
-`ttplBoxResetButton` at [pioner-IR-branch/pioner_app/ui/h_windows.py:101](pioner-IR-branch/pioner_app/ui/h_windows.py#L101)).
+`ttplBoxResetButton` at [pioner-IR-branch/pioner_app/ui/h_windows.py:101](../pioner-IR-branch/pioner_app/ui/h_windows.py#L101)).
 A back-end equivalent would be a one-line call that sets
 `calibration.utpl0 = -mean_Utpl_mV_over_last_K_samples`.
 
@@ -211,7 +211,7 @@ A back-end equivalent would be a one-line call that sets
 
 The "Amplitude correction" coefficients (`ac0..ac3`, JSON key
 `"Amplitude correction"`) are loaded by `Calibration.read` at
-[src/pioner/shared/calibration.py:209-212](src/pioner/shared/calibration.py#L209-L212),
+[src/pioner/shared/calibration.py:209-212](../src/pioner/shared/calibration.py#L209-L212),
 but **they are not yet consumed by `apply_calibration`** -- there is no
 call site that applies them to the lock-in amplitude. This is the
 "correct AC amplitude as a function of `Utpl`" step Martin describes.
@@ -342,7 +342,7 @@ implemented.
    AD595 cold-junction averaging used by `apply_calibration` (today
    `df["Taux"] = mean(AD595)` over the full scan) introduces the
    ~0.5 deg C drift error already flagged in
-   [src/pioner/back/modes.py:206](src/pioner/back/modes.py#L206)
+   [src/pioner/back/modes.py:206](../src/pioner/back/modes.py#L206)
    and in `CLAUDE.md`. For a long calibration ramp this is
    non-trivial. Worth deciding whether to switch to per-sample (or
    low-pass-filtered) AD595 before running stage D for real.

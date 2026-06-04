@@ -223,7 +223,7 @@ buffer that IsoMode is about to play CONTINUOUS and logs a warning when
 `cycles_drift != 0`.
 
 The IR branch does not perform this check (flagged in
-[README-IR.md](../README-IR.md) section 8).
+[IR-branch.md](IR-branch.md) section 8).
 
 ### 8. `x2` mode / second-harmonic demodulation
 
@@ -387,7 +387,7 @@ Per-mode wiring in the IR branch:
   Celsius); without calibration it falls back to `Umod_mV`.
 - **Fast heat**: no demodulation -- finite paced AO+AI scan only.
 - **Iso**: not implemented as a first-class mode (see
-  [README-IR.md](../README-IR.md) section 4.4).
+  [IR-branch.md](IR-branch.md) section 4.4).
 
 Phase wrap convention in `calcaf_lockin`: `(-180, 180]` degrees, with a
 manual `addphase` offset subtracted at the end. UI exposes a "zero phase"

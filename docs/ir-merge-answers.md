@@ -3,7 +3,7 @@
 Документ для согласования перед мерджем фрагментов IR-branch в основную ветку
 PIONER. Цель — забрать из IR-branch лучшее (ProfileWidget, калибровочный
 визард, per-channel input gains, AOStreamSHGenerator, post_hold для
-fast-heat, и так далее — см. [README-IR.md](../README-IR.md) §7) без
+fast-heat, и так далее — см. [IR-branch.md](IR-branch.md) §7) без
 переноса спорных мест и не сломав физику.
 
 Ссылки на код даны от корня репозитория. Уровень "блокер" = без ответа на
@@ -395,7 +395,7 @@ ownership на stop.
 
 `AiInputMode.SINGLE_ENDED = 2`. В предыдущем обсуждении упоминалось, что
 переход на "default" что-то починил (по поводу FIFO overrun на быстрых
-нагревах, см. [known-issues.md](../known-issues.md) §1).
+нагревах, см. [known-issues.md](../postmortem/2026-05-23-fifo-overrun-continuous-ai.md) §1).
 
 - Это был `ScanOption.DEFAULTIO` (scan option) — и это действительно
   починило проблему?
@@ -471,7 +471,7 @@ ownership на stop.
   или полностью переходим на наш `lockin_demodulate`. Источник —
   подтверждённый порт кода Бондаря; сравнения с `lockin_demodulate` IR не
   проводил, значит решение принимаем на нашей стороне (рекомендация из
-  [README-IR.md](../README-IR.md) §9: оставить `lockin_demodulate` +
+  [IR-branch.md](IR-branch.md) §9: оставить `lockin_demodulate` +
   `fft_demodulate`, `calcaf_lockin` не портировать);
 - ответ на **C2** — `AOStreamSHGenerator` со ступенчатыми параметрами
   модуляции IR сам признаёт неотлаженным; при порте имеет смысл сразу

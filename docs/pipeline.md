@@ -324,7 +324,7 @@ Two start modes are supported:
   exercised by ``test_fast_mode_with_hardware_trigger_runs_clean`` and
   ``test_iso_ac_with_hardware_trigger_runs_clean``. Real-hardware
   loopback validation (1 kHz square wave on AO ch1 → AI ch1, leading
-  edge ≤ 1 sample) is still pending — see ``todo.md`` P0-5.
+  edge ≤ 1 sample) is still pending — see ``TODO.md`` P0-5.
 
 ---
 
@@ -375,7 +375,7 @@ in ohms.
 the historical 39392 polynomial has near `V ≈ 0.16 V` is tolerated by the
 cumulative-max. Output is rounded to 4 decimals — slightly tighter than the
 16-bit DAC LSB (~0.305 mV), so the rounding does not matter on real
-hardware (see `todo.md` P2-19).
+hardware (see `TODO.md` P2-19).
 
 ---
 
@@ -396,7 +396,7 @@ module. Key contract guarantees:
   the chip** — only enough to exercise the post-processing pipeline. The
   noise term is `math.sin(t·1234.5 + channel)·0.5e-3`, a coherent ~196 Hz
   tone visible in any FFT. Avoid choosing `f_mod` near 196 Hz when running
-  iso/slow tests on the mock (todo.md P1-15).
+  iso/slow tests on the mock (TODO.md P1-15).
 * `scan_stop` joins the worker before returning, so re-arming a new scan is
   race-free.
 * `EXTTRIGGER` is implemented as `_SharedScanState.trigger_event` +
@@ -518,8 +518,8 @@ the GUI writes everything back to `./settings/settings.json`.
 
 ## 8. Outstanding work / global TODOs
 
-The authoritative, prioritised list is in `todo.md`. The items below summarise
-what is still open after the 2026-05-09 audit (all listed bugs in todo.md
+The authoritative, prioritised list is in `TODO.md`. The items below summarise
+what is still open after the 2026-05-09 audit (all listed bugs in TODO.md
 sections P0/P1 that are not yet closed). None block the 3-mode pipeline from
 working end-to-end on mock or on real hardware.
 
@@ -529,14 +529,14 @@ working end-to-end on mock or on real hardware.
    `program_duration % 1 s == 0` constraint by sizing the AI buffer to
    `ceil(seconds) * sample_rate` and trimming the trailing tail. Touched in
    `experiment_manager._collect_finite_ai` and `modes._validate_programs`.
-   *Currently a deliberate software simplification (see `todo.md` P0-6).*
+   *Currently a deliberate software simplification (see `TODO.md` P0-6).*
 2. **Hardware trigger — real-hardware validation** — `EXTTRIGGER` is
    implemented for `finite_scan` (FastHeat / SlowMode), `ao_modulated`
    (IsoMode AC) and `start_ring_buffer`. Mock-tested in
    `test_fast_mode_with_hardware_trigger_runs_clean` and
    `test_iso_ac_with_hardware_trigger_runs_clean`. The loopback test on a
    real DAQ board (1 kHz square wave on AO ch1 → AI ch1, leading edge
-   ≤ 1 sample) is still pending — `todo.md` P0-5.
+   ≤ 1 sample) is still pending — `TODO.md` P0-5.
 3. **Slow mode in the GUI** — add a mode dropdown and reuse the existing
    profile editor. Backend (`select_mode("slow")`, `arm`, `run`) is already
    plumbed.
@@ -549,7 +549,7 @@ working end-to-end on mock or on real hardware.
    (test fallback). The Rhtr formula has been corrected to V/A = Ω
    (regression-tested by `test_rhtr_units_are_ohms_with_production_calibration`),
    so once `ihtr1` is set in `calibration.json` everything downstream is in
-   physical units. Open as `todo.md` P0-3.
+   physical units. Open as `TODO.md` P0-3.
 5. **AD595 Taux is averaged over the whole scan** — replace `df[3].mean()`
    in `apply_calibration` by either a per-sample correction or a
    low-pass-filtered trace. Drift over long slow ramps (>30 s) is
@@ -568,16 +568,16 @@ working end-to-end on mock or on real hardware.
 8. **Modulation clipping on slow/iso is silent** — the AC profile is
    `np.clip`'d to `[0, safe_voltage]` without a warning. With e.g.
    `DC=8.5 V, A=2 V, safe=9 V` half of the sine is clipped and the lock-in
-   amplitude is biased silently. `todo.md` P1-4.
+   amplitude is biased silently. `TODO.md` P1-4.
 9. **AO buffer seamlessness at f_mod = 37.5 Hz** — `IsoMode.arm` logs a
    warning quantifying the defect, but the production fix (drop to a
    seamless `f_mod` such as 40 Hz, or expose the buffer length as a
-   setting) is `todo.md` P0-4.
+   setting) is `TODO.md` P0-4.
 10. **Mock realism** — the mock copies AO voltage to AI ch5, scales it to
     put a small thermopile signal on ch1/ch4, and exposes ~25 °C on ch3. It
     does not simulate the chip's RC thermal response, so testing `C_p`
     reconstruction algorithms against the mock is not meaningful. Also
-    injects a coherent ~196 Hz tone (todo.md P1-15).
+    injects a coherent ~196 Hz tone (TODO.md P1-15).
 
 ### Code-quality
 

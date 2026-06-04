@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-23
 **Scope:** `src/pioner/back/ai_device.py`, README.md, design_notes.md,
-todo.md, known-issues.md, docs/ir-merge-answers.md (was
+TODO.md, known-issues.md, docs/ir-merge-answers.md (was
 `ir-merge-questions.md` at the time of this postmortem; the two files
 were later consolidated into the answers file)
 **Impact:** dead-code fallback that would have failed loudly on real
@@ -16,7 +16,7 @@ to default") wasted because the wrong axis was investigated.
 
 While investigating an old `ULError.OVERRUN: FIFO overrun` crash on
 fast-heat acquisition (operator's machine, pre-IR-branch code path; see
-[../known-issues.md](../known-issues.md) section 1 for the full
+[../known-issues.md](2026-05-23-fifo-overrun-continuous-ai.md) section 1 for the full
 incident), the operator's recollection of the fix included this phrase:
 
 > "когда поменял режим с single-ended на дефолтный и после этого
@@ -61,7 +61,7 @@ switch input mode to DIFFERENTIAL" workaround in the workarounds list.
    switch to DIFFERENTIAL." The fallback assumed boards generally have
    both modes available.
 
-2. **`todo.md` P1-10 and P2-11 captured the fallback as a real concern.**
+2. **`TODO.md` P1-10 and P2-11 captured the fallback as a real concern.**
    P1-10 described the fallback as a known refactor target (the issue
    being that it mutates the shared `AiParams` object); P2-11 listed a
    test fixture "INPUT_MODE fallback to DIFFERENTIAL" as desirable test
@@ -156,10 +156,10 @@ matters; the input-mode angle is impossible on this board.
 - [README.md:13-19](../README.md#L13)
   -- "USB-1808 / USB-2408" replaced with USB-2637, with the
   single-ended-only and independent-pacer-clocks facts called out.
-- [design_notes.md:190-194](../design_notes.md#L190)
+- [design_notes.md:190-194](../docs/design-notes.md#L190)
   -- "Boards in scope" rewritten for USB-2637 only, with TTLTRG spec
   and trigger latency from the datasheet.
-- [design_notes.md:217-224](../design_notes.md#L217)
+- [design_notes.md:217-224](../docs/design-notes.md#L217)
   -- "Pacer-clock sharing" option (legacy USB-1808 `SyncIo` mode)
   marked as not available on USB-2637; pointer to options 1-2
   (trigger-based sync) as the path forward.
@@ -170,12 +170,12 @@ matters; the input-mode angle is impossible on this board.
 
 ### Tracking
 
-- [todo.md P1-10](../todo.md): marked **resolved** -- the original
+- [TODO.md P1-10](../TODO.md): marked **resolved** -- the original
   refactor target (don't mutate shared `AiParams`) is moot once the
   mutation is gone.
-- [todo.md P2-11](../todo.md): test fixture "INPUT_MODE fallback to
+- [TODO.md P2-11](../TODO.md): test fixture "INPUT_MODE fallback to
   DIFFERENTIAL" replaced with "hard RuntimeError when zero SE channels".
-- [known-issues.md](../known-issues.md): workaround "(Possibly) switch
+- [known-issues.md](2026-05-23-fifo-overrun-continuous-ai.md): workaround "(Possibly) switch
   input mode to DIFFERENTIAL" deleted; TODO entry for the
   "single-ended -> default" hypothesis rewritten with the resolution
   (it almost certainly meant DEFAULTIO, not DIFFERENTIAL); separate TODO
@@ -268,8 +268,8 @@ Two compounding causes:
   20 kHz x 6 ch x 3 s, to confirm whether mainline needs the same
   DEFAULTIO-style restructuring as the IR branch already did. This is
   the larger open item from
-  [known-issues.md](../known-issues.md) section 1 and is not
+  [known-issues.md](2026-05-23-fifo-overrun-continuous-ai.md) section 1 and is not
   postmortem-blocked.
 - [ ] Audit `src/pioner/back/mock_uldaq.py` and `tests/` to ensure the
   new hard-RuntimeError path is covered (P2-11 in
-  [todo.md](../todo.md)).
+  [TODO.md](../TODO.md)).

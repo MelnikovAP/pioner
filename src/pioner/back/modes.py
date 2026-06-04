@@ -716,7 +716,7 @@ class IsoMode(BaseMode):
                 # without bloating the per-sample DataFrame. (df.attrs does
                 # not round-trip through HDF5; if persistence is needed,
                 # log them at INFO and revisit when the iso HDF5 export
-                # lands -- see todo.md P2-9.)
+                # lands -- see TODO.md P2-9.)
                 df.attrs["temp-hr_fft"] = {
                     h.harmonic: {"amplitude": h.amplitude, "phase": h.phase}
                     for h in fft_result.harmonics

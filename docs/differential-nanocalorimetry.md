@@ -196,7 +196,7 @@ Same channel arithmetic as Option B, but the two AOs now drive two
    12 channels at 20 kHz the margin drops to ~17 ms; with 24 channels
    to ~8.5 ms. Adopting `ScanOption.DEFAULTIO` from the IR branch is
    strongly recommended at that point (see
-   [../known-issues.md](../known-issues.md) section 1 for the prior
+   [../known-issues.md](../postmortem/2026-05-23-fifo-overrun-continuous-ai.md) section 1 for the prior
    OVERRUN incident).
 10. **Trigger AO.** Options B and C consume the AO bank. If an
     external trigger is still needed, move it to a DIO pin or to one

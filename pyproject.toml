@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = [
     {name = "PIONER Lab", email = "alexey0703@esrf.fr"},
 ]
-description = "Software stack for the PIONER chip nanocalorimeter (former Nanocal)."
+description = "Software stack for the PIONER chip nanocalorimeter (formerly Nanocal)."
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["nanocalorimetry", "DAQ", "AC calorimetry", "MCC", "uldaq"]
@@ -28,16 +28,13 @@ dependencies = [
     "pandas>=2.2",
     "h5py>=3.10",
     "tables>=3.9",
-    "matplotlib>=3.8",
-    "requests>=2.31",
-    "sortedcontainers>=2.4",
 ]
 
 [project.optional-dependencies]
 # Real DAQ hardware backend (Linux/Raspberry Pi/macOS with libuldaq installed).
 hardware = ["uldaq>=1.2.3"]
-# Tango device server backend.
-server = ["pytango>=10.0"]
+# Tango device server backend (requests: HTTP download of exp_data.h5).
+server = ["pytango>=10.0", "requests>=2.31"]
 # Qt5 GUI front-end.
 gui = ["pyqt5>=5.15", "silx>=1.1"]
 # Development / testing.

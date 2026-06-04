@@ -16,7 +16,7 @@ Items covered:
 > **Status: implemented.** The `stop()` primitive sketched below has
 > shipped; `IsoMode.run` now blocks on a `threading.Event` and the
 > Tango `stop_run` command delegates to it. Both P1-1 and the
-> dependent P1-5 are tracked as resolved in `todo.md` (P1-5 references
+> dependent P1-5 are tracked as resolved in `TODO.md` (P1-5 references
 > "the `stop()` primitive that this fix relies on"). The text below
 > is kept as the historical design rationale; do not treat it as an
 > open plan.
@@ -178,7 +178,7 @@ def test_iso_mode_can_be_stopped_early(connected_daq, settings, calibration):
 
 ### Problem
 
-[experiment_manager.py:179-194](src/pioner/back/experiment_manager.py#L179-L194)
+[experiment_manager.py:179-194](../src/pioner/back/experiment_manager.py#L179-L194)
 arms AI first (`ScanOption.CONTINUOUS`), then AO (`ScanOption.BLOCKIO`),
 then immediately enters the polling loop. There is no shared start trigger
 — the two scans start sequentially in user-space code, separated by ~100 µs
@@ -196,7 +196,7 @@ Both scans configured with `ScanOption.RETRIGGER` or `ScanOption.EXTTRIGGER`
 gated on the same digital trigger line.
 
 Boards in scope: **MCC USB-2637** (datasheet:
-[specs/USB-2637.pdf](specs/USB-2637.pdf)).
+[specs/USB-2637.pdf](../specs/USB-2637.pdf)).
 
 - Exposes a digital trigger input `TTLTRG`, software-selectable for edge
   sensitive (rising/falling) or level sensitive (high/low) mode. Supports
@@ -299,7 +299,7 @@ verified on real hardware, full stop.
 > constants (`HEATER_AO = "ch1"`, `HEATER_CURRENT_AI = 0`, etc.); all
 > internal call sites in `back/`, `front/`, and `shared/` use those
 > constants. The wire format (`"chN"` strings in JSON programs and HDF5
-> group keys) is preserved on purpose. `todo.md` reflects this in the
+> group keys) is preserved on purpose. `TODO.md` reflects this in the
 > "Hardcoded values" note: "Heater channel `\"ch1\"` is now the named
 > constant `HEATER_AO`... the wire format remains `\"ch{N}\"`." The
 > text below is kept as the historical design rationale.
@@ -449,10 +449,10 @@ Single PR, ~half a day. Steps:
 
 ### Cancellation status
 
-This was previously tracked as **P1-7** in `todo.md`, marked "explicitly
+This was previously tracked as **P1-7** in `TODO.md`, marked "explicitly
 not doing — `ch1` remains a literal". User has changed their mind on
 2026-05-09. When implementing, remove the corresponding line in
-`todo.md`'s "Hardcoded values left intentionally untouched" note, and add
+`TODO.md`'s "Hardcoded values left intentionally untouched" note, and add
 a P1 item describing this work.
 
 ---
@@ -465,7 +465,7 @@ Original sequencing kept for historical reference:
 2. ~~**P1-1 + P1-5 together**~~ — **done** (see section 1 header).
 3. **P0-5** — still open. The trigger primitive is implemented and
    mock-tested; the real-hardware loopback validation is the remaining
-   blocker. See `todo.md` P0-5.
+   blocker. See `TODO.md` P0-5.
 
 P0-5 is the only remaining blocker for declaring MVP on real hardware
 at >1000 K/s; the mock-backend MVP is unblocked.

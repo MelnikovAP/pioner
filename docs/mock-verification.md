@@ -103,14 +103,14 @@ be re-validated on real hardware before MVP sign-off.
    `BackSettings.daq_params.hardware_trigger`) closes this on real
    hardware by pre-arming both scans with `EXTTRIGGER` and firing them
    together; mock-tested but not yet validated against a physical board.
-   Tracked as `todo.md` P0-5.
+   Tracked as `TODO.md` P0-5.
 
 3. **`Ihtr` / `Rhtr` dimensions** — With the default identity calibration
    `ihtr1 = 1.0`, the formula `Rhtr = (Uhtr_mV − V_shunt·1000 + uhtr0) ·
    uhtr1 / Ihtr` produces a number in `[Ω·V/A]`, not Ω. Tests pass because
    identity is dimensionally consistent in itself, but the production
    `calibration.json` must set `ihtr1 ≈ 1/R_shunt ≈ 5.88e-4` for real Ω.
-   Tracked as `todo.md` P0-3 — needs a conversation with the physicist
+   Tracked as `TODO.md` P0-3 — needs a conversation with the physicist
    before MVP claims about heater resistance.
 
 4. **AD595 cold-junction drift** — `apply_calibration` averages `df[3]` over
@@ -123,13 +123,13 @@ be re-validated on real hardware before MVP sign-off.
    tone at ~196 Hz, visible in the FFT and in the lock-in. With the default
    `f_mod = 37.5 Hz` and the verification cases at 200 Hz it is far enough
    away to not interfere; choosing `f_mod ≈ 196 Hz` will produce a spurious
-   peak. Tracked as `todo.md` P1-15.
+   peak. Tracked as `TODO.md` P1-15.
 
 ---
 
 ## 3. Real issues left in the back-end
 
-All of these are tracked in `todo.md`; none of them block running the three
+All of these are tracked in `TODO.md`; none of them block running the three
 modes against the mock or against real hardware, but they are worth knowing
 before a public demo.
 
@@ -237,7 +237,7 @@ arm / run` wiring before real hardware.
 
 ## 5. Pre-real-hardware checklist (out of scope for the mock)
 
-Before the first real-hardware run, three items in `todo.md` need attention:
+Before the first real-hardware run, three items in `TODO.md` need attention:
 
 1. **P0-3** — Confirm `ihtr1` semantics with the physicist; commit a
    production `calibration.json` with `ihtr1 ≈ 1/R_shunt`.
@@ -247,5 +247,5 @@ Before the first real-hardware run, three items in `todo.md` need attention:
    `sosfiltfilt` edge transient (P1-9) when interpreting first real-hardware
    plots.
 
-Everything else in `todo.md` is quality-of-life or code health and does not
+Everything else in `TODO.md` is quality-of-life or code health and does not
 block MVP.

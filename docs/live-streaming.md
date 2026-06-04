@@ -15,9 +15,9 @@ Related docs:
 - [usb-2637-vs-2627.md](usb-2637-vs-2627.md) -- hardware capabilities
   that constrain this design (single-ended only, independent AI/AO
   pacer clocks, TTLTRG hardware trigger, channel queue).
-- [../known-issues.md](../known-issues.md) section 1 -- FIFO overrun
+- [../known-issues.md](../postmortem/2026-05-23-fifo-overrun-continuous-ai.md) section 1 -- FIFO overrun
   history; the streaming design must not regress this.
-- [../design_notes.md](../design_notes.md) -- AO/AI trigger sync
+- [design-notes.md](design-notes.md) -- AO/AI trigger sync
   architecture.
 - [../postmortem/2026-05-23-differential-vs-defaultio.md](../postmortem/2026-05-23-differential-vs-defaultio.md)
   -- the DIFFERENTIAL fallback removal that anchors the
@@ -206,7 +206,7 @@ AI is fixed (Rule 1). AO varies per mode.
 | Mode             | AO state                                                                  |
 |------------------|---------------------------------------------------------------------------|
 | Idle (no experiment, no Arm) | "Monitoring drive": baseline + optional AC modulation. AC defaults to ON using config.json modulation params (f=37.5 Hz, amp=0.1 V, offset=0.3 V). Power dissipation ~6 uW, negligible. Operator can toggle AC off via UI for a fully passive readout. |
-| FastHeat (Armed) | AO finite scan with the fast-heat profile. `ScanOption.DEFAULTIO`, host buffer sized to the full scan length (see [../known-issues.md](../known-issues.md) section 1 for why DEFAULTIO not CONTINUOUS). |
+| FastHeat (Armed) | AO finite scan with the fast-heat profile. `ScanOption.DEFAULTIO`, host buffer sized to the full scan length (see [../known-issues.md](../postmortem/2026-05-23-fifo-overrun-continuous-ai.md) section 1 for why DEFAULTIO not CONTINUOUS). |
 | SlowMode (Armed) | AO finite scan with the slow ramp + AC modulation profile, sized to the full ramp length. |
 | IsoMode (Armed)  | AO CONTINUOUS scan with one-second modulated buffer that wraps cleanly (verified by `check_ao_period_integrity` from `shared/modulation.py`). |
 | EXTTRIGGER variant of any of the above | AO armed with `ScanOption.EXTTRIGGER` -- DMA loaded, ADC sequencer ready, waiting for TTLTRG. Fires on trigger edge. |

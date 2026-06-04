@@ -195,7 +195,7 @@ class ExperimentManager:
         #      ``ScanOption.EXTCLOCK``. Needs one physical jumper, no
         #      software trigger. Note that USB-2637 has no internal shared
         #      pacer (AO and AI pacers are independent by design — see
-        #      design_notes.md and specs/USB-2637.pdf), so the external
+        #      docs/design-notes.md and specs/USB-2637.pdf), so the external
         #      jumper is mandatory for clock-level sync.
         #   2) Software offset: measure the persistent skew once, store it
         #      as ``calibration.pre_trigger_samples``, and trim the leading

@@ -1,8 +1,14 @@
-# Known issues
+# FIFO overrun on the legacy CONTINUOUS AI fast-heat path
 
-A running log of correctness, stability, and reliability issues observed in
-the PIONER codebase (mainline and IR branch). Each entry: symptom, where it
-lives, root cause, what is known to work around it, open questions.
+**Date:** 2026-05-23 (incident predates the mainline / IR rewrites)
+**Scope:** legacy `fastheat.py` + `experiment_manager.ai_continuous` (pre-IR),
+IR-branch `_run_finite_profile`, mainline `experiment_manager.finite_scan`.
+**Impact:** fast-heat runs aborted mid-scan with `ULError.OVERRUN`.
+
+> Formerly the repo-root `known-issues.md` section 1; moved here with links
+> re-based. The still-open follow-ups are tracked as **todo P1-30**. The
+> related "DIFFERENTIAL vs DEFAULTIO" debugging lesson is a separate write-up:
+> [2026-05-23-differential-vs-defaultio.md](2026-05-23-differential-vs-defaultio.md).
 
 ---
 
@@ -64,10 +70,10 @@ Where the equivalent code lives now:
 
 | Concept                           | Pre-IR (failing)                                        | IR branch (current)                                                  |
 |-----------------------------------|---------------------------------------------------------|----------------------------------------------------------------------|
-| Fast-heat entry                   | `fastheat.py::FastHeat.run` -> `em.ai_continuous(...)`  | `daq_controller.run_fast_heat_profile` -> `ExperimentManager._run_finite_profile` ([experiment_manager.py:420](pioner-IR-branch/pioner_app/core/experiment_manager.py#L420)) |
-| AI scan option                    | `ScanOption.CONTINUOUS` (drained in a Python loop)      | `ScanOption.DEFAULTIO` ([ai_device.py:251](pioner-IR-branch/pioner_app/hardware/ai_device.py#L251)) |
+| Fast-heat entry                   | `fastheat.py::FastHeat.run` -> `em.ai_continuous(...)`  | `daq_controller.run_fast_heat_profile` -> `ExperimentManager._run_finite_profile` ([experiment_manager.py:420](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L420)) |
+| AI scan option                    | `ScanOption.CONTINUOUS` (drained in a Python loop)      | `ScanOption.DEFAULTIO` ([ai_device.py:251](../pioner-IR-branch/pioner_app/hardware/ai_device.py#L251)) |
 | Host buffer size                  | Smaller than full scan; read-and-recycle while scanning | Sized to the full scan length (`samples = duration * sample_rate`)  |
-| Data read cadence                 | Per-chunk reads inside `_read_data_loop`, with optional simultaneous HDF5 save (`do_save_data=True`) | Single read at end, after `ScanStatus.IDLE` ([experiment_manager.py:461](pioner-IR-branch/pioner_app/core/experiment_manager.py#L461)) |
+| Data read cadence                 | Per-chunk reads inside `_read_data_loop`, with optional simultaneous HDF5 save (`do_save_data=True`) | Single read at end, after `ScanStatus.IDLE` ([experiment_manager.py:461](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L461)) |
 
 The pre-IR `ai_continuous` / `_read_data_loop` methods are not present in
 the IR branch at all -- they were removed in the rewrite that introduced
@@ -117,7 +123,7 @@ streaming-consumer problem entirely:
 - During the scan the Python loop only polls progress for the UI bar; it
   does **not** read or copy data, and it does **not** write to disk.
 - After `ScanStatus.IDLE`, the buffer is read once
-  ([experiment_manager.py:461](pioner-IR-branch/pioner_app/core/experiment_manager.py#L461)),
+  ([experiment_manager.py:461](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L461)),
   reshaped, and returned to the caller. Save-to-disk happens after that,
   off the critical path.
 
@@ -136,7 +142,7 @@ the IR branch never tried to use this code path for iso.
 
 - The IR branch's *live signals* and *slow-heat* paths still arm AI with
   `ScanOption.CONTINUOUS`
-  ([ai_device.py:255](pioner-IR-branch/pioner_app/hardware/ai_device.py#L255),
+  ([ai_device.py:255](../pioner-IR-branch/pioner_app/hardware/ai_device.py#L255),
   used by `start_continuous` and the slow-heat `start_acquisition`). They
   are subject to the same OVERRUN class of failure if the consuming
   widget falls behind, especially at high sample rates or under VMs.
@@ -147,7 +153,7 @@ the IR branch never tried to use this code path for iso.
 - Mainline `src/pioner/back/experiment_manager.py::finite_scan` arms AI
   as `CONTINUOUS` with a *one-second* buffer and uses a half-buffer flip
   protocol to copy data out as the scan progresses
-  ([experiment_manager.py:192](src/pioner/back/experiment_manager.py#L192),
+  ([experiment_manager.py:192](../src/pioner/back/experiment_manager.py#L192),
   `_collect_finite_ai`). That is closer to the failing legacy approach
   than to the IR-branch fix. It works in the lab today but the same
   OVERRUN risk applies if the half-buffer reader is delayed (GC, disk,
@@ -179,18 +185,18 @@ the IR branch never tried to use this code path for iso.
   fix was the scan-option change.
 - [ ] **Quantify the OVERRUN margin for mainline `finite_scan`.** The
   one-second buffer + half-flip protocol in
-  [src/pioner/back/experiment_manager.py:344](src/pioner/back/experiment_manager.py#L344)
+  [src/pioner/back/experiment_manager.py:344](../src/pioner/back/experiment_manager.py#L344)
   is the same class of design as the failing legacy path, just with a
   larger buffer. Reproduce the failing run on mainline at 20 kHz x 6 ch
   x 3 s (bare metal and VM) and confirm whether mainline is safe or
   whether it should also adopt the IR-branch full-buffer approach.
 - [x] **Document USB-2637 FIFO depth.** Resolved: per
-  [specs/USB-2637.pdf](specs/USB-2637.pdf) chapter 5 "Memory" table:
+  [specs/USB-2637.pdf](../specs/USB-2637.pdf) chapter 5 "Memory" table:
   **Data FIFO = 4 kS analog input / 2 kS analog output**. At our typical
   6 channels x 20 kHz aggregate rate (120 kS/s), the AI FIFO fills in
   4096 / 120000 = **~34 ms**. That is the upper bound on host stall time
   before `ULError.OVERRUN` triggers under the legacy CONTINUOUS+HDF5
-  path. See [docs/usb-2637-vs-2627.md](docs/usb-2637-vs-2627.md) for
+  path. See [docs/usb-2637-vs-2627.md](../docs/usb-2637-vs-2627.md) for
   more headroom calculations. DMA block layout is still undocumented
   in the user's guide; that part remains open and would have to be
   measured empirically.

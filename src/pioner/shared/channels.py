@@ -5,7 +5,7 @@ keys (``voltage_profiles/ch1``), and the Tango pipe remains the literal
 ``"ch{N}"`` string. These constants are about naming and discoverability,
 not type safety.
 
-Channel layout matches ``spec.md`` section 1:
+Channel layout matches ``docs/pipeline.md`` section 1:
 
     AO ch0  shunt-path bias (~0.1 V)
     AO ch1  heater drive (DC + AC)

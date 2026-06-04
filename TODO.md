@@ -1,8 +1,15 @@
-# PIONER — back-end TODO list
+# PIONER — TODO / roadmap
 
-Stepwise, executable backlog of open work on the back-end (no front-end items).
-Each item is self-contained: what to do, where, why, and how to verify. **P0**
-items go first, **P3** is polish.
+Single forward-looking backlog for the whole project: back-end, front-end,
+hardware bring-up, and cross-cutting work. Each item is self-contained: what to
+do, where, why, and how to verify. **P0** items go first, **P3** is polish.
+Current state (what already works) lives in [README.md](README.md); resolved
+incidents live in [ERRORS.md](ERRORS.md) + `postmortem/`.
+
+Sections below: **P0** critical correctness, **P1** architectural/feature work
+(incl. hardware bring-up, front-end, closed-loop control, and the
+open-source/proprietary split — see [pioner-pypi.md](pioner-pypi.md)), **P2**
+code quality, **P3** docs.
 
 File references use the `path/to/file.py:line` format. Test command:
 `PYTHONPATH=src .venv/bin/pytest -q`.
@@ -11,12 +18,12 @@ File references use the `path/to/file.py:line` format. Test command:
 
 - `pytest tests/`: **100 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
-- Mock-DAQ pipeline verification: see `mock_verification.md` — modulation
+- Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
   loss, `Uref` tiled correctly for finite / CONTINUOUS / DC-iso paths.
 - All "won't run" bugs are closed; remaining work is architectural rough
   edges and physical fidelity items for real hardware.
-- Pipeline reference: `spec.md`. Manual mock usage: `mock_verification.md`.
+- Pipeline reference: `docs/pipeline.md`. Manual mock usage: `docs/mock-verification.md`.
 
 **Conventions kept on purpose:** column name `Uref` (not `Uheater`), and
 the `total_ms % 1000 == 0` software constraint on profile durations.
@@ -413,17 +420,17 @@ channels, can drive two chips on one board. Need: extension of
 
 **What:** Mainline has no calibration workflow (JSON edited manually).
 Operator wants this implemented per the Martin calibration procedure
-(see [docs/Martin-calibration-procedure.md](../docs/Martin-calibration-procedure.md))
+(see [docs/Martin-calibration-procedure.md](docs/Martin-calibration-procedure.md))
 with optimization of the polynomial fit stages.
 
 **Action:** Port IR-branch's `CalibrationWizard`
-([pioner-IR-branch/pioner_app/ui/calibration_wizard.py](../pioner-IR-branch/pioner_app/ui/calibration_wizard.py))
+([pioner-IR-branch/pioner_app/ui/calibration_wizard.py](pioner-IR-branch/pioner_app/ui/calibration_wizard.py))
 as the UI scaffold. Adapt the three-stage flow (Thtr / Theater / Ttpl)
 to the Martin algorithm specifics. Consider numerical-optimization
 improvements (constrained least squares vs unconstrained, robust fit
 against melting-plateau outliers). **Depends on P1-17** (live streaming
 required for the cursor-pick during ramp). See also B1-B4 in
-[docs/ir-merge-answers.md](../docs/ir-merge-answers.md) for
+[docs/ir-merge-answers.md](docs/ir-merge-answers.md) for
 procedure details (answers received from the IR-branch dev).
 
 ### P1-23. Thermostat / atmosphere control (cryogenic + gas-controlled experiments)
@@ -537,6 +544,61 @@ from the schematic by hand.
 Goal: a maintained schematic + SPICE model that documents the real signal
 chain (feeds back into P0-3 calibration provenance and P1-25 front-end
 changes). Investigation first; deliverable is a model + short notes, not code.
+
+### P1-28. Hardware bring-up on a real USB-2637
+
+**Where:** operator checklist in [docs/hardware-bringup.md](docs/hardware-bringup.md).
+
+**What:** the code preparation for hardware-mode testing has landed (real-vs-mock
+status readout, settings-driven `HardwareTrigger`, connect diagnostics, idle-Thtr
+guard, sample-count logging). The remaining work needs the physical board and is a
+**HARD STOP** per `CLAUDE.md`. Ordered bring-up steps:
+
+1. Install `libuldaq` + `.[hardware]`; confirm the GUI status reads
+   `REAL DAQ (uldaq)` and idle Thtr shows `---`.
+2. Short fast / slow / iso runs cross-checked against
+   [docs/mock-verification.md](docs/mock-verification.md) tolerances; confirm the
+   `AI finite scan complete: N / N` log (no short frame).
+3. P0-5 skew check (see P0-5): no trigger line on the rig, so measure the residual
+   AO/AI skew and, if it matters, implement the per-host software offset-trim.
+4. Then the live-chip accuracy items that cannot be pre-validated on the mock:
+   P0-4 iso seamlessness at 37.5 Hz, P1-9 lock-in edge transients, fast/slow
+   live-stream-during-run (P1-17 Approach A, alignment > 1000 K/s).
+
+### P1-29. Front-end: iso hold/timed-program toggle + GUI regression tests
+
+**(front-end).** **Where:** `src/pioner/front/mainWindow.py`,
+`src/pioner/front/mainWindowUi.py`.
+
+**What:**
+- Expose the iso behaviour from P1-5 in the GUI: a toggle between "Set & hold
+  until Off" (default) and "temperature program: target + duration, auto-stop".
+  Depends on the P1-5 back-end rewire.
+- The connect status readout (A1), connect diagnostics (A2), and idle-Thtr
+  blanking (A3) are currently only exercised by an offscreen smoke. Add
+  `QT_QPA_PLATFORM=offscreen` regression tests so the status label and idle-Thtr
+  behaviour cannot silently regress.
+
+### P1-30. Quantify / harden the mainline `finite_scan` OVERRUN margin
+
+**Where:** `src/pioner/back/experiment_manager.py` (`_collect_finite_ai`,
+`_ring_loop`). Background: the FIFO-overrun incident,
+[postmortem/2026-05-23-fifo-overrun-continuous-ai.md](postmortem/2026-05-23-fifo-overrun-continuous-ai.md).
+
+**What:** mainline arms AI as `CONTINUOUS` with a one-second buffer and a
+half-buffer flip — the same class of design as the legacy path that hit
+`ULError.OVERRUN`, just with a larger buffer. Open items carried over from the
+incident:
+
+- Reproduce the failing run on mainline at 20 kHz x 6 ch x 3 s (bare metal and
+  VM) and confirm whether mainline is safe or should adopt a full-buffer
+  `DEFAULTIO` finite scan for fast-heat (as the IR branch did).
+- Decide whether the live-signals / slow-heat `CONTINUOUS` paths need the same
+  treatment, or document a sample-rate ceiling.
+- Investigate whether `DEFAULTIO` issues larger DMA transfers than `CONTINUOUS`
+  (would raise the effective drain rate). Not yet verified.
+- The B3 sample-count logging (`AI finite scan short ...` WARNING) now makes a
+  short frame visible at runtime; use it during the bring-up runs.
 
 ---
 
@@ -669,7 +731,7 @@ resolution as a parameter.
 ### P2-20. Port simpleFastHeatWidget segmentation feature from IR-branch
 
 **What:** IR-branch's
-[pioner_app/ui/widgets/simpleProcessWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py)
+[pioner_app/ui/widgets/simpleProcessWidget.py](pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py)
 lets the operator segment a recorded experiment (full trace / heating /
 cooling / isotherm) and display only the segments of interest for
 fit / inspection. Useful workflow that mainline doesn't have.
@@ -711,10 +773,10 @@ Add an artificial progress bar driven by elapsed time vs expected
 See **P0-3**. Doctrine: every numeric operation gets a comment
 (`# input: V, output: mV`).
 
-### P3-2. README references `spec.md`
+### P3-2. README references `docs/pipeline.md`
 
 **Action:** add a "Pipeline overview" section with one sentence and a
-link to `spec.md`.
+link to `docs/pipeline.md`.
 
 ### P3-3. Update Sphinx autodoc against the current package layout
 
@@ -725,9 +787,9 @@ link to `spec.md`.
 **Where:** `DaqDeviceHandler.get`, `Calibration.write`,
 `IsoMode.ai_stop`, `AiParams/AoParams.channel_count` — currently empty.
 
-### P3-5. Refresh `spec.md` with the recent fixes
+### P3-5. Refresh `docs/pipeline.md` with the recent fixes
 
-**Where:** `spec.md`, sections "Outstanding TODO" and "AI half-buffer".
+**Where:** `docs/pipeline.md`, sections "Outstanding TODO" and "AI half-buffer".
 
 ### P3-6. Bench-experiment example script
 
@@ -750,11 +812,11 @@ against ours.
 
 **Action:** Read README and key modules; note any techniques relevant
 to our calibration / demod stack; document findings in
-[design_notes.md](../design_notes.md) or a comparison sub-doc.
+[design_notes.md](docs/design-notes.md) or a comparison sub-doc.
 
 ### P3-9. Process IR-branch answers and close merge questions
 
-**What:** [docs/ir-merge-answers.md](../docs/ir-merge-answers.md) is the
+**What:** [docs/ir-merge-answers.md](docs/ir-merge-answers.md) is the
 consolidated Q&A document (questions + answers from the IR-branch
 developer) covering hardware topology, calibration procedure, algorithm
 choices, dead code, and architectural intent. The five blockers
@@ -790,7 +852,8 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
 ## Notes
 
 - Run `PYTHONPATH=src .venv/bin/pytest -q` (≤10 s) on every change.
-- Do not touch the GUI (`front/`) until back-end P0/P1 are closed.
+- Front-end work is now in scope (the GUI single-window rewrite has landed);
+  front items are tagged **(front-end)** below.
 - **Do not change hardcoded names/values** (`Uref`, the
   `total_ms % 1000 == 0` constraint) without an explicit user request.
   Heater channel `"ch1"` now goes through `pioner.shared.channels.HEATER_AO`

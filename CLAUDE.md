@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (94 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (100 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - GUI (single window, all modes + live streaming): `python -m pioner.runUI
   --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
@@ -18,8 +18,40 @@ against a mock uldaq backend.
   section 8 for what has landed vs deferred.
 - Editable install: `.venv/bin/pip install -e .` (already done; required so
   Pylance can resolve `pioner.*` imports without red squiggles).
-- Pipeline reference: `spec.md`. Open backlog: `todo.md`. Mock pipeline check:
-  `mock_verification.md`. Higher-level architecture: `design_notes.md`.
+- Pipeline reference: `docs/pipeline.md`. Open backlog: `TODO.md`. Mock pipeline check:
+  `docs/mock-verification.md`. Higher-level architecture: `docs/design-notes.md`.
+
+## Documentation discipline
+
+The repo has exactly five canonical Markdown files at the root, each with one
+job. Keep them that way; do not reintroduce scattered root docs.
+
+- **`README.md`** — the single source of truth for the *current* state: what
+  the device is, how to run it, the project layout, and the open-source/
+  proprietary separation idea. If behaviour changes, update README in the same
+  change. No future plans or bug logs here.
+- **`TODO.md`** — the single forward-looking roadmap for the *whole* project
+  (back, front, hardware, cross-cutting), P0..P3. Plans live ONLY here. When a
+  task is finished, delete it from `TODO.md` (don't leave "RESOLVED" stubs);
+  the result belongs in README/code, the rationale in git history.
+- **`ERRORS.md`** — chronological one-line index of resolved incidents, each
+  linking to a full write-up in `postmortem/`. Add an entry whenever a serious
+  or hard-won bug is fixed; the deep analysis goes in `postmortem/<date>-slug.md`.
+- **`CLAUDE.md`** (this file) and **`pioner-pypi.md`** (the open-source /
+  proprietary split plan) are the only other root `.md` files, by design.
+
+Rules:
+- **Keep docs actual.** A claim in any doc must match the code; verify
+  (`file:line` / grep) before writing it, and fix stale claims (test counts,
+  moved files, resolved items) when you touch a doc. New behaviour ships with
+  its doc update in the same change — never "document later".
+- **Reference material lives in `docs/`**, not at the root: full pipeline spec,
+  mock-verification procedure, design notes, modulation/lock-in math, hardware
+  specs, bring-up checklist, IR-branch analysis. Cross-link by relative path;
+  when you move a doc, fix every inbound link (code comments included) and
+  re-verify with grep.
+- The Sphinx site (`docs/source/` -> ReadTheDocs via `.readthedocs.yaml`) is
+  the API reference; keep it building, do not delete it.
 
 ## Core rules
 
@@ -50,7 +82,7 @@ against a mock uldaq backend.
   is not confirmation.
 - **Never modify `pioner-IR-branch/`.** It is a read-only reference snapshot
   from a parallel branch, kept around for comparison and porting decisions
-  (see `README-IR.md`, `docs/ir-merge-answers.md`). Read it freely with
+  (see `docs/IR-branch.md`, `docs/ir-merge-answers.md`). Read it freely with
   Read / Grep / Bash, but never run Edit, Write, or any Bash command with
   side effects (mv, rm, sed -i, etc.) inside that directory. Any porting
   work goes into `src/pioner/` (or new files outside `pioner-IR-branch/`).
@@ -153,7 +185,7 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
   `src/pioner/back/modes.py` assumes `ih = ihtr0 + ihtr1 * V_shunt` yields
   amperes, so production `ihtr1 ≈ 1/Rshunt ≈ 5.88e-4` (Rshunt ≈ 1700 Ω).
   Identity `ihtr1 = 1.0` is the **test fallback only** — `Rhtr` derived from
-  it has units of `Ω·V/A`, not Ω. See `todo.md` P0-3.
+  it has units of `Ω·V/A`, not Ω. See `TODO.md` P0-3.
 - **Heater R undefined at zero current.** When `|ih| < 1e-9 A` mark `Rhtr` as
   NaN. Never let `R = U/0` propagate; the legacy code produced ~−1070 °C and
   it took a long time to track down.
@@ -162,9 +194,9 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
   cover an integer number of modulation periods to suppress `2f` leakage —
   `lockin_demodulate` does this; if you change the windowing, re-verify
   amplitude against the analytical value (mock check tolerates ~10 %, see
-  `mock_verification.md`).
+  `docs/mock-verification.md`).
 - **AO/AI start ordering.** AI must be armed before AO is started; the
-  reverse skews the leading edge. See `todo.md` P0-5.
+  reverse skews the leading edge. See `TODO.md` P0-5.
 - **Buffer-length constraint.** Total program duration must be a whole number
   of seconds (`total_ms % 1000 == 0`). The AI buffer is sized to exactly one
   second; lifting this requires touching `_collect_finite_ai`.
@@ -178,7 +210,7 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
 - **AD595 cold-junction.** Channel 3, scaled 100 °C/V, with a polynomial
   correction below −12 °C (`hardware.correct_ad595`). Currently averaged over
   the whole scan, so for slow ramps >30 s expect up to ~0.5 °C drift error;
-  see `todo.md`.
+  see `TODO.md`.
 - **Mock vs. real hardware.** Tests run against `back/mock_uldaq.py`. Behaviour
   there is *plausible*, not bit-exact; physical-fidelity claims must be
   reproduced on real hardware before they're load-bearing.

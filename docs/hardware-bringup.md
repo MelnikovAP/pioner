@@ -2,8 +2,10 @@
 
 First-time bring-up of PIONER against a **real** MCC USB-2637, end-to-end
 through the GUI on the in-process `LocalDeviceController` (no Tango). The code
-preparation tracked in `hardware-plans.md` (workstreams A/B/C/D) has landed; this
-document is the operator checklist for the steps that need the physical board.
+preparation for hardware-mode testing has landed (status readout, settings-driven
+`HardwareTrigger`, connect diagnostics, idle-Thtr guard, sample-count logging;
+tracked as todo P1-28); this document is the operator checklist for the steps that
+need the physical board.
 
 > **HARD STOP per `CLAUDE.md`.** Steps 2-5 touch real hardware (anything that is
 > not `mock_uldaq`). Each requires explicit in-session confirmation before
@@ -83,7 +85,7 @@ on the USB-2637 layout. Confirm before bring-up:
 - Run a short program in each of `fast`, `slow`, `iso`.
 - Confirm `total_ms % 1000 == 0` (whole seconds; AI buffer is one second).
 - Cross-check the result against reference / mock-expected behaviour
-  (`mock_verification.md`), watching the log for the new
+  (`mock-verification.md`), watching the log for the new
   `AI finite scan complete: N / M samples per channel` line (workstream B3) --
   `N == M` means no short frame.
 - Restore `data/exp_data.h5` afterwards if a run clobbered a reference scan.
@@ -97,4 +99,4 @@ on the USB-2637 layout. Confirm before bring-up:
   guards the identity constants until that procedure exists.
 - **Live-chip accuracy validation** (iso AO seamlessness at 37.5 Hz, lock-in edge
   transients, fast/slow live-stream-during-run) -- needs the board and is tracked
-  separately in `todo.md`.
+  separately in `TODO.md`.

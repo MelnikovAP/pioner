@@ -1,6 +1,6 @@
 # README-IR.md — analysis of `pioner-IR-branch/`
 
-Scope: the snapshot in [pioner-IR-branch/](pioner-IR-branch/) is the parallel
+Scope: the snapshot in [pioner-IR-branch/](../pioner-IR-branch/) is the parallel
 "IR" fork of the chip nanocalorimeter app. Nothing in here is wired into the
 mainline `src/pioner/...` package; treat it as an independent code drop and
 cherry-pick only what is named below. Filesystem reference is given from the
@@ -12,13 +12,13 @@ repo root.
 
 | IR path                                            | Role                                                   | Mainline analogue                              |
 |----------------------------------------------------|--------------------------------------------------------|------------------------------------------------|
-| [pioner-IR-branch/runUI.py](pioner-IR-branch/runUI.py) / [pioner_app/entrypoints/runUI.py](pioner-IR-branch/pioner_app/entrypoints/runUI.py) | Qt entry point (silx + PyQt5)                          | [src/pioner/runUI.py](src/pioner/runUI.py)     |
-| [pioner_app/entrypoints/runEvaluation.py](pioner-IR-branch/pioner_app/entrypoints/runEvaluation.py) | Standalone post-processing window                      | (none)                                         |
-| [pioner_app/core/](pioner-IR-branch/pioner_app/core/) | `settings`, `calibration`, `basemath`, `experiment_manager`, `constants`, `utils` | [src/pioner/shared/](src/pioner/shared/) + [src/pioner/back/experiment_manager.py](src/pioner/back/experiment_manager.py) |
-| [pioner_app/hardware/](pioner-IR-branch/pioner_app/hardware/) | `daq_controller` (Qt singleton), `ai_device`, `ao_device`, `fake_daq` | [src/pioner/back/ai_device.py](src/pioner/back/ai_device.py) / [ao_device.py](src/pioner/back/ao_device.py) / [daq_device.py](src/pioner/back/daq_device.py) / [mock_uldaq.py](src/pioner/back/mock_uldaq.py) |
-| [pioner_app/backends/](pioner-IR-branch/pioner_app/backends/) | Transport-abstraction factory: `direct` (uldaq) or `tango` | [src/pioner/back/nanocontrol_tango.py](src/pioner/back/nanocontrol_tango.py) (tango server only) |
-| [pioner_app/ui/](pioner-IR-branch/pioner_app/ui/) | `mainWindow`, `mainWindowUi`, `h_windows`, `calibration_wizard`, `localization` | [src/pioner/front/](src/pioner/front/)         |
-| [pioner_app/ui/widgets/](pioner-IR-branch/pioner_app/ui/widgets/) | All mode-specific UI panels                            | [src/pioner/front/...Widget.py](src/pioner/front/) |
+| [pioner-IR-branch/runUI.py](../pioner-IR-branch/runUI.py) / [pioner_app/entrypoints/runUI.py](../pioner-IR-branch/pioner_app/entrypoints/runUI.py) | Qt entry point (silx + PyQt5)                          | [src/pioner/runUI.py](../src/pioner/runUI.py)     |
+| [pioner_app/entrypoints/runEvaluation.py](../pioner-IR-branch/pioner_app/entrypoints/runEvaluation.py) | Standalone post-processing window                      | (none)                                         |
+| [pioner_app/core/](../pioner-IR-branch/pioner_app/core/) | `settings`, `calibration`, `basemath`, `experiment_manager`, `constants`, `utils` | [src/pioner/shared/](../src/pioner/shared/) + [src/pioner/back/experiment_manager.py](../src/pioner/back/experiment_manager.py) |
+| [pioner_app/hardware/](../pioner-IR-branch/pioner_app/hardware/) | `daq_controller` (Qt singleton), `ai_device`, `ao_device`, `fake_daq` | [src/pioner/back/ai_device.py](../src/pioner/back/ai_device.py) / [ao_device.py](../src/pioner/back/ao_device.py) / [daq_device.py](../src/pioner/back/daq_device.py) / [mock_uldaq.py](../src/pioner/back/mock_uldaq.py) |
+| [pioner_app/backends/](../pioner-IR-branch/pioner_app/backends/) | Transport-abstraction factory: `direct` (uldaq) or `tango` | [src/pioner/back/nanocontrol_tango.py](../src/pioner/back/nanocontrol_tango.py) (tango server only) |
+| [pioner_app/ui/](../pioner-IR-branch/pioner_app/ui/) | `mainWindow`, `mainWindowUi`, `h_windows`, `calibration_wizard`, `localization` | [src/pioner/front/](../src/pioner/front/)         |
+| [pioner_app/ui/widgets/](../pioner-IR-branch/pioner_app/ui/widgets/) | All mode-specific UI panels                            | [src/pioner/front/...Widget.py](../src/pioner/front/) |
 
 Sizes: IR branch is 41 .py files / ~13.5 kLoC vs mainline 34 .py files / ~8.4
 kLoC. The bulk of the extra mass is UI (calibration wizard, modulation widget,
@@ -28,15 +28,15 @@ profile editor, three post-processing widgets).
 
 ## 2. Top-level workflow (when launched via `runUI.py`)
 
-1. **Boot** — [runUI.py](pioner-IR-branch/runUI.py) creates a `QApplication`,
-   picks UI language ([localization.py](pioner-IR-branch/pioner_app/ui/localization.py)),
+1. **Boot** — [runUI.py](../pioner-IR-branch/runUI.py) creates a `QApplication`,
+   picks UI language ([localization.py](../pioner-IR-branch/pioner_app/ui/localization.py)),
    instantiates `mainWindow`. The experiment box and tab widget are initially
    disabled until the user hits "Connect".
 
-2. **Connect** ([mainWindow.sysOnButtonPressed](pioner-IR-branch/pioner_app/ui/mainWindow.py#L117)):
+2. **Connect** ([mainWindow.sysOnButtonPressed](../pioner-IR-branch/pioner_app/ui/mainWindow.py#L117)):
    - Reads `direct` vs `tango` from radio buttons → `DAQController.set_connection_mode`.
    - `DAQController.connect()` calls `create_hardware_backend(mode)`
-     ([backends/factory.py](pioner-IR-branch/pioner_app/backends/factory.py)),
+     ([backends/factory.py](../pioner-IR-branch/pioner_app/backends/factory.py)),
      which returns `UldaqHardwareBackend` (functional) or `TangoHardwareBackend`
      (**stub: `connect()` always raises `NotImplementedError`**).
    - Builds an `ExperimentManager` and applies the input-gain panel state
@@ -52,11 +52,11 @@ profile editor, three post-processing widgets).
    each other when they all want live data.
 
 4. **Per-mode panels** under `mainTabWidget`:
-   - **Signals** ([SignalsWidget](pioner-IR-branch/pioner_app/ui/widgets/signalswidget.py)) — raw 6-channel scope view.
-   - **Modulation / Slow heat** ([SlowHeatingWidget](pioner-IR-branch/pioner_app/ui/widgets/modulationWidget.py#L168)) — see §4.
-   - **Set Profile / Fast heat** ([ProfileWidget](pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py#L317)) — see §4.
-   - **Result / Post-proc** ([procFastHeatWidget](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py), [SimpleProcessWidget](pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py), [UniversalResultsWidget](pioner-IR-branch/pioner_app/ui/widgets/universalResultsWidget.py), [EvaluationWidget](pioner-IR-branch/pioner_app/ui/widgets/evaluationWidget.py)).
-   - **Calibration wizard** ([calibration_wizard.py](pioner-IR-branch/pioner_app/ui/calibration_wizard.py)) — multi-stage interactive wizard (setup → live run → cursor on graph → polynomial fit → write to Calibration).
+   - **Signals** ([SignalsWidget](../pioner-IR-branch/pioner_app/ui/widgets/signalswidget.py)) — raw 6-channel scope view.
+   - **Modulation / Slow heat** ([SlowHeatingWidget](../pioner-IR-branch/pioner_app/ui/widgets/modulationWidget.py#L168)) — see §4.
+   - **Set Profile / Fast heat** ([ProfileWidget](../pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py#L317)) — see §4.
+   - **Result / Post-proc** ([procFastHeatWidget](../pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py), [SimpleProcessWidget](../pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py), [UniversalResultsWidget](../pioner-IR-branch/pioner_app/ui/widgets/universalResultsWidget.py), [EvaluationWidget](../pioner-IR-branch/pioner_app/ui/widgets/evaluationWidget.py)).
+   - **Calibration wizard** ([calibration_wizard.py](../pioner-IR-branch/pioner_app/ui/calibration_wizard.py)) — multi-stage interactive wizard (setup → live run → cursor on graph → polynomial fit → write to Calibration).
 
 5. **"Values" sidebar** — a 250 ms `QTimer` in `mainWindow.update_values_widget`
    peeks the AI ring buffer and feeds it to
@@ -80,7 +80,7 @@ DAQController (Qt singleton)            <-- mainWindow / widgets
         +-- DataProcessor / lockin / fft_lockin / calcaf_lockin
 ```
 
-[Calibration](pioner-IR-branch/pioner_app/core/calibration.py) holds the same
+[Calibration](../pioner-IR-branch/pioner_app/core/calibration.py) holds the same
 coefficient set as mainline (`utpl0, ttpl0/1, thtr0/1/2/corr, thtrd*, uhtr0/1,
 ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
 `apply_fh_cal(raw_data)` that converts a raw 6-channel frame to
@@ -93,7 +93,7 @@ ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
 
 ### 4.1 Modulation only (AC drive, no ramp, no demod)
 
-- **Entry**: `mainWindow.apply_modulation_params` → `DAQController.start_modulation(freq, amp, offset)` ([daq_controller.py:189](pioner-IR-branch/pioner_app/hardware/daq_controller.py#L189)).
+- **Entry**: `mainWindow.apply_modulation_params` → `DAQController.start_modulation(freq, amp, offset)` ([daq_controller.py:189](../pioner-IR-branch/pioner_app/hardware/daq_controller.py#L189)).
 - **Algorithm**: build one period of `current_mA = offset + amp*sin(...)` at a
   rate picked so that `samples_per_period ∈ [256, 2048]`, convert to volts via
   `_heater_current_to_voltage` (uses `ihtr0/ihtr1` of the active calibration —
@@ -112,14 +112,14 @@ ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
 
 ### 4.2 Slow heat (ramp + AC modulation + lock-in)
 
-- **Entry**: `SlowHeatingWidget.start_SH_exp` → `DAQController.start_slow_heating(freq, amp, offset, mode, start, end, rate_per_min, hold_final, demod_periods, modulation_ramps, point_interval_sec)` ([daq_controller.py:442](pioner-IR-branch/pioner_app/hardware/daq_controller.py#L442)).
+- **Entry**: `SlowHeatingWidget.start_SH_exp` → `DAQController.start_slow_heating(freq, amp, offset, mode, start, end, rate_per_min, hold_final, demod_periods, modulation_ramps, point_interval_sec)` ([daq_controller.py:442](../pioner-IR-branch/pioner_app/hardware/daq_controller.py#L442)).
 - **AO path** (worker thread):
   - `duration_sec = |end - start| / |rate_per_min| * 60`.
   - AO sample rate is **independent of AI**: picked from
     `samples_per_period ∈ [32, 256]`, capped at 8M total samples.
   - If no F/A/P modulation ramps are enabled, the AC is just `offset +
     amp*sin(...)` tiled over the full duration. Otherwise an
-    `AOStreamSHGenerator` ([ao_device.py:260](pioner-IR-branch/pioner_app/hardware/ao_device.py#L260))
+    `AOStreamSHGenerator` ([ao_device.py:260](../pioner-IR-branch/pioner_app/hardware/ao_device.py#L260))
     generates AC chunk-by-chunk while linearly interpolating
     frequency / amplitude / phase through `ramp_steps` discrete steps.
     `x2_mode` flips the demod target to `2*f`.
@@ -175,7 +175,7 @@ ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
   profile segments.
 
 > Same AI-before-AO ordering caveat as mainline's
-> [todo.md](todo.md) P0-5. Both branches reproduce the historical skew.
+> [TODO.md](../TODO.md) P0-5. Both branches reproduce the historical skew.
 
 ### 4.4 Iso (held setpoint + AC modulation + lock-in/FFT)
 
@@ -196,7 +196,7 @@ ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
   - **No 2f/3f harmonic decomposition** (apart from `x2_mode` which only
     rescales the demodulator's reference, not a multi-harmonic FFT).
 - There is a half-finished `ExperimentManager.start_ao_continuous_mod`
-  ([experiment_manager.py:282](pioner-IR-branch/pioner_app/core/experiment_manager.py#L282))
+  ([experiment_manager.py:282](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L282))
   that builds a tiled AC drive and starts a CONTINUOUS AO scan, but it is
   not wired to any widget.
 
@@ -208,7 +208,7 @@ ihtr0/1, theater0/1/2, ac0..3, rhtr, rghtr, safe_voltage`) plus
 
 ## 5. Demodulator zoo
 
-[basemath.py](pioner-IR-branch/pioner_app/core/basemath.py) ships **three**
+[basemath.py](../pioner-IR-branch/pioner_app/core/basemath.py) ships **three**
 implementations:
 
 | Function           | Algorithm                                                   | Used by                                |
@@ -233,35 +233,35 @@ choke on per-sample demod over a full scan. Mainline equivalents are
 
 | Item                                                                                                                                       | Where in IR                                                                                            | Why it's useful                                                                                              |
 |--------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| Per-channel AI input-range queue + auto-gain (uldaq `a_in_load_queue` + `AiQueueElement`)                                                  | [ai_device.py:159](pioner-IR-branch/pioner_app/hardware/ai_device.py#L159), [_maybe_apply_autogain](pioner-IR-branch/pioner_app/hardware/daq_controller.py#L169) | We never set per-channel ranges; we use one global `RangeId`. AI noise floor on Uhtr/Uref is wasted.         |
-| `InputGainsPanel` widget (vertical sliders + auto-gain checkboxes, persisted in `config.user.json`)                                        | [input_gains_panel.py](pioner-IR-branch/pioner_app/ui/widgets/input_gains_panel.py)                    | Natural front-end for the above.                                                                             |
-| `HardwareBackend` factory (direct/tango) with a clean ABC contract                                                                         | [backends/base.py](pioner-IR-branch/pioner_app/backends/base.py), [factory.py](pioner-IR-branch/pioner_app/backends/factory.py) | We hardcode the direct-uldaq path; tango lives only on the server side.                                      |
-| `DAQController` as a Qt singleton emitting `progress_changed` / `input_gains_changed`, with owner-tagged acquisition slots                 | [daq_controller.py](pioner-IR-branch/pioner_app/hardware/daq_controller.py)                            | Multi-widget read coordination (signals/values/slow-heat all share one AI ring).                             |
-| `AOStreamSHGenerator` — modulation parameter ramps (freq/amp/phase) during a slow-heat scan, with `ramp_steps` discrete steps              | [ao_device.py:260](pioner-IR-branch/pioner_app/hardware/ao_device.py#L260)                             | Mainline has no F/A/P ramp during slow mode.                                                                 |
-| `x2_mode` (demod at 2f via squared reference)                                                                                              | [calcaf_lockin](pioner-IR-branch/pioner_app/core/basemath.py#L48)                                      | Useful as a cheap sanity check on heater nonlinearity. Mainline `fft_demodulate` already gets 2f/3f, so this is mostly redundant if you migrate to FFT. |
-| `CalibrationWizard` — multi-dialog interactive procedure (setup table of reference points → live run → cursor pick on graph → polynomial fit → write coefficients to `Calibration`) | [calibration_wizard.py](pioner-IR-branch/pioner_app/ui/calibration_wizard.py)                          | We have no GUI calibration workflow.                                                                         |
-| Profile editor with copy/cut/paste segments, V↔T toggle that re-converts table contents, per-segment rate labels on the plot               | [exp_widget.py](pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py)                                  | Better fast-heat UX than current `SetProg_widget`.                                                           |
-| `post_hold` block in the fast-heat profile schema (holds a specified voltage per channel after the program completes)                      | [experiment_manager.py:404](pioner-IR-branch/pioner_app/core/experiment_manager.py#L404)               | Mainline has no equivalent — useful to avoid relays clicking back to 0 V at the end of a profile.           |
-| HDF5 averaging of multiple fast-heat scans (`average_exp_data` + structure check)                                                          | [procFastHeatWidget.py:414](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py#L414)         | Standard "average N runs" workflow.                                                                          |
-| `procFastHeatWidget` — heat-exchange calibration / power calculation from sample vs reference data                                          | [procFastHeatWidget.py](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py)                  | The physical post-processing step we currently leave to the user's scripts.                                  |
-| `SimpleProcessWidget` / `UniversalResultsWidget` / `EvaluationWidget` — generic file → fit / smooth / peak-find / area-integrate          | [simpleProcessWidget.py](pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py), [universalResultsWidget.py](pioner-IR-branch/pioner_app/ui/widgets/universalResultsWidget.py), [evaluationWidget.py](pioner-IR-branch/pioner_app/ui/widgets/evaluationWidget.py) | Reusable Qt / silx scaffolding for post-run analysis.                                                        |
-| Live "Values" sidebar (`mainWindow.update_values_widget`) — running snapshot of Ihtr/Rhtr/Thtr/Thtrd/Ttpl/Taux/amp/phase/power + `T_error` and `phase_offset` zero buttons | [mainWindow.py:441](pioner-IR-branch/pioner_app/ui/mainWindow.py#L441)                                 | Operator-facing readout that mainline lacks.                                                                 |
-| Localization layer (en/ru) + `apply_language(widget)`                                                                                      | [localization.py](pioner-IR-branch/pioner_app/ui/localization.py)                                      | Optional, but nice.                                                                                          |
-| User-config layering: `config.json` (default) ← `config.user.json` (overrides), with `_deep_update`                                        | [settings.py](pioner-IR-branch/pioner_app/core/settings.py)                                            | We currently read a single settings file.                                                                    |
+| Per-channel AI input-range queue + auto-gain (uldaq `a_in_load_queue` + `AiQueueElement`)                                                  | [ai_device.py:159](../pioner-IR-branch/pioner_app/hardware/ai_device.py#L159), [_maybe_apply_autogain](../pioner-IR-branch/pioner_app/hardware/daq_controller.py#L169) | We never set per-channel ranges; we use one global `RangeId`. AI noise floor on Uhtr/Uref is wasted.         |
+| `InputGainsPanel` widget (vertical sliders + auto-gain checkboxes, persisted in `config.user.json`)                                        | [input_gains_panel.py](../pioner-IR-branch/pioner_app/ui/widgets/input_gains_panel.py)                    | Natural front-end for the above.                                                                             |
+| `HardwareBackend` factory (direct/tango) with a clean ABC contract                                                                         | [backends/base.py](../pioner-IR-branch/pioner_app/backends/base.py), [factory.py](../pioner-IR-branch/pioner_app/backends/factory.py) | We hardcode the direct-uldaq path; tango lives only on the server side.                                      |
+| `DAQController` as a Qt singleton emitting `progress_changed` / `input_gains_changed`, with owner-tagged acquisition slots                 | [daq_controller.py](../pioner-IR-branch/pioner_app/hardware/daq_controller.py)                            | Multi-widget read coordination (signals/values/slow-heat all share one AI ring).                             |
+| `AOStreamSHGenerator` — modulation parameter ramps (freq/amp/phase) during a slow-heat scan, with `ramp_steps` discrete steps              | [ao_device.py:260](../pioner-IR-branch/pioner_app/hardware/ao_device.py#L260)                             | Mainline has no F/A/P ramp during slow mode.                                                                 |
+| `x2_mode` (demod at 2f via squared reference)                                                                                              | [calcaf_lockin](../pioner-IR-branch/pioner_app/core/basemath.py#L48)                                      | Useful as a cheap sanity check on heater nonlinearity. Mainline `fft_demodulate` already gets 2f/3f, so this is mostly redundant if you migrate to FFT. |
+| `CalibrationWizard` — multi-dialog interactive procedure (setup table of reference points → live run → cursor pick on graph → polynomial fit → write coefficients to `Calibration`) | [calibration_wizard.py](../pioner-IR-branch/pioner_app/ui/calibration_wizard.py)                          | We have no GUI calibration workflow.                                                                         |
+| Profile editor with copy/cut/paste segments, V↔T toggle that re-converts table contents, per-segment rate labels on the plot               | [exp_widget.py](../pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py)                                  | Better fast-heat UX than current `SetProg_widget`.                                                           |
+| `post_hold` block in the fast-heat profile schema (holds a specified voltage per channel after the program completes)                      | [experiment_manager.py:404](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L404)               | Mainline has no equivalent — useful to avoid relays clicking back to 0 V at the end of a profile.           |
+| HDF5 averaging of multiple fast-heat scans (`average_exp_data` + structure check)                                                          | [procFastHeatWidget.py:414](../pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py#L414)         | Standard "average N runs" workflow.                                                                          |
+| `procFastHeatWidget` — heat-exchange calibration / power calculation from sample vs reference data                                          | [procFastHeatWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py)                  | The physical post-processing step we currently leave to the user's scripts.                                  |
+| `SimpleProcessWidget` / `UniversalResultsWidget` / `EvaluationWidget` — generic file → fit / smooth / peak-find / area-integrate          | [simpleProcessWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/simpleProcessWidget.py), [universalResultsWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/universalResultsWidget.py), [evaluationWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/evaluationWidget.py) | Reusable Qt / silx scaffolding for post-run analysis.                                                        |
+| Live "Values" sidebar (`mainWindow.update_values_widget`) — running snapshot of Ihtr/Rhtr/Thtr/Thtrd/Ttpl/Taux/amp/phase/power + `T_error` and `phase_offset` zero buttons | [mainWindow.py:441](../pioner-IR-branch/pioner_app/ui/mainWindow.py#L441)                                 | Operator-facing readout that mainline lacks.                                                                 |
+| Localization layer (en/ru) + `apply_language(widget)`                                                                                      | [localization.py](../pioner-IR-branch/pioner_app/ui/localization.py)                                      | Optional, but nice.                                                                                          |
+| User-config layering: `config.json` (default) ← `config.user.json` (overrides), with `_deep_update`                                        | [settings.py](../pioner-IR-branch/pioner_app/core/settings.py)                                            | We currently read a single settings file.                                                                    |
 
 ### 6.2 What mainline has that IR does not
 
 | Item                                                                                                       | Mainline location                                                              | Status in IR                                                                                                   |
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| `IsoMode` (held DC + AC + ring buffer + post-run FFT/lock-in, with multi-harmonic 1f/2f/3f decomposition)  | [back/modes.py:483](src/pioner/back/modes.py#L483), [back/iso_mode.py](src/pioner/back/iso_mode.py) | Absent.                                                                                                        |
-| `check_ao_period_integrity` (verifies AO CONTINUOUS buffer wraps without a phase jump)                     | [shared/modulation.py:449](src/pioner/shared/modulation.py#L449)               | Absent — CONTINUOUS modulation buffers are not validated.                                                      |
-| Lock-in demod with proper LP filter (Butterworth `sosfiltfilt`)                                            | [lockin_demodulate](src/pioner/shared/modulation.py#L121)                      | Absent — three competing demods, none have a proper LP.                                                        |
-| `apply_calibration` with `HardwareCalibration` (`gain_utpl`, `gain_umod`, `ad595_low_correction`) externalised | [shared/calibration.py:78](src/pioner/shared/calibration.py#L78)               | Constants 11.0 / 121.0 / AD595 polynomial are **hardcoded** inside `apply_fh_cal` and `analyze_slow_heating_chunk`. |
-| `Calibration.write` (persists back to JSON)                                                                | [shared/calibration.py:233](src/pioner/shared/calibration.py#L233)             | IR has `to_dict` / `to_file_dict` but the `write` method is commented out.                                     |
-| `ChannelProgram` validation (time monotone, durations matching, `total_ms % 1000 == 0`, key-range check)   | [back/modes.py:78](src/pioner/back/modes.py#L78)                               | Profile is consumed raw; no validation.                                                                        |
-| `Rhtr = NaN` when current is below ~1 nA                                                                   | [back/modes.py:262](src/pioner/back/modes.py#L262)                             | IR does mask `|Ih| < 1e-6` to NaN in `apply_fh_cal`; the parallel `analyze_slow_heating_chunk` returns `0.0` (silent zero, not NaN). |
-| Test suite                                                                                                 | [tests/](tests/)                                                               | None.                                                                                                          |
-| `mock_uldaq` parity backend for development without DAQ hardware                                           | [back/mock_uldaq.py](src/pioner/back/mock_uldaq.py)                            | `fake_daq.py` only mocks at the controller layer, not at the `uldaq` API layer — many AI/AO code paths still need the real `uldaq` import. |
+| `IsoMode` (held DC + AC + ring buffer + post-run FFT/lock-in, with multi-harmonic 1f/2f/3f decomposition)  | [back/modes.py:483](../src/pioner/back/modes.py#L483), [back/iso_mode.py](../src/pioner/back/iso_mode.py) | Absent.                                                                                                        |
+| `check_ao_period_integrity` (verifies AO CONTINUOUS buffer wraps without a phase jump)                     | [shared/modulation.py:449](../src/pioner/shared/modulation.py#L449)               | Absent — CONTINUOUS modulation buffers are not validated.                                                      |
+| Lock-in demod with proper LP filter (Butterworth `sosfiltfilt`)                                            | [lockin_demodulate](../src/pioner/shared/modulation.py#L121)                      | Absent — three competing demods, none have a proper LP.                                                        |
+| `apply_calibration` with `HardwareCalibration` (`gain_utpl`, `gain_umod`, `ad595_low_correction`) externalised | [shared/calibration.py:78](../src/pioner/shared/calibration.py#L78)               | Constants 11.0 / 121.0 / AD595 polynomial are **hardcoded** inside `apply_fh_cal` and `analyze_slow_heating_chunk`. |
+| `Calibration.write` (persists back to JSON)                                                                | [shared/calibration.py:233](../src/pioner/shared/calibration.py#L233)             | IR has `to_dict` / `to_file_dict` but the `write` method is commented out.                                     |
+| `ChannelProgram` validation (time monotone, durations matching, `total_ms % 1000 == 0`, key-range check)   | [back/modes.py:78](../src/pioner/back/modes.py#L78)                               | Profile is consumed raw; no validation.                                                                        |
+| `Rhtr = NaN` when current is below ~1 nA                                                                   | [back/modes.py:262](../src/pioner/back/modes.py#L262)                             | IR does mask `|Ih| < 1e-6` to NaN in `apply_fh_cal`; the parallel `analyze_slow_heating_chunk` returns `0.0` (silent zero, not NaN). |
+| Test suite                                                                                                 | [tests/](../tests/)                                                               | None.                                                                                                          |
+| `mock_uldaq` parity backend for development without DAQ hardware                                           | [back/mock_uldaq.py](../src/pioner/back/mock_uldaq.py)                            | `fake_daq.py` only mocks at the controller layer, not at the `uldaq` API layer — many AI/AO code paths still need the real `uldaq` import. |
 
 ### 6.3 Algorithmic differences worth flagging
 
@@ -277,7 +277,7 @@ choke on per-sample demod over a full scan. Mainline equivalents are
 | **AI buffer sizing**             | `points_per_channel` is computed per-widget request; modulo wrap-around inside `_read_continuous_window`.              | `ExperimentManager` sizes the AI buffer to exactly 1 s and half-flips it.                                                       |
 | **Profile time grid**            | Each step's sample count = `round(duration_ms * sample_rate / 1000)`. No constraint that `total_ms % 1000 == 0`.       | Enforced: `_validate_programs` raises if `total_ms % 1000 != 0`.                                                                |
 | **AI/AO start order (fast-heat)**| `ai.start_scan()` then `ao.start_scan()` — same skew as mainline P0-5. | Same skew. Both are wrong.                                                                                                       |
-| **Calibration JSON ext check**   | `if not os.path.splitext(path)[-1] != JSON_EXTENSION: raise` — **double-negation, always false** ([calibration.py:137](pioner-IR-branch/pioner_app/core/calibration.py#L137)). Any file extension is accepted. | `_ensure_json_extension` does the right check.                                                                                  |
+| **Calibration JSON ext check**   | `if not os.path.splitext(path)[-1] != JSON_EXTENSION: raise` — **double-negation, always false** ([calibration.py:137](../pioner-IR-branch/pioner_app/core/calibration.py#L137)). Any file extension is accepted. | `_ensure_json_extension` does the right check.                                                                                  |
 
 ---
 
@@ -285,49 +285,49 @@ choke on per-sample demod over a full scan. Mainline equivalents are
 
 Back-end:
 
-- **`AIDevice` per-channel queue setup** ([ai_device.py:159](pioner-IR-branch/pioner_app/hardware/ai_device.py#L159))
+- **`AIDevice` per-channel queue setup** ([ai_device.py:159](../pioner-IR-branch/pioner_app/hardware/ai_device.py#L159))
   + the surrounding range-position bookkeeping + `autogain_update_from_data`
-  ([ai_device.py:268](pioner-IR-branch/pioner_app/hardware/ai_device.py#L268)).
+  ([ai_device.py:268](../pioner-IR-branch/pioner_app/hardware/ai_device.py#L268)).
   This is the cleanest part of the back-end and ports straight into our
   `back/ai_device.py` if we want per-channel gains.
 - **`HardwareBackend` factory pattern** (`backends/base.py`, `factory.py`,
   `uldaq_backend.py`). The Tango stub is unfinished, but the shape is right —
   worth adopting before we widen tango support.
-- **`AOStreamSHGenerator`** ([ao_device.py:260](pioner-IR-branch/pioner_app/hardware/ao_device.py#L260))
+- **`AOStreamSHGenerator`** ([ao_device.py:260](../pioner-IR-branch/pioner_app/hardware/ao_device.py#L260))
   for F/A/P-ramped modulation. The chunk-by-chunk API maps onto our existing
   `apply_modulation` if we want to extend `SlowMode` with parameter ramps.
 - **`post_hold` block** in the fast-heat profile schema
-  ([experiment_manager.py:404](pioner-IR-branch/pioner_app/core/experiment_manager.py#L404))
+  ([experiment_manager.py:404](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L404))
   + the per-channel padding loop. ~10 lines, easy to graft onto our
   `ChannelProgram` builder.
-- **DAQ ring-buffer modulo reader** ([experiment_manager.py:177](pioner-IR-branch/pioner_app/core/experiment_manager.py#L177)).
+- **DAQ ring-buffer modulo reader** ([experiment_manager.py:177](../pioner-IR-branch/pioner_app/core/experiment_manager.py#L177)).
   Compact and correct; can replace our half-buffer flip logic if we drop the
   "exactly one second" constraint.
 
 Front-end:
 
-- **`InputGainsPanel`** ([input_gains_panel.py](pioner-IR-branch/pioner_app/ui/widgets/input_gains_panel.py)).
+- **`InputGainsPanel`** ([input_gains_panel.py](../pioner-IR-branch/pioner_app/ui/widgets/input_gains_panel.py)).
   Plug-and-play; only depends on `AIDevice.set_channel_gains`.
-- **`ProfileWidget`** ([exp_widget.py:317](pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py#L317))
+- **`ProfileWidget`** ([exp_widget.py:317](../pioner-IR-branch/pioner_app/ui/widgets/exp_widget.py#L317))
   — segment editor with V↔T conversion, segment clipboard, rate annotations
   on the plot, temperature-range pre-validation against `safe_voltage`. Better
   than our `SetProg_widget`. The dependency on the IR-specific `Calibration`
   is shallow (only `theaterconv` / `temperature_to_voltage`); easy to re-point
   at `pioner.shared.calibration`.
-- **`procFastHeatWidget`** ([procFastHeatWidget.py](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py))
+- **`procFastHeatWidget`** ([procFastHeatWidget.py](../pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py))
   — averaging across runs + manual/auto heat-exchange correction (`empty_G`,
   `exp_P`). This is the physical post-processing we currently leave to scripts.
 - **`SimpleProcessWidget`, `UniversalResultsWidget`, `EvaluationWidget`**
   — generic file → fit / smooth / peak-find UI bricks, depend only on silx +
   numpy. No PIONER-specific coupling.
-- **`CalibrationWizard`** ([calibration_wizard.py](pioner-IR-branch/pioner_app/ui/calibration_wizard.py))
+- **`CalibrationWizard`** ([calibration_wizard.py](../pioner-IR-branch/pioner_app/ui/calibration_wizard.py))
   — biggest standalone win. The wizard wraps four dialogs
   (Setup → Run → Cursor → Polynomial fit / Heater fit / Ttpl fit) and writes
   back to `Calibration`. Pulling this in requires that the wizard's runtime
   (`DAQController.start_slow_heating` and the live AI stream) is in place;
   i.e. it's easier to port _after_ adding per-channel gains and the
   controller-singleton pattern.
-- **`mainWindow.update_values_widget`** ([mainWindow.py:441](pioner-IR-branch/pioner_app/ui/mainWindow.py#L441))
+- **`mainWindow.update_values_widget`** ([mainWindow.py:441](../pioner-IR-branch/pioner_app/ui/mainWindow.py#L441))
   — the live sidebar feed. Worth lifting wholesale once we have the demod
   stack unified.
 
@@ -347,10 +347,10 @@ Critical-to-fix when porting any of the back-end:
 
 1. **Broken calibration extension check** — `if not os.path.splitext(path)[-1]
    != JSON_EXTENSION` always evaluates to `False`. Calibration files with any
-   extension load silently. ([calibration.py:137](pioner-IR-branch/pioner_app/core/calibration.py#L137))
+   extension load silently. ([calibration.py:137](../pioner-IR-branch/pioner_app/core/calibration.py#L137))
 2. **Dead-code-only `Calibration.unpack_data_numpy`** lives inside the class,
    contains an unreachable "save debug CSV" block after a `return` statement,
-   and is referenced nowhere ([calibration.py:437](pioner-IR-branch/pioner_app/core/calibration.py#L437)).
+   and is referenced nowhere ([calibration.py:437](../pioner-IR-branch/pioner_app/core/calibration.py#L437)).
    Likely a stalled refactor. Delete on import, do not port.
 3. **`Calibration.apply_fh_cal`** mixes `pandas.DataFrame` and `numpy`, mutates
    the input frame in place with `values[i] /= 1`, and the actually-used
@@ -386,7 +386,7 @@ UI-specific risks:
   (`self.window().freqInput`, `self.modulationWidget.periods_box`, etc.).
   Couples them tightly to `mainWindowUi.py`. Porting one widget means porting
   enough of `mainWindowUi` to satisfy the lookups, or refactoring to signals.
-- `procFastHeatWidget.find_iso` is `pass` ([procFastHeatWidget.py:567](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py#L567)),
+- `procFastHeatWidget.find_iso` is `pass` ([procFastHeatWidget.py:567](../pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py#L567)),
   and the auto-correction path declares half its options "Still under
   development". Don't ship as-is.
 - The Tango backend is a stub that raises `NotImplementedError`. Do not

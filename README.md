@@ -400,7 +400,58 @@ the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
   AO) the per-second AO buffer is tiled to match the AI length, so the
   column is meaningful for the full duration of an iso run.
 
-See `docs/source/` for the long-form architecture notes and the
-Sphinx-built API reference under `docs/build/`. The detailed
-back-end / pipeline / open-tasks reference lives in `spec.md` and
-`todo.md` at the repo root.
+---
+
+## 10. Project layout & open-source separation
+
+```
+src/pioner/
+  back/    DAQ + acquisition + experiment modes (talks to uldaq / mock)
+  front/   Qt single-window GUI (optional; only loaded by runUI)
+  shared/  calibration, channels, modulation, settings, constants
+settings/  runtime config + calibration JSON (settings.json, calibration.json, ...)
+data/      HDF5 working files (see "Data files" below)
+specs/     MCC board datasheets (USB-2637 etc.)
+docs/      reference library + Sphinx site (docs/source/)
+postmortem/  resolved-incident write-ups (indexed by ERRORS.md)
+```
+
+The back-end is deliberately instrument-agnostic where it can be: the DAQ
+device handling, the mock backend, channel/range/sample-rate configuration,
+and the acquisition/streaming layer do not depend on any nanocalorimeter
+specifics. There is an active plan to split these into a reusable open-source
+DAQ library, leaving the chip-specific calibration / modes / lock-in as the
+proprietary layer — see **[pioner-pypi.md](pioner-pypi.md)** for the verified
+boundary and migration plan.
+
+## 11. Data files
+
+`data/` holds HDF5 working files written by runs (not reference fixtures):
+
+* `data/exp_data.h5` — last experiment result (fast/slow/iso); the GUI/Tango
+  download path and the legacy facades write here.
+* `data/raw_data.h5` (+ `data/raw_data/`) — raw AI buffer dumps from the
+  acquisition layer.
+
+These are runtime artefacts; a run overwrites `exp_data.h5`, so restore it
+from git if you clobbered a reference scan.
+
+## 12. Documentation map
+
+* **[README.md](README.md)** — this file: current state, how to run.
+* **[TODO.md](TODO.md)** — forward-looking roadmap (back / front / hardware /
+  open-source split).
+* **[ERRORS.md](ERRORS.md)** + `postmortem/` — resolved incidents, chronological.
+* **[pioner-pypi.md](pioner-pypi.md)** — open-source / proprietary split plan.
+* **docs/** — reference library: [docs/pipeline.md](docs/pipeline.md) (full
+  AO/AI pipeline spec), [docs/mock-verification.md](docs/mock-verification.md),
+  [docs/design-notes.md](docs/design-notes.md),
+  [docs/hardware-bringup.md](docs/hardware-bringup.md),
+  [docs/modulation.md](docs/modulation.md),
+  [docs/live-streaming.md](docs/live-streaming.md),
+  [docs/Martin-calibration-procedure.md](docs/Martin-calibration-procedure.md),
+  and the Sphinx API site under `docs/source/` (built to `docs/build/`).
+
+## License
+
+See [LICENSE](LICENSE).
