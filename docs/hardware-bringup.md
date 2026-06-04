@@ -59,9 +59,9 @@ on the USB-2637 layout. Confirm before bring-up:
 
 - With the heater un-driven, the live Signals plot should tick and the **T htr**
   value should read `---` (workstream A3), not the ~-1071 sentinel. The live
-  readout blanks Thtr unconditionally (the GUI never sustains a heater drive
-  while live-monitoring), so a finite number here would mean the readout
-  gating was changed -- it is not expected on the current build.
+  readout blanks Thtr while no drive is commanded; it shows a value only during
+  an iso hold (when AO genuinely drives the heater). A finite Thtr at idle means
+  the heater-driven gating is off.
 - Watch the log for `Ring buffer worker stopped cleanly ...` on disconnect and
   for any `... possible underrun` WARNING (workstream B3) -- an underrun at idle
   points at sample-rate / USB-throughput trouble.
@@ -83,7 +83,8 @@ on the USB-2637 layout. Confirm before bring-up:
 ### 5. Short fast / slow / iso runs  --  **HARD STOP**
 
 - Run a short program in each of `fast`, `slow`, `iso`.
-- Confirm `total_ms % 1000 == 0` (whole seconds; AI buffer is one second).
+- Any positive program duration is accepted (fractional seconds allowed; the
+  AI frame is trimmed to `round(sample_rate * total_s)`).
 - Cross-check the result against reference / mock-expected behaviour
   (`mock-verification.md`), watching the log for the new
   `AI finite scan complete: N / M samples per channel` line (workstream B3) --

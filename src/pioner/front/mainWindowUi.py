@@ -369,6 +369,16 @@ class mainWindowUi(qt.QWidget):
         self.setInputUnits.setAlignment(qt.Qt.AlignLeft)
         self.setInputUnits.setFixedWidth(20)
         lout_4.addWidget(self.setInputUnits)
+        # Optional hold duration. Empty -> eternal hold (until Off); a value
+        # runs a timed iso program that auto-returns the heater to 0 V.
+        self.setDurationInput = qt.QLineEdit()
+        self.setDurationInput.setMaximumWidth(short_line_input_width)
+        self.setDurationInput.setPlaceholderText("hold")
+        self.setDurationInput.setToolTip(
+            "Duration in seconds for a timed iso program; leave empty for an "
+            "eternal hold until Off.")
+        lout_4.addWidget(self.setDurationInput)
+        lout_4.addWidget(qt.QLabel("s"))
         lout_4.addStretch()
         lout_5 = qt.QHBoxLayout()
         lout_5.setSpacing(1)

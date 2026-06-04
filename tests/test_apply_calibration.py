@@ -151,3 +151,37 @@ def test_apply_calibration_handles_empty_input():
     cal = Calibration()
     out = apply_calibration(pd.DataFrame(), sample_rate=20000.0, calibration=cal, voltage_profiles={})
     assert out.empty
+
+
+def test_apply_calibration_scales_channels_once_and_leaves_input_untouched():
+    """P1-3 regression: temp / temp-hr come from the raw AI channels scaled
+    exactly once (no in-place double-mutation), and the caller's frame is not
+    modified. A future reorder that fed an already-scaled column back in would
+    flip the expected values here.
+    """
+    cal = Calibration()
+    sr = 20000
+    raw = _make_raw_frame(sr)          # 1 s, all channels zero
+    raw[1] = 0.02                      # UMOD_AI (ch1) -> temp-hr
+    raw[4] = 0.03                      # UTPL_AI (ch4) -> temp
+    raw_before = raw.copy(deep=True)
+
+    out = apply_calibration(
+        raw, sample_rate=sr, calibration=cal, voltage_profiles={},
+        ai_channels=list(range(6)),
+    )
+
+    # Caller's frame must be untouched.
+    pd.testing.assert_frame_equal(raw, raw_before)
+
+    hw = cal.hardware
+    ax_hr = 0.02 * (1000.0 / hw.gain_umod) + cal.utpl0
+    expected_hr = cal.ttpl0 * ax_hr + cal.ttpl1 * ax_hr**2
+    np.testing.assert_allclose(out["temp-hr"].to_numpy(), expected_hr)
+
+    ax = 0.03 * (1000.0 / hw.gain_utpl) + cal.utpl0
+    expected_temp = cal.ttpl0 * ax + cal.ttpl1 * ax**2  # + Taux (0 here)
+    np.testing.assert_allclose(out["temp"].to_numpy(), expected_temp)
+
+    # Raw integer-named channel columns must not survive in the output.
+    assert not any(isinstance(c, int) for c in out.columns)

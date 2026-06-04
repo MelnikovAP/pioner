@@ -223,3 +223,36 @@ def test_ao_period_integrity_rejects_bad_inputs():
         check_ao_period_integrity(np.zeros(100), 0.0, 10.0)
     with pytest.raises(ValueError):
         check_ao_period_integrity(np.zeros(100), 1000.0, 0.0)
+
+
+def test_lockin_valid_mask_marks_settling_edges():
+    """P1-9: return_valid=True yields a mask that is False over the sosfiltfilt
+    settling transient at each edge and True in the interior; the default call
+    stays a 2-tuple (backward compatible)."""
+    fs, f = 20000.0, 200.0
+    t = np.arange(int(fs)) / fs            # 1 s
+    signal = np.sin(2 * np.pi * f * t)
+
+    out = lockin_demodulate(signal, sample_rate=fs, frequency=f, return_valid=True)
+    assert len(out) == 3
+    amp, phase, valid = out
+    assert valid.shape == signal.shape and valid.dtype == bool
+    edge = int(np.ceil(10 * fs / f))       # settle_periods default = 10
+    assert not valid[:edge].any(), "leading settling edge must be masked"
+    assert not valid[-edge:].any(), "trailing settling edge must be masked"
+    assert valid[edge:-edge].all(), "interior must be valid"
+
+    # Default (no return_valid) is unchanged: a 2-tuple.
+    amp2, phase2 = lockin_demodulate(signal, sample_rate=fs, frequency=f)
+    assert amp2.shape == signal.shape and phase2.shape == signal.shape
+
+
+def test_lockin_valid_all_false_for_short_signal():
+    """A scan shorter than 2*settle_periods is entirely transient -> no valid
+    samples (the honest answer for e.g. a 0.4 s scan at 37.5 Hz)."""
+    fs, f = 20000.0, 37.5
+    n = int(0.4 * fs)
+    t = np.arange(n) / fs
+    signal = np.sin(2 * np.pi * f * t)
+    _, _, valid = lockin_demodulate(signal, sample_rate=fs, frequency=f, return_valid=True)
+    assert not valid.any()

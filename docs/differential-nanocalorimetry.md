@@ -239,10 +239,11 @@ Same channel arithmetic as Option B, but the two AOs now drive two
 16. **Calibration object.** Today `Calibration` is a single object
     per experiment. It needs to become a collection keyed by
     area/chip, with loading from N calibration files.
-17. **Buffer-length constraint.** The `total_ms % 1000 == 0` rule
-    and the 1-second AI buffer in `_collect_finite_ai` are unchanged
-    by adding channels. Memory grows linearly with channel count
-    (4 kS x 4 bytes x N_channels ~ tens of kB), well within budget.
+17. **Buffer length.** The 1-second AI buffer in `_collect_finite_ai`
+    is unchanged by adding channels (the `total_ms % 1000 == 0` rule has
+    since been lifted; durations are trimmed to fit). Memory grows linearly
+    with channel count (4 kS x 4 bytes x N_channels ~ tens of kB), well
+    within budget.
 18. **`AoDataGenerator`.** A profile must be generated per AO. All
     AO buffers must be the same length and use the same pacer; this
     is a constraint on how the program JSON is expanded.

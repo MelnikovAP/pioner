@@ -79,7 +79,7 @@ activated automatically — no env var or flag required.
 - `test_modulation.py` — `apply_modulation`, lock-in amplitude/phase recovery
   with known phase lag, invalid input rejection.
 
-`pytest tests/` → **100 passed in ~30 s**. `python -m pioner.back.debug` runs
+`pytest tests/` → **108 passed in ~30 s**. `python -m pioner.back.debug` runs
 all three modes end-to-end without errors.
 
 ---
@@ -135,13 +135,8 @@ before a public demo.
 
 | Item     | Where                                             | Impact                                                                                                                                              |
 |----------|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| P1-1     | `modes.IsoMode.run`, `iso_mode.IsoMode`           | Long iso runs cannot be aborted from the GUI/Tango; only `time.sleep(duration)` or process kill.                                                    |
-| P1-4     | `modes.SlowMode._build_profiles`, `IsoMode._build_profiles` | Modulation clipping to `[0, safe_voltage]` is silent. With e.g. `DC=8.5, A=2 V, safe=9` the sine becomes a trapezoid and lock-in returns wrong amp. |
-| P1-9     | `shared.modulation.lockin_demodulate`             | `sosfiltfilt` transient on each edge (~10 modulation periods). For scans <0.5 s at 37.5 Hz this is >50 % of the signal; no `valid` mask returned.   |
 | P1-13    | `experiment_manager._collect_finite_ai`           | Busy poll at 1 ms → ~100 % of one core on Raspberry Pi.                                                                                             |
-| P1-5     | `iso_mode.IsoMode.run(do_ai=False)`               | Legacy "Set V and hold" GUI path drops the voltage immediately; the Tango path is unaffected, but a direct Python user of the legacy class breaks. |
 | P1-6     | `nanocontrol_tango.NanoControl`                   | `select_mode` + `arm` state machine is not fail-loud — a forgotten `select_mode` reuses the previous value silently.                                |
-| P0-6     | `modes._validate_programs`, `_collect_finite_ai`  | Profile duration must be a whole number of seconds. Deliberate software simplification, deferred.                                                   |
 
 ---
 
@@ -166,7 +161,7 @@ Iso mode: 20000 samples
 PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
-100 tests, ~30 s. If any fail, do not move on. The pinned-down physics
+108 tests, ~30 s. If any fail, do not move on. The pinned-down physics
 checks (FFT amplitude/frequency on the AC drive, lock-in amplitude vs
 the analytical expected value, `Uref` tiling for finite / CONTINUOUS /
 DC-iso paths, AO period integrity, T->V inversion endpoints and
@@ -244,8 +239,8 @@ Before the first real-hardware run, three items in `TODO.md` need attention:
 2. **P0-5** — Plan the hardware-trigger upgrade (`RETRIGGER` /
    `EXTTRIGGER`) so AO and AI start on the same DAQ pulse.
 3. Awareness of the mock's coherent ~196 Hz noise tone (P1-15) and the
-   `sosfiltfilt` edge transient (P1-9) when interpreting first real-hardware
-   plots.
+   `sosfiltfilt` lock-in edge transient (now flagged per-sample by the
+   `temp-hr_valid` column) when interpreting first real-hardware plots.
 
 Everything else in `TODO.md` is quality-of-life or code health and does not
 block MVP.

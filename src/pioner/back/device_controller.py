@@ -120,6 +120,19 @@ class DeviceController(abc.ABC):
     def stop_run(self) -> None:
         """Abort an in-flight run (only meaningful for iso today)."""
 
+    def start_iso_hold(self) -> None:
+        """Start an eternal iso hold (Set & hold) -- non-blocking.
+
+        Default fallback for backends without a dedicated hold primitive
+        (e.g. the legacy Tango path): a single blocking ``run()``.
+        """
+        self.run()
+
+    @property
+    def is_holding(self) -> bool:
+        """True while an eternal iso hold is driving AO."""
+        return False
+
     # -- convenience wrappers mirroring the legacy GUI verbs ----------
     def arm_fast_heat(self, programs_json: str) -> None:
         self.arm("fast", programs_json)
@@ -203,6 +216,8 @@ class LocalDeviceController(DeviceController):
         self._mode_name: str = ""
         self._last_programs: dict = {}
         self._ai_channels: list[int] = []
+        # True while an eternal iso hold (start_iso_hold) is driving AO.
+        self._iso_holding: bool = False
 
     # -- connection ----------------------------------------------------
     def connect(self) -> None:
@@ -249,6 +264,7 @@ class LocalDeviceController(DeviceController):
         self._em = None
         self._daq = None
         self._mode = None
+        self._iso_holding = False
         logger.info("LocalDeviceController disconnected")
 
     def is_connected(self) -> bool:
@@ -399,7 +415,35 @@ class LocalDeviceController(DeviceController):
 
         return self._mode.run(em=self._em, snapshot=snapshot)
 
+    def start_iso_hold(self) -> None:
+        """Drive the armed iso mode and hold AO until stop_run() (non-blocking).
+
+        Returns immediately while AO keeps driving and the persistent AI stream
+        keeps feeding the live plot -- the "eternal iso" path. For a finite,
+        auto-stopping iso program, arm() + run() with a duration instead.
+        """
+        if self._mode is None or not self._mode.is_armed():
+            raise RuntimeError("start_iso_hold called with no armed iso mode")
+        if self._mode_name != "iso":
+            raise RuntimeError("start_iso_hold requires the iso mode")
+        if self._em is None:
+            raise RuntimeError("LocalDeviceController is not connected")
+        self._mode.start_hold(self._em)
+        self._iso_holding = True
+        logger.info("iso hold started")
+
+    @property
+    def is_holding(self) -> bool:
+        return self._iso_holding
+
     def stop_run(self) -> None:
+        # An eternal iso hold drives AO on our ExperimentManager directly (no
+        # run() in flight), so stop it by halting AO rather than via mode.stop.
+        if self._iso_holding and self._em is not None:
+            self._em.stop_ao()
+            self._iso_holding = False
+            logger.info("iso hold stopped")
+            return
         stop = getattr(self._mode, "stop", None) if self._mode is not None else None
         if stop is not None:
             stop()

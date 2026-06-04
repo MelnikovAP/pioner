@@ -116,18 +116,11 @@ def _validate_programs(
     total_ms = durations.pop()
     if total_ms <= 0:
         raise ValueError("program duration must be > 0 ms")
-    if abs(total_ms % 1000.0) > 1e-6:
-        # TODO(global): the AI buffer is currently sized to exactly one second.
-        # That makes the half-buffer flip logic in
-        # :meth:`ExperimentManager._collect_finite_ai` straightforward but
-        # forces total program duration to be an integer number of seconds.
-        # Lift this by sizing the buffer to ``ceil(seconds) * sample_rate``
-        # and trimming the final tail to ``total_samples_per_channel``.
-        raise ValueError(
-            "Profile duration must be a whole number of seconds "
-            f"(got {total_ms} ms). Adjust the program or change the buffer "
-            "scheme in ExperimentManager._collect_finite_ai."
-        )
+    # Fractional-second durations are allowed: the AI buffer stays one second
+    # and ``ExperimentManager._collect_finite_ai`` collects whole half-buffer
+    # chunks, then trims to the exact ``total_samples_per_channel`` (which is
+    # ``round(sample_rate * total_s)``). The kept samples are the leading,
+    # AO-aligned ones, so a non-integer second is just a shorter trim.
     valid_keys = {channel_key(i) for i in range(ao_low, ao_high + 1)}
     bad_keys = set(programs) - valid_keys
     if bad_keys:
@@ -172,6 +165,31 @@ def _program_to_voltage(
                 calibration.safe_voltage,
             )
     return arr
+
+
+def _clip_modulation_to_safe(
+    arr: np.ndarray, safe_voltage: float, channel: str
+) -> None:
+    """Clip ``arr`` to ``[0, safe_voltage]`` in place, warning if anything was
+    actually clipped.
+
+    A silent clip turns the AC drive into a trapezoid (the sine peaks are flat-
+    topped) and biases the recovered lock-in amplitude with no trace in the
+    logs -- e.g. ``DC=8.5 V, A=2 V, safe=9 V`` clips half of every period. Warn
+    so the operator can drop the DC offset or amplitude (P1-4).
+    """
+    if arr.size == 0:
+        return
+    lo, hi = float(arr.min()), float(arr.max())
+    if lo < 0.0 or hi > safe_voltage:
+        n_clipped = int(np.count_nonzero((arr < 0.0) | (arr > safe_voltage)))
+        logger.warning(
+            "Modulation on %s clipped to [0, %.3f] V: %d/%d samples out of "
+            "range (min=%.3f V, max=%.3f V). The AC drive is distorted and the "
+            "lock-in amplitude will be biased; reduce the DC offset or amplitude.",
+            channel, safe_voltage, n_clipped, arr.size, lo, hi,
+        )
+    np.clip(arr, 0.0, safe_voltage, out=arr)
 
 
 # ---------------------------------------------------------------------------
@@ -220,16 +238,20 @@ def apply_calibration(
 
     # Thermopile temperature on the standard channel (Utpl) and on the
     # high-resolution modulation channel (Umod).
+    # Work from local variables rather than overwriting the raw ``df[N]``
+    # columns in place: the raw integer-named columns stay untouched until the
+    # final ``df.drop``, so this block is no longer order-sensitive (a reorder
+    # cannot silently feed an already-scaled column back into another step).
     if UTPL_AI in df.columns:
-        df[UTPL_AI] = df[UTPL_AI] * (1000.0 / hw.gain_utpl)  # mV at front-end
-        ax = df[UTPL_AI] + calibration.utpl0
+        u_tpl_mv = df[UTPL_AI] * (1000.0 / hw.gain_utpl)  # mV at front-end
+        ax = u_tpl_mv + calibration.utpl0
         df["temp"] = (
             calibration.ttpl0 * ax + calibration.ttpl1 * (ax**2)
         )
         df["temp"] += df["Taux"]
     if UMOD_AI in df.columns:
-        df[UMOD_AI] = df[UMOD_AI] * (1000.0 / hw.gain_umod)
-        ax_hr = df[UMOD_AI] + calibration.utpl0
+        u_mod_mv = df[UMOD_AI] * (1000.0 / hw.gain_umod)
+        ax_hr = u_mod_mv + calibration.utpl0
         df["temp-hr"] = (
             calibration.ttpl0 * ax_hr + calibration.ttpl1 * (ax_hr**2)
         )
@@ -387,7 +409,7 @@ class FastHeat(BaseMode):
             result = em.finite_scan(
                 self._voltage_profiles,
                 self._ai_channels,
-                seconds=int(self.duration_seconds),
+                seconds=self.duration_seconds,
             )
         return apply_calibration(
             result.data,
@@ -433,12 +455,12 @@ class SlowMode(BaseMode):
         profiles[self._modulation_channel] = apply_modulation(
             time_s, profiles[self._modulation_channel], params
         )
-        # Clamp to the safe voltage envelope so we cannot saturate the heater.
-        np.clip(
+        # Clamp to the safe voltage envelope so we cannot saturate the heater
+        # (warns if the modulation actually had to be clipped -- P1-4).
+        _clip_modulation_to_safe(
             profiles[self._modulation_channel],
-            0.0,
             self._calibration.safe_voltage,
-            out=profiles[self._modulation_channel],
+            self._modulation_channel,
         )
         return profiles
 
@@ -450,7 +472,7 @@ class SlowMode(BaseMode):
             result = em.finite_scan(
                 self._voltage_profiles,
                 self._ai_channels,
-                seconds=int(self.duration_seconds),
+                seconds=self.duration_seconds,
             )
         df = apply_calibration(
             result.data,
@@ -471,13 +493,17 @@ class SlowMode(BaseMode):
         # which is meaningless for slow mode.
         params = self._modulation or self._settings.modulation
         if params.lockin_capable and "temp-hr" in df.columns:
-            amp, phase = lockin_demodulate(
+            amp, phase, valid = lockin_demodulate(
                 df["temp-hr"].to_numpy(),
                 sample_rate=result.ai_rate,
                 frequency=params.frequency,
+                return_valid=True,
             )
             df["temp-hr_amp"] = amp
             df["temp-hr_phase"] = phase
+            # False over the lock-in settling transient at each edge (P1-9);
+            # mask with this before averaging amp/phase.
+            df["temp-hr_valid"] = valid
         return df
 
 
@@ -567,7 +593,7 @@ class IsoMode(BaseMode):
             base = np.full(n, _program_to_voltage(prog, n, self._calibration)[0])
             if ch == self._modulation_channel:
                 base = apply_modulation(time_s, base, params)
-                np.clip(base, 0.0, self._calibration.safe_voltage, out=base)
+                _clip_modulation_to_safe(base, self._calibration.safe_voltage, ch)
             profiles[ch] = base
         # Sanity check: the AO buffer is replayed CONTINUOUS, so a non-integer
         # number of AC cycles in the buffer would inject a phase jump at every
@@ -600,6 +626,35 @@ class IsoMode(BaseMode):
                     float(rate),
                 )
         return profiles
+
+    def _drive_ao(self, em: ExperimentManager) -> None:
+        """Drive the armed iso AO profile on ``em``.
+
+        DC profiles go through ``ao_set``; AC profiles through the CONTINUOUS
+        ``ao_modulated`` buffer. Any prior AO drive is stopped first so a
+        re-drive (switching setpoint, or going to 0 on "Off") cannot leave the
+        previous CONTINUOUS scan latched on the heater.
+        """
+        em.stop_ao()
+        params = self._modulation or self._settings.modulation
+        if params.enabled:
+            em.ao_modulated(self._voltage_profiles)
+        else:
+            for ch, profile in self._voltage_profiles.items():
+                em.ao_set(channel_index(ch), float(profile[0]))
+
+    def start_hold(self, em: ExperimentManager) -> None:
+        """Start driving the armed iso AO profile and return immediately.
+
+        The AO output is held until ``em.stop_ao()`` is called (or another
+        profile is driven). AI is NOT started here -- the caller's persistent
+        ring buffer keeps streaming, so the live plot stays alive. This is the
+        "eternal iso / Set and hold" path (todo P1-5). A finite, auto-stopping
+        iso program is the ``run(duration_seconds=...)`` path instead.
+        """
+        if not self.is_armed():
+            raise RuntimeError("IsoMode is not armed; call arm() first")
+        self._drive_ao(em)
 
     def run(
         self,
@@ -648,12 +703,7 @@ class IsoMode(BaseMode):
         if not injected:
             em = ExperimentManager(self._daq, self._settings)
         try:
-            if params.enabled:
-                em.ao_modulated(self._voltage_profiles)
-            else:
-                # Single-channel DC voltage on every channel mentioned in the program.
-                for ch, profile in self._voltage_profiles.items():
-                    em.ao_set(channel_index(ch), float(profile[0]))
+            self._drive_ao(em)
 
             if injected:
                 # The caller owns a persistent ring buffer; do not start a
@@ -689,11 +739,13 @@ class IsoMode(BaseMode):
             temp_hr = df["temp-hr"].to_numpy()
             # Time-domain lock-in: per-sample amp/phase trace. Useful for
             # visual diagnostics (settling, drift) even in iso mode.
-            amp, phase = lockin_demodulate(
+            amp, phase, valid = lockin_demodulate(
                 temp_hr, sample_rate=ai_rate, frequency=params.frequency,
+                return_valid=True,
             )
             df["temp-hr_amp"] = amp
             df["temp-hr_phase"] = phase
+            df["temp-hr_valid"] = valid  # False over the settling edges (P1-9)
             # FFT demodulation: scalar amp/phase per harmonic over the
             # whole capture. In iso mode the response is stationary so a
             # single global estimate is the natural physical observable;
@@ -779,6 +831,7 @@ _EXP_DATA_COLUMNS = (
     "temp-hr",
     "temp-hr_amp",
     "temp-hr_phase",
+    "temp-hr_valid",
 )
 
 
@@ -795,7 +848,8 @@ def save_run_to_h5(
     The front-end downloads this file over HTTP and decodes it via the
     ``data`` group. We persist the same shape :class:`fastheat.FastHeat` and
     :class:`slow_mode.SlowMode` historically did (for backward compatibility),
-    plus the AC lock-in columns when present (``temp-hr_amp`` / ``temp-hr_phase``).
+    plus the AC lock-in columns when present (``temp-hr_amp`` / ``temp-hr_phase``
+    / ``temp-hr_valid``, the last marking the lock-in settling edges).
 
     The Tango server calls this from ``run()`` — without it, ``run_fast_heat``
     completes silently but the file the front-end expects never appears.

@@ -8,6 +8,7 @@ CI/dev boxes); its surface is a thin pass-through to a DeviceProxy.
 
 from __future__ import annotations
 
+import json
 import time
 
 import numpy as np
@@ -171,3 +172,29 @@ class TestExperiment:
             worker.join(timeout=5.0)
         assert all(seen_active), seen_active
         assert all(r > 0 for r in seen_rows), seen_rows
+
+
+class TestIsoHold:
+    """Eternal iso hold (P1-5): start_iso_hold drives AO and returns at once,
+    AI keeps streaming, stop_run halts the hold."""
+
+    def test_start_iso_hold_is_nonblocking_and_holds(self, local_controller):
+        local_controller.arm("iso", json.dumps({"ch1": {"volt": 0.5}}))
+        t0 = time.monotonic()
+        local_controller.start_iso_hold()
+        elapsed = time.monotonic() - t0
+        # Returns immediately -- it must NOT block for the legacy ~1 s run.
+        assert elapsed < 0.5, f"start_iso_hold blocked for {elapsed:.2f}s"
+        assert local_controller.is_holding is True
+        # The persistent AI stream stays alive during the hold.
+        assert local_controller.is_streaming()
+        data = _wait_for_stream(local_controller)
+        assert data.shape[0] > 0
+        local_controller.stop_run()
+        assert local_controller.is_holding is False
+        # AI is untouched by stopping the AO hold.
+        assert local_controller.is_streaming()
+
+    def test_start_iso_hold_requires_armed_iso(self, local_controller):
+        with pytest.raises(RuntimeError):
+            local_controller.start_iso_hold()  # nothing armed

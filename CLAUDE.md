@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (100 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (108 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - GUI (single window, all modes + live streaming): `python -m pioner.runUI
   --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
@@ -162,9 +162,10 @@ Rules:
   explicitly asks otherwise for a specific file. Chat replies follow the
   user's language; persisted artifacts do not.
 - Hardcoded values left intentionally untouched per project convention:
-  column name `Uref` (not `Uheater`), heater channel literal `"ch1"`, and the
-  `total_ms % 1000 == 0` software constraint on profile durations. Don't
-  "clean these up" without an explicit ask.
+  column name `Uref` (not `Uheater`) and heater channel literal `"ch1"`. Don't
+  "clean these up" without an explicit ask. (The old `total_ms % 1000 == 0`
+  whole-second constraint has been **lifted** -- fractional-second durations are
+  now allowed; see the Buffer-length rule below.)
 
 ## Physics & DAQ — load-bearing rules
 
@@ -197,9 +198,11 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
   `docs/mock-verification.md`).
 - **AO/AI start ordering.** AI must be armed before AO is started; the
   reverse skews the leading edge. See `TODO.md` P0-5.
-- **Buffer-length constraint.** Total program duration must be a whole number
-  of seconds (`total_ms % 1000 == 0`). The AI buffer is sized to exactly one
-  second; lifting this requires touching `_collect_finite_ai`.
+- **Buffer length vs. duration.** The AI buffer is still sized to exactly one
+  second (half-buffer flip in `_collect_finite_ai`), but program duration is no
+  longer required to be a whole number of seconds: `finite_scan` collects whole
+  half-buffer chunks and trims to `round(sample_rate * total_s)`. Fractional
+  durations are fine; the kept samples are the leading, AO-aligned ones.
 - **Iso / CONTINUOUS scans tile `Uref`.** The AO buffer replays indefinitely;
   the AI frame is longer than one period. `apply_calibration` tiles the
   commanded voltage to match AI length so `Uref` reflects what was actually

@@ -358,13 +358,18 @@ backend, but defers the mode refactor and the disk recorder.
 - **Backend selection**: `python -m pioner.runUI --mock | --hardware`
   (default autodetects -- no PyTango => local/mock). The "run without
   hardware" checkbox selects `LocalDeviceController`.
-- **Iso streams live during the run (P1-17, Approach C).** `IsoMode.run()`
-  accepts an injected `ExperimentManager` + `snapshot` callable. When the
-  GUI runs iso, `LocalDeviceController._run_iso_streaming()` drives only AO
-  on the controller's manager and reads AI from the *already-running*
-  persistent ring buffer (via a primed `read_new` cursor that captures just
-  the run window), then stops **only AO** (`stop_ao`). The live plot keeps
-  updating throughout. Fast / slow still pause (see deferred below).
+- **Iso streams live (P1-17, Approach C).** Two iso entry points, both
+  driving **only AO** on the controller's manager while the *already-running*
+  persistent ring buffer feeds the live plot:
+  - **Eternal hold (default GUI "Set", P1-5):** `start_iso_hold()` ->
+    `IsoMode.start_hold()` drives the setpoint and returns immediately (no AI
+    scan, no blocking); "Off" / a timed-program timer halts it via `stop_ao`.
+  - **Finite / timed run:** `IsoMode.run()` with an injected
+    `ExperimentManager` + `snapshot` callable, via
+    `LocalDeviceController._run_iso_streaming()` (primed `read_new` cursor
+    captures just the run window), then stops **only AO**.
+  The live plot keeps updating throughout. Fast / slow still pause (see
+  deferred below).
 - **Mode-selection UI** (`modeComboBox`: Fast / Slow / Iso). Fast and slow
   share the ramp-table editor (`fh_arm` / `fh_run` route to
   `controller.arm(mode_name, ...)` / `run()`); slow layers AC modulation in

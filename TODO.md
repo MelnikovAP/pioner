@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **100 passed** (mock backend, ~30 s).
+- `pytest tests/`: **108 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -25,11 +25,11 @@ File references use the `path/to/file.py:line` format. Test command:
   edges and physical fidelity items for real hardware.
 - Pipeline reference: `docs/pipeline.md`. Manual mock usage: `docs/mock-verification.md`.
 
-**Conventions kept on purpose:** column name `Uref` (not `Uheater`), and
-the `total_ms % 1000 == 0` software constraint on profile durations.
+**Conventions kept on purpose:** column name `Uref` (not `Uheater`).
 Heater channel `"ch1"` is now the named constant `HEATER_AO` in
 `pioner.shared.channels` (see that module for the full layout); the wire
-format remains `"ch{N}"`.
+format remains `"ch{N}"`. (The `total_ms % 1000 == 0` whole-second constraint
+has been lifted -- fractional-second durations are now allowed.)
 
 ---
 
@@ -130,80 +130,6 @@ edge; the fallback options are documented inline in `finite_scan`
 
 ## P1 — architectural / logical improvements
 
-### P1-3. `apply_calibration`: in-place mutation of the raw frame is fragile
-
-**Where:** `src/pioner/back/modes.py:195-225`
-
-**What:** the function does `df[4] = df[4] * (1000.0 / hw.gain_utpl)` —
-overwriting raw columns. Then it reads `df[5] - df[0] * 1000.0`. The whole
-thing is order-sensitive; a future re-ordering would silently produce a bug
-that no current test catches because the columns are dropped at the end.
-
-**Action:** introduce local variables (`u_tpl_mv = df[4] * 1000.0 /
-hw.gain_utpl`, …) and never mutate raw `df[N]`. The final `df.drop` block
-already exists and continues to work.
-
-**Verification:** the existing test suite + a new unit test asserting
-that raw integer-named columns are **not** modified before `df.drop`.
-
-### P1-4. Silent modulation clipping to `safe_voltage`
-
-**Where:** `src/pioner/back/modes.py:380-385, 487-488`
-
-**What:** `np.clip(profile, 0, safe_voltage, out=...)` runs without a
-warning. If a user sets `Amplitude = 2 V` on top of `DC = 8.5 V` with
-`safe = 9 V`, half of the sine period is silently clipped. The waveform
-becomes a trapezoid and the lock-in returns a wrong amplitude with no log
-trace.
-
-**Action:** before clipping, check `profile.min() < 0` or `profile.max() >
-safe_voltage` and emit a `logger.warning` describing how much was clipped.
-(Mirror of FIX D, but for the modulated path.)
-
-**Verification:** unit test — a profile that exceeds the safe envelope
-should produce a warning record (use `caplog`).
-
-### P1-5. Legacy `IsoMode.run(do_ai=False)` does not actually hold the voltage
-
-**Where:** `src/pioner/back/iso_mode.py`
-
-**What:** the historical "Set V and hold until the GUI presses Off"
-scenario still routes through `_mode.run(duration_seconds=0.0)` which
-returns immediately and the surrounding `finally: em.stop()` drops the
-voltage within milliseconds. P1-1 added the `stop()` primitive that this
-fix relies on, but the legacy `do_ai=False` path was not rewired.
-
-**Product answer (2026-06-04):** iso has two intended behaviours.
-1. **Default = hold.** "Set V/T" must drive the commanded value and **hold it
-   indefinitely** until the operator presses "Off" (or `stop()` is called).
-   This is the rewire described below. (Confirmed in review: today the GUI
-   "Set" drives only ~1 s then `stop_ao()` drops it — see the
-   `_run_iso_streaming` injected path and `IsoMode.run`'s `duration_seconds`.)
-2. **Optional timed program.** Also support an iso "temperature program":
-   target T (or V) **plus a duration**, after which the run **auto-stops**.
-   This is the existing finite-duration path; expose it in the GUI as an
-   alternative to the indefinite hold. The two share one code path — a hold is
-   just "duration = until Off".
-
-Note the front-end side (a hold vs. timed-program toggle in the iso panel) is
-tracked here for context but lands in `front/`, after the back-end rewire.
-
-**Action:**
-1. When `do_ai=False`, do **not** route through `_mode.run`. Instead keep
-   an `ExperimentManager` instance on `self` and call `em.ao_set(ch, V)`
-   (or `em.ao_modulated(...)` if AC is enabled) and **return without
-   stopping**.
-2. Have `ai_stop()` call the stored `em.stop()` and clear the reference.
-   (Currently `ai_stop()` forwards to `_mode.stop()` which is harmless
-   but does not stop a held AO since `_mode.run` was never started for
-   `do_ai=False`.)
-3. Document the new lifecycle: `arm() → run(do_ai=False) → ai_stop()`.
-
-**Verification:** integration test on the mock — `IsoMode(...).run(do_ai=
-False)` then read `_shared.iso_voltages` (or the AO buffer) and confirm
-the commanded voltage is still being driven; call `ai_stop()` and confirm
-`iso_voltages` is empty.
-
 ### P1-6. Tango: `select_mode` + `arm` state machine is not fail-loud
 
 **Where:** `src/pioner/back/nanocontrol_tango.py:183-203`
@@ -227,22 +153,6 @@ returns an empty array with no explanation.
 
 **Action:** after `ai_handler.scan(...)`, poll up to ~100 ms for
 `get_scan_status()[0] == RUNNING`. Raise `RuntimeError` on timeout.
-
-### P1-9. Lock-in: `sosfiltfilt` transients on the edges
-
-**Where:** `src/pioner/shared/modulation.py:153-165`
-
-**What:** `filtfilt` is zero-phase, but it has transients of ~10
-modulation periods on each edge. The existing test masks this via
-`slice(2000, -2000)`. For short scans (<0.5 s at 37.5 Hz) the transient is
->50 % of the signal.
-
-**Action:** return a boolean `valid` mask alongside `(amp, phase)`,
-`False` over the transient regions. Document a minimum useful signal
-length (`>= 20 / frequency` seconds).
-
-**Verification:** unit test — lock-in on a 0.3 s, 37.5 Hz signal returns a
-mask with `False` on the edges.
 
 ### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
 
@@ -335,11 +245,13 @@ The standalone `streamWindow`/`runStream` dev window was folded into
 `mainWindow` and removed.
 
 **Status (iso live -- done, 2026-06-01):** `IsoMode.run()` takes an
-optional injected `ExperimentManager` + `snapshot` callable. The GUI iso
-path (`LocalDeviceController._run_iso_streaming`) drives only AO on the
+optional injected `ExperimentManager` + `snapshot` callable. The finite/timed
+iso path (`LocalDeviceController._run_iso_streaming`) drives only AO on the
 controller's manager and reads AI from the persistent ring (primed
 `read_new` cursor -> captures just the run window), stopping only AO
-afterwards. The live stream stays active for the whole iso run.
+afterwards. The default GUI "Set" now uses the non-blocking eternal hold
+(`start_iso_hold` -> `IsoMode.start_hold`, P1-5), same drive-only-AO principle.
+The live stream stays active for the whole iso run.
 Mode-selection UI (Fast/Slow/Iso combo) wired in `mainWindow`. Regression
 tests `test_iso_run_keeps_stream_live` / `test_iso_run_streams_during_run`.
 
@@ -480,7 +392,7 @@ tracks a temperature setpoint (and, importantly, does not overshoot/overheat).
 **Verification (mock first):** drive a step setpoint on the mock, confirm the
 loop settles without sustained overshoot; only then tune on real hardware
 (HARD STOP — overshoot melts the heater, see the `safe_voltage` rules in
-CLAUDE.md). Depends on the iso "hold" rewire (P1-5) landing first.
+CLAUDE.md). The iso "hold" path (start_iso_hold) is in place to build on.
 
 ### P1-25. Replace AD595 cold-junction with a K-type thermocouple converter
 
@@ -562,22 +474,25 @@ guard, sample-count logging). The remaining work needs the physical board and is
 3. P0-5 skew check (see P0-5): no trigger line on the rig, so measure the residual
    AO/AI skew and, if it matters, implement the per-host software offset-trim.
 4. Then the live-chip accuracy items that cannot be pre-validated on the mock:
-   P0-4 iso seamlessness at 37.5 Hz, P1-9 lock-in edge transients, fast/slow
+   P0-4 iso seamlessness at 37.5 Hz, lock-in edge transients (now flagged by
+   the `temp-hr_valid` mask), fast/slow
    live-stream-during-run (P1-17 Approach A, alignment > 1000 K/s).
 
-### P1-29. Front-end: iso hold/timed-program toggle + GUI regression tests
+### P1-29. Front-end: offscreen GUI regression tests
 
 **(front-end).** **Where:** `src/pioner/front/mainWindow.py`,
-`src/pioner/front/mainWindowUi.py`.
+`src/pioner/front/mainWindowUi.py`, new `tests/test_main_window.py`.
 
-**What:**
-- Expose the iso behaviour from P1-5 in the GUI: a toggle between "Set & hold
-  until Off" (default) and "temperature program: target + duration, auto-stop".
-  Depends on the P1-5 back-end rewire.
-- The connect status readout (A1), connect diagnostics (A2), and idle-Thtr
-  blanking (A3) are currently only exercised by an offscreen smoke. Add
-  `QT_QPA_PLATFORM=offscreen` regression tests so the status label and idle-Thtr
-  behaviour cannot silently regress.
+**What:** several GUI behaviours are only exercised by an ad-hoc offscreen
+smoke, not by the suite. Add `QT_QPA_PLATFORM=offscreen` regression tests so
+they cannot silently regress:
+- connect status readout (A1) MOCK vs REAL, connect diagnostics (A2), idle-Thtr
+  blanking (A3);
+- iso eternal hold vs timed program (the duration field): Set holds and the
+  live Thtr shows; Off / timer expiry drives 0 V and blanks Thtr.
+
+(The iso hold/timed UI itself has landed: `setDurationInput` + `start_iso_hold`
++ the auto-Off `QTimer`; this item is now only about test coverage.)
 
 ### P1-30. Quantify / harden the mainline `finite_scan` OVERRUN margin
 
@@ -834,18 +749,15 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
 
 1. **P0-3** — settled with the physicist (dimensionless Ihtr is intentional);
    do not touch calibration coefficients without a new SI procedure (P2-21).
-2. **P1-5** — iso "hold by default" + optional timed program (auto-stop). The
-   `stop()` primitive is in place; rewire the legacy `do_ai=False` / injected
-   path so "Set" holds until "Off". Front-end toggle follows.
-3. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
+2. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
    boundary mapping early; it constrains where later work lands.
-4. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
+3. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
    per-host software offset-trim (not the `EXTTRIGGER` loopback).
-5. **P1-24 (medium)** — closed-loop PID control (after P1-5); iso first.
+4. **P1-24 (medium)** — closed-loop PID control (iso hold is now in place as
+   the test bed); iso first.
 6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +
    acquisition-path work; coordinate with P1-27 SPICE model).
-7. **P1-3, P1-4** — independent, do in parallel.
-8. **P1-6 → P1-16** — two or three at a time.
+7. **P1-6 → P1-16** — two or three at a time.
 9. **P2-\*** — code-quality round after P0/P1 close.
 10. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 
@@ -854,10 +766,10 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
 - Run `PYTHONPATH=src .venv/bin/pytest -q` (≤10 s) on every change.
 - Front-end work is now in scope (the GUI single-window rewrite has landed);
   front items are tagged **(front-end)** below.
-- **Do not change hardcoded names/values** (`Uref`, the
-  `total_ms % 1000 == 0` constraint) without an explicit user request.
-  Heater channel `"ch1"` now goes through `pioner.shared.channels.HEATER_AO`
-  for internal references; the wire format stays `"ch{N}"`.
+- **Do not change hardcoded names/values** (`Uref`) without an explicit user
+  request. Heater channel `"ch1"` now goes through
+  `pioner.shared.channels.HEATER_AO` for internal references; the wire format
+  stays `"ch{N}"`.
 - Before any production run, mandatory smoke on real hardware: fast 1 s
   ramp, slow 2 s with modulation, iso 10 s with modulation. Compare
   against reference data from previous experiments.

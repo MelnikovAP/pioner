@@ -276,13 +276,13 @@ def test_create_mode_unknown_raises(
         create_mode("totally_made_up", connected_daq, settings, calibration, fast_programs)
 
 
-def test_validate_rejects_non_second_durations(
+def test_validate_accepts_non_second_durations(
     connected_daq, settings, calibration
 ):
-    bad = {"ch1": {"time": [0, 1500], "volt": [0, 1]}}
-    mode = FastHeat(connected_daq, settings, calibration, bad)
-    with pytest.raises(ValueError, match="whole number of seconds"):
-        mode.arm()
+    # The whole-second (total_ms % 1000 == 0) constraint was lifted; arming a
+    # fractional-duration program must no longer raise.
+    prog = {"ch1": {"time": [0, 1500], "volt": [0, 1]}}
+    FastHeat(connected_daq, settings, calibration, prog).arm()
 
 
 def test_validate_rejects_inconsistent_durations(
@@ -323,3 +323,39 @@ def test_fast_mode_with_temperature_program_runs_calibration_path(
     assert profile[len(profile) // 2] > profile[0]
     df = mode.run()
     assert len(df) == settings.ai_params.sample_rate
+
+
+def test_fast_mode_fractional_seconds(connected_daq, settings, calibration):
+    """Non-integer-second durations are allowed (1s buffer constraint lifted):
+    the collected frame is trimmed to round(sample_rate * total_s)."""
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    rate = settings.ai_params.sample_rate
+    for total_ms in (500, 1500):
+        programs = {
+            "ch0": {"time": [0, total_ms], "volt": [0.1, 0.1]},
+            "ch1": {"time": [0, total_ms], "volt": [0, 1]},
+        }
+        mode = FastHeat(connected_daq, settings, calibration, programs)
+        mode.arm()
+        df = mode.run()
+        expected = int(round(rate * total_ms / 1000.0))
+        assert len(df) == expected, f"{total_ms} ms -> {len(df)} != {expected}"
+
+
+def test_clip_modulation_warns_when_clipped(caplog):
+    import logging
+    from pioner.back.modes import _clip_modulation_to_safe
+    arr = np.array([8.0, 10.0, 8.0, -1.0])  # exceeds safe=9 V and dips below 0
+    with caplog.at_level(logging.WARNING):
+        _clip_modulation_to_safe(arr, 9.0, "ch1")
+    assert "clipped" in caplog.text, "silent clip -- P1-4 warning missing"
+    assert arr.max() <= 9.0 and arr.min() >= 0.0
+
+
+def test_clip_modulation_silent_when_within_range(caplog):
+    import logging
+    from pioner.back.modes import _clip_modulation_to_safe
+    arr = np.array([0.5, 8.9, 0.1])
+    with caplog.at_level(logging.WARNING):
+        _clip_modulation_to_safe(arr, 9.0, "ch1")
+    assert "clipped" not in caplog.text

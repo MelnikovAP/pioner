@@ -123,7 +123,9 @@ def lockin_demodulate(
     sample_rate: float,
     frequency: float,
     bandwidth: float | None = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    return_valid: bool = False,
+    settle_periods: float = 10.0,
+) -> Tuple[np.ndarray, ...]:
     """Single-frequency software lock-in.
 
     Multiplies ``signal`` by ``sin`` and ``cos`` references at ``frequency``
@@ -144,11 +146,23 @@ def lockin_demodulate(
         which is a common rule of thumb (it suppresses the 2*f component while
         keeping settling time short).
 
+    return_valid
+        When ``True``, also return a boolean ``valid`` mask (same length as the
+        signal) that is ``False`` over the filter settling transient at each
+        end. The zero-phase ``sosfiltfilt`` rings for several periods at both
+        edges; for short scans this can dominate the trace (e.g. a 0.4 s scan
+        at 37.5 Hz is mostly transient). Mask with it before averaging amp/phase.
+    settle_periods
+        Width of each masked edge, in modulation periods (default 10). If the
+        two edges overlap (signal shorter than ``2 * settle_periods``), the
+        whole mask is ``False`` -- i.e. no sample is trustworthy.
+
     Returns
     -------
-    (amplitude, phase)
+    (amplitude, phase) or (amplitude, phase, valid)
         ``amplitude`` is the AC amplitude of ``signal`` at ``frequency`` (same
-        units as ``signal``); ``phase`` is the phase lag in radians.
+        units as ``signal``); ``phase`` is the phase lag in radians. ``valid``
+        is returned only when ``return_valid=True``.
     """
     signal = np.asarray(signal, dtype=float)
     if signal.ndim != 1:
@@ -193,7 +207,17 @@ def lockin_demodulate(
     # reference (which is what physicists expect).
     amplitude = 2.0 * np.sqrt(in_phase_lp**2 + quadrature_lp**2)
     phase = -np.arctan2(quadrature_lp, in_phase_lp)
-    return amplitude, phase
+    if not return_valid:
+        return amplitude, phase
+
+    # Mark the low-pass settling transient at each end invalid. sosfiltfilt is
+    # zero-phase (forward+backward), so the ringing is at both edges.
+    valid = np.ones(n, dtype=bool)
+    edge = int(np.ceil(settle_periods * sample_rate / frequency))
+    if edge > 0:
+        valid[:edge] = False
+        valid[-edge:] = False
+    return amplitude, phase, valid
 
 
 def _moving_average_demod(in_phase, quadrature, sample_rate, frequency, bandwidth):

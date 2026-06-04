@@ -185,8 +185,9 @@ Each AO channel program is a dict with:
 * `"time"` — list of monotone time points starting at 0 (in **milliseconds**).
 * exactly one of `"temp"` (in °C, calibration is applied) or `"volt"` (in V).
 
-The total duration must be a whole number of seconds (software simplification
-documented at `pioner.back.modes._validate_programs`).
+The total duration may be any positive value (fractional seconds are allowed):
+the AI frame is collected against a one-second buffer and trimmed to
+`round(sample_rate * total_s)`. See `pioner.back.modes._validate_programs`.
 
 For the iso mode, the shorthand `{"chN": {"volt": v}}` is also accepted and
 gets normalised internally.
@@ -362,16 +363,12 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**100 tests, ~30 seconds** locally.
+**108 tests, ~30 seconds** locally.
 
 ---
 
 ## 9. Outstanding work / known limitations
 
-* **Profile duration must be an integer number of seconds.** This is a
-  software constraint imposed by the 1-second AI buffer. Lifting it
-  requires a small refactor in `ExperimentManager._collect_finite_ai`
-  (allocate a sub-second tail buffer for the last fractional second).
 * **AO/AI start skew.** By default the two scans are armed sequentially
   (AI first, then AO, so no leading AO edge is missed) with a few ms
   between starts; for the 1000+ K/s fast mode the leading 1-2 ms of the
@@ -386,9 +383,12 @@ the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
   `Mode` combo: fast and slow share the ramp-table editor (slow layers AC
   modulation in the backend), iso uses the Set/Off controls. The GUI talks
   to the instrument through a `DeviceController` (`arm(mode_name, ...)` /
-  `run()`), not the legacy `arm_fast_heat` Tango command. Iso runs stream
-  live against the persistent ring buffer; fast/slow still pause the live
-  stream for the run's duration (see `docs/live-streaming.md`). A dedicated
+  `run()`), not the legacy `arm_fast_heat` Tango command. **Iso "Set" holds
+  the setpoint indefinitely** (non-blocking; `start_iso_hold`) until "Off",
+  or — with a duration in the iso panel — runs a timed program that
+  auto-returns the heater to 0 V after N seconds. Iso streams live against the
+  persistent ring buffer; fast/slow still pause the live stream for the run's
+  duration (see `docs/live-streaming.md`). A dedicated
   CalibrationMode is not yet a run mode (todo P1-22).
 * **Mock data is not a thermal model.** The synthetic AI signal mirrors the
   AO voltage scaled by hand-picked constants. It is sufficient for

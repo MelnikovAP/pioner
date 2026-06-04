@@ -163,13 +163,15 @@ class ExperimentManager:
         self,
         voltage_profiles: dict,
         ai_channels: Sequence[int],
-        seconds: int,
+        seconds: float,
     ) -> ScanResult:
         """Run a finite paced AO + AI experiment.
 
         ``voltage_profiles`` is an iterable per-channel array of floats with
-        length ``seconds * sample_rate``. ``ai_channels`` is the subset of AI
-        channels to keep in the resulting DataFrame.
+        length ``round(seconds * sample_rate)``. ``ai_channels`` is the subset
+        of AI channels to keep in the resulting DataFrame. ``seconds`` may be
+        fractional (the AI buffer stays one second; the collected frame is
+        trimmed to the exact sample count).
         """
         if seconds <= 0:
             raise ValueError("seconds must be > 0")
@@ -238,7 +240,7 @@ class ExperimentManager:
             data=df,
             ai_rate=float(ai_rate),
             ao_rate=float(ao_rate),
-            samples_per_channel=int(ai_rate * seconds),
+            samples_per_channel=int(round(ai_rate * seconds)),
         )
 
     def ao_set(self, channel: int, voltage: float) -> None:
@@ -472,7 +474,7 @@ class ExperimentManager:
         self,
         ai_handler: AiDeviceHandler,
         ao_handler: AoDeviceHandler,
-        seconds: int,
+        seconds: float,
         ai_channels: Sequence[int],
     ) -> pd.DataFrame:
         n_ai_chans = self._ai_params.channel_count()
@@ -491,7 +493,7 @@ class ExperimentManager:
                 f"AI sample_rate must be even (got {sample_rate}); the "
                 "half-buffer flip protocol requires an even buffer length."
             )
-        total_samples_per_channel = sample_rate * seconds
+        total_samples_per_channel = int(round(sample_rate * seconds))
 
         buf = ai_handler.get_buffer()
         # Derive ``half_buf_len`` from the channel-aligned half so that the

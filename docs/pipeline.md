@@ -95,7 +95,7 @@ seamless. See §3.7c.
 │   {"ch1": {"time": [0, 500, 1000], "temp": [10, 100, 10]}, ...}   │
 │   - keys: "chN" with N ∈ [ao_low, ao_high]                        │
 │   - exactly one of "temp" (°C) or "volt" (V)                      │
-│   - common duration must be a whole number of seconds (TODO)      │
+│   - common duration > 0; fractional seconds OK (trimmed to fit)   │
 └───────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -103,7 +103,7 @@ seamless. See §3.7c.
 │ 2. modes._validate_programs()                                     │
 │   - rejects unknown channel keys                                  │
 │   - rejects non-monotonic time arrays                             │
-│   - enforces program duration % 1 s == 0                          │
+│   - duration just needs to be > 0 (fractional seconds allowed)    │
 └───────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -525,11 +525,11 @@ working end-to-end on mock or on real hardware.
 
 ### Global / architectural
 
-1. **Sub-second program durations** — lift the
-   `program_duration % 1 s == 0` constraint by sizing the AI buffer to
-   `ceil(seconds) * sample_rate` and trimming the trailing tail. Touched in
-   `experiment_manager._collect_finite_ai` and `modes._validate_programs`.
-   *Currently a deliberate software simplification (see `TODO.md` P0-6).*
+1. **Sub-second program durations — DONE.** The `program_duration % 1 s == 0`
+   constraint has been lifted: the AI buffer stays one second and
+   `finite_scan` collects whole half-buffer chunks then trims to
+   `round(sample_rate * seconds)`, so fractional-second durations work.
+   (`experiment_manager._collect_finite_ai`, `modes._validate_programs`.)
 2. **Hardware trigger — real-hardware validation** — `EXTTRIGGER` is
    implemented for `finite_scan` (FastHeat / SlowMode), `ao_modulated`
    (IsoMode AC) and `start_ring_buffer`. Mock-tested in
@@ -565,10 +565,11 @@ working end-to-end on mock or on real hardware.
    `bandwidth = f / 5 = 7.5 Hz` corresponds to a settling time
    `~0.13 s`. For ramp rates above ~5 K/s the bandwidth starts smearing the
    `C_p(T)` curve. Make `bandwidth` an explicit `ModulationParams` field.
-8. **Modulation clipping on slow/iso is silent** — the AC profile is
-   `np.clip`'d to `[0, safe_voltage]` without a warning. With e.g.
-   `DC=8.5 V, A=2 V, safe=9 V` half of the sine is clipped and the lock-in
-   amplitude is biased silently. `TODO.md` P1-4.
+8. **Modulation clipping on slow/iso** — the AC profile is clipped to
+   `[0, safe_voltage]`. This is no longer silent: `_clip_modulation_to_safe`
+   logs a WARNING with the out-of-range sample count when e.g.
+   `DC=8.5 V, A=2 V, safe=9 V` flat-tops the sine (which would bias the
+   lock-in amplitude). Reduce the DC offset or amplitude when you see it.
 9. **AO buffer seamlessness at f_mod = 37.5 Hz** — `IsoMode.arm` logs a
    warning quantifying the defect, but the production fix (drop to a
    seamless `f_mod` such as 40 Hz, or expose the buffer length as a
@@ -632,7 +633,7 @@ working end-to-end on mock or on real hardware.
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input, **Rhtr units in Ω with production calibration** (regression for #1) |
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest tests/              # 100 tests, ~30 s
+PYTHONPATH=src .venv/bin/pytest tests/              # 108 tests, ~30 s
 PYTHONPATH=src .venv/bin/python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

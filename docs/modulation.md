@@ -299,7 +299,7 @@ The file is structured strictly by role:
 |---------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `ModulationParams` (dataclass)        | Frozen `(frequency, amplitude, offset)` triple read from settings.                                      |
 | `apply_modulation`                    | Build the AO drive: `base_voltage + offset + amplitude * sin(2*pi*f*t)`. Adds AC to a DC profile.       |
-| `lockin_demodulate`                   | Full time-domain lock-in: sin/cos demod, Butterworth `sosfiltfilt` LP (zero phase delay), with a moving-average fallback when scipy is unavailable. Returns per-sample `(amplitude, phase)` traces. |
+| `lockin_demodulate`                   | Full time-domain lock-in: sin/cos demod, Butterworth `sosfiltfilt` LP (zero phase delay), with a moving-average fallback when scipy is unavailable. Returns per-sample `(amplitude, phase)` traces, or `(amplitude, phase, valid)` with `return_valid=True` (the `valid` mask is `False` over the settling edges). |
 | `fft_demodulate` + `FFTDemodResult`   | FFT-based demodulator with integer-cycle window selection (`_integer_cycle_length`) and multi-harmonic extraction (defaults `(1, 2, 3)`). Returns scalar `(amplitude, phase)` per harmonic plus a leakage fraction diagnostic. |
 | `check_ao_period_integrity` + `AOPeriodReport` | Diagnostic on an AO buffer about to be played `CONTINUOUS`: reports cycles count, drift from integer, phase jump per wrap, leakage. Used by IsoMode to warn the user before a biased run. |
 

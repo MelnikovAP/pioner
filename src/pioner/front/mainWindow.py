@@ -66,6 +66,15 @@ class mainWindow(mainWindowUi):
         # TangoDeviceController (legacy network path). Runtime ``None``
         # checks guard every call site that needs the wire.
         self.controller: Optional[DeviceController] = None
+        # True while the operator has commanded a sustained heater drive (iso
+        # Set / hold). The live Thtr readout is only meaningful while a drive is
+        # active; at idle the heater-current proxy is ~0 so Rhtr=U/i blows up
+        # (the ~-1071 sentinel, todo P0-3), hence Thtr is blanked unless this
+        # is set. With the iso-hold rewire (P1-5) a hold genuinely sustains AO,
+        # so a live tick now does coincide with a real drive.
+        self._heater_driven: bool = False
+        # Single-shot timer for a timed iso program (auto-Off after N seconds).
+        self._iso_timer: Optional[Any] = None
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -201,14 +210,12 @@ class mainWindow(mainWindowUi):
                 last = cal.iloc[-1]
                 self.tauxValueLabel.setText(self._fmt(last.get("Taux")))
                 self.ttplValueLabel.setText(self._fmt(last.get("temp")))
-                # Thtr is heater-derived (Rhtr = U/i). This live readout only
-                # ever streams idle-monitoring data: the sole heater drive (iso
-                # "Set") blocks the Qt event loop for its ~1 s run and drops AO
-                # on return, so a live tick never coincides with a sustained
-                # drive. At idle i ~ 0, Rhtr blows up and Thtr reads the ~-1071
-                # sentinel (todo P0-3) -- blank it. The meaningful Thtr is in
-                # the experiment result frame, not this live readout.
-                self.thtrValueLabel.setText(self._fmt(None))
+                # Thtr is heater-derived (Rhtr = U/i); only meaningful while a
+                # drive is active. During an iso hold the AO genuinely sustains
+                # the heater, so show it; at idle i ~ 0 makes Rhtr blow up to
+                # the ~-1071 sentinel (todo P0-3), so blank it.
+                thtr = last.get("Thtr") if self._heater_driven else None
+                self.thtrValueLabel.setText(self._fmt(thtr))
                 self.thtrdynValueLabel.setText(self._fmt(last.get("temp-hr")))
 
         # Modulation frequency + Umod amplitude via FFT demod.
@@ -324,6 +331,8 @@ class mainWindow(mainWindowUi):
 
     def disconnect(self):
         self.stop_live_stream()
+        self._cancel_iso_timer()
+        self._heater_driven = False
         if self.controller is not None:
             self.controller.disconnect()
             self.controller = None
@@ -608,19 +617,49 @@ class mainWindow(mainWindowUi):
         except ValueError:
             ErrorWindow("Iso input must be numeric.")
             return
+        # Optional hold duration (seconds). Empty -> eternal hold until Off;
+        # a positive value runs a timed iso program that auto-returns to 0 V.
+        duration = 0.0
+        dtext = self.setDurationInput.text().strip()
+        if dtext:
+            try:
+                duration = float(dtext)
+            except ValueError:
+                ErrorWindow("Iso duration must be numeric seconds, or empty for eternal hold.")
+                return
         key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
+        self._cancel_iso_timer()
         self.controller.arm_iso_mode(self.chan_temp_volt_str)
-        self.controller.run_iso_mode()
+        # Non-blocking: drive AO and hold; the persistent AI stream keeps the
+        # live plot alive (P1-5). The heater is genuinely driven now, so the
+        # live Thtr readout is meaningful.
+        self.controller.start_iso_hold()
+        self._heater_driven = True
+        if duration > 0:
+            self._iso_timer = qt.QTimer(self)
+            self._iso_timer.setSingleShot(True)
+            self._iso_timer.timeout.connect(self.unset_temp_volt)
+            self._iso_timer.start(int(duration * 1000))
 
     def unset_temp_volt(self):
         if self.controller is None:
             return
+        # "Off": actively drive 0 V and hold it (a bare AO stop would latch the
+        # last setpoint and leave the heater hot). Cancels any pending timed
+        # program. The live Thtr readout reverts to "---" (no drive).
+        self._cancel_iso_timer()
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)
         self.controller.arm_iso_mode(self.chan_temp_volt_str)
-        self.controller.run_iso_mode()
+        self.controller.start_iso_hold()
+        self._heater_driven = False
+
+    def _cancel_iso_timer(self):
+        if self._iso_timer is not None:
+            self._iso_timer.stop()
+            self._iso_timer = None
 
 
 
