@@ -3,6 +3,16 @@
 > **Verification status:** Every claim/line reference below was re-checked
 > against the code on 2026-06-02 (second iteration). Corrections from the first
 > draft are marked `[verified]` / `[corrected]`.
+>
+> **Execution status (2026-06-03): DONE (code-prep).** All of A1-A3, B1-B3,
+> C1-C3, D and E have landed. Gate passed: AST clean on all edited files,
+> `pyright` 0 errors / 0 warnings, `pytest` **100 passed** (was 94 + C1
+> pinning + 4 B1 round-trip + B2 mock-backend), offscreen GUI smoke confirms
+> status reads
+> `MOCK DAQ (no hardware)` and idle Thtr shows `---`. The live-board steps
+> (Workstream E, steps 2-5) remain HARD STOPs and are now the operator
+> checklist in [docs/hardware-bringup.md](docs/hardware-bringup.md). See
+> "Further plans for the first hardware run" at the bottom.
 
 ## Context
 
@@ -213,3 +223,36 @@ New `docs/hardware-bringup.md` (steps run only when a board is attached -- each 
   iso AO seamlessness at 37.5 Hz, P1-9 lock-in edge transients, fast/slow
   live-stream-during-run (P1-17 Approach A, alignment >1000 K/s).
 - **SI recalibration** of `ihtr1` (P2-21) -- pinning (C) is the interim guard.
+
+---
+
+## Further plans for the first hardware run
+
+What landed here is code-prep only; the items below need the physical board
+and are ordered by what to do on bring-up day. The operator-facing version of
+steps 1-3 lives in [docs/hardware-bringup.md](docs/hardware-bringup.md).
+
+1. **Driver + status check (E1-E3).** Install `libuldaq` + `.[hardware]`,
+   confirm the A1 status reads `REAL DAQ (uldaq)` (not MOCK), and that idle
+   Thtr shows `---` (A3) before driving anything. Watch the new B3 log lines
+   for underrun WARNINGs at idle.
+2. **P0-5 trigger loopback (E4).** AO ch1 -> AI ch1, square wave, measure the
+   leading-edge skew with `HardwareTrigger:false` then `true`. This is the
+   one item B1 was built to unblock; if `EXTTRIGGER` does not release cleanly,
+   fall back to the pacer-clock / software-offset options documented inline in
+   `experiment_manager.finite_scan`.
+3. **Short fast/slow/iso runs (E5).** Cross-check against `mock_verification.md`
+   tolerances; confirm `AI finite scan complete: N / N` (B3) on each.
+4. **Then the deferred accuracy items** (need real signals, cannot pre-fix on
+   mock): P0-4 iso AO seamlessness at 37.5 Hz, P1-9 lock-in edge transients,
+   fast/slow live-stream-during-run (P1-17 Approach A, alignment >1000 K/s).
+5. **SI recalibration (P2-21)** once a procedure exists -- then replace the
+   pinned identity constants in `test_calibration.py` in the same commit.
+6. **Tango repair (P1-17 Approach B)** only if the network path is needed; the
+   Local path is the supported one for bring-up.
+
+A1/A2 verification on real hardware is itself a follow-up: the mock smoke
+exercises the MOCK branch of `is_mock`/`backend_description` and the connect
+error-mapping, but the `REAL DAQ` string and the real-failure messages
+(no board / wrong model / missing libuldaq) can only be confirmed with the
+board attached.

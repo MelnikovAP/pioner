@@ -113,6 +113,11 @@ Run the back-end smoke check (no hardware needed, uses mock):
 python -m pioner.back.debug
 ```
 
+For the first end-to-end run against a real USB-2637 board, follow the
+operator checklist in [docs/hardware-bringup.md](docs/hardware-bringup.md)
+(required settings, real-vs-mock status readout, and the P0-5 trigger
+loopback). Each live-board step is a HARD STOP.
+
 ### 2.3 Compatibility notes
 
 * Python 3.11 is the supported target. 3.10 and 3.12 also build.
@@ -354,7 +359,10 @@ modulation/lock-in (including FFT integer-cycle window and AO period
 integrity), the mock DAQ contract, the post-processing edge cases
 in `apply_calibration` (Uref tiling, Thtr-NaN, Rhtr units regression),
 and an end-to-end pass through all three modes on the mock backend
-including the hardware-trigger path. **94 tests, ~30 seconds** locally.
+including the hardware-trigger path. It also pins the default-calibration
+identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
+the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
+**100 tests, ~30 seconds** locally.
 
 ---
 
@@ -370,8 +378,10 @@ including the hardware-trigger path. **94 tests, ~30 seconds** locally.
   trace is therefore not perfectly aligned. A hardware-trigger path exists
   (`DaqParams.hardware_trigger`, default off): both scans pre-arm with
   `ScanOption.EXTTRIGGER` and a single `fire_software_trigger` releases
-  them on a shared t=0. It is mock-tested; real-hardware loopback
-  validation is still pending (todo P0-5).
+  them on a shared t=0. It is now settings-driven -- set
+  `DAQ.HardwareTrigger: true` in `settings.json` to enable it without a code
+  edit. It is mock-tested; real-hardware loopback validation is still pending
+  (todo P0-5, see [docs/hardware-bringup.md](docs/hardware-bringup.md)).
 * **GUI mode selection (fast / slow / iso).** The main window has a
   `Mode` combo: fast and slow share the ramp-table editor (slow layers AC
   modulation in the backend), iso uses the Set/Off controls. The GUI talks

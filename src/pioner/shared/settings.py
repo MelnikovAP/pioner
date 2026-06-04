@@ -161,6 +161,12 @@ class BackSettings:
         else:
             self._invalid_fields.append(CONNECTION_CODE_FIELD)
 
+        # Optional: AO/AI hardware-trigger sync (todo P0-5). Absent -> keep the
+        # DaqParams default (False); present -> coerce to bool. Not added to
+        # ``_invalid_fields`` so existing settings files stay valid.
+        if HARDWARE_TRIGGER_FIELD in daq_dict:
+            self.daq_params.hardware_trigger = bool(daq_dict[HARDWARE_TRIGGER_FIELD])
+
     def parse_ai_params(self):
         """Parses all necessary analog-input parameters and fills AiParams instance."""
         self.ai_params = AiParams()

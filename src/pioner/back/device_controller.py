@@ -41,6 +41,7 @@ import pandas as pd
 from pioner.back.acquisition import AIProvider, create_ai_provider
 from pioner.back.daq_device import DaqDeviceHandler
 from pioner.back.experiment_manager import ExperimentManager
+from pioner.back.mock_uldaq import DAQ_AVAILABLE
 from pioner.back.modes import apply_calibration, create_mode, save_run_to_h5
 from pioner.shared.calibration import Calibration
 from pioner.shared.constants import (
@@ -150,6 +151,20 @@ class DeviceController(abc.ABC):
     def ai_sample_rate(self) -> float:
         """AI sample rate in Hz (0.0 when unknown)."""
         return 0.0
+
+    # ------------------------------------------------------------------
+    # Backend identity (real DAQ vs mock) -- consumed by the GUI status
+    # readout so the operator can tell a live board from the mock.
+    # ------------------------------------------------------------------
+    @property
+    def is_mock(self) -> bool:
+        """True when this backend is the pure-Python mock (no real DAQ)."""
+        return False
+
+    @property
+    def backend_description(self) -> str:
+        """Human-readable backend label for the GUI status line."""
+        return type(self).__name__
 
 
 class LocalDeviceController(DeviceController):
@@ -414,6 +429,16 @@ class LocalDeviceController(DeviceController):
     @property
     def ai_sample_rate(self) -> float:
         return float(self._settings.ai_params.sample_rate)
+
+    @property
+    def is_mock(self) -> bool:
+        # Single source of truth: the mock layer flips DAQ_AVAILABLE to False
+        # whenever the real uldaq import failed (no driver / no board host).
+        return not DAQ_AVAILABLE
+
+    @property
+    def backend_description(self) -> str:
+        return "MOCK DAQ (no hardware)" if self.is_mock else "REAL DAQ (uldaq)"
 
     def calibrate_window(self, raw: np.ndarray) -> pd.DataFrame:
         """Convert a raw AI window into engineering units for live readout.

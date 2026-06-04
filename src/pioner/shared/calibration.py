@@ -129,12 +129,15 @@ class Calibration:
         # bug-fix to apply_calibration).
         self.uhtr0: float = 0.0
         self.uhtr1: float = 1.0
-        # Heater current is derived from the shunt voltage: ``Ihtr = ihtr0 +
-        # ihtr1 * V_shunt``. The ``ihtr1`` argument is therefore the shunt
-        # admittance in **siemens** (1/R_shunt). The default identity
-        # ``ihtr1 = 1.0`` is dimensionally meaningless (test fallback only);
-        # production must set ``ihtr1 ~= 1/R_shunt`` so ``ih`` is in amperes
-        # (see todo P0-3).
+        # Heater current proxy: ``Ihtr = ihtr0 + ihtr1 * V_ch0``. AI ch0 is a
+        # voltage proxy for the heater current (the node between the series
+        # resistor and the amplifier loop), NOT a shunt voltage with a known
+        # R_shunt. Production calibration uses the dimensionless identity
+        # ``ihtr0 = 0``, ``ihtr1 = 1`` so ``ih = V_ch0`` in volts; the Thtr
+        # polynomial is fitted against this proxy directly (Rhtr comes out
+        # V/V, not ohms). Proper SI calibration (``ihtr1 ~= 1/R_shunt`` for
+        # amperes) is tracked in todo P2-21; see the matching comment in
+        # ``modes.apply_calibration``.
         self.ihtr0: float = 0.0
         self.ihtr1: float = 1.0
         # [Theater] = theater0 * U + theater1 * U^2 + theater2 * U^3

@@ -5,7 +5,8 @@
             "InterfaceType": [
                 1
             ],
-            "ConnectionCode": 0
+            "ConnectionCode": 0,
+            "HardwareTrigger": false
         },
         "AI": {
             "RangeId": 5,

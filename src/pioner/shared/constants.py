@@ -36,6 +36,10 @@ AO_FIELD = "AO"
 
 INTERFACE_TYPE_FIELD = "InterfaceType"
 CONNECTION_CODE_FIELD = "ConnectionCode"
+# Optional bool in the DAQ block. When true, AO/AI scans arm with
+# ScanOption.EXTTRIGGER and start on a single software-trigger pulse (todo
+# P0-5). Absent / false keeps the legacy AI-then-AO arming order.
+HARDWARE_TRIGGER_FIELD = "HardwareTrigger"
 
 RANGE_ID_FIELD = "RangeId"
 LOW_CHANNEL_FIELD = "LowChannel"

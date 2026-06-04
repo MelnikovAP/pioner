@@ -14,6 +14,7 @@ today is the separate ``calibWindow`` file-apply flow, not a run mode.
 """
 
 import json
+import logging
 import os
 import shutil
 from typing import Any, Optional
@@ -36,6 +37,9 @@ from pioner.shared.constants import *
 from pioner.shared.modulation import fft_demodulate
 from pioner.shared.settings import BackSettings, FrontSettings, UISettings
 from pioner.shared.utils import Dict2Class
+
+
+logger = logging.getLogger(__name__)
 
 
 def _relative_if_under_cwd(path: str) -> str:
@@ -197,7 +201,14 @@ class mainWindow(mainWindowUi):
                 last = cal.iloc[-1]
                 self.tauxValueLabel.setText(self._fmt(last.get("Taux")))
                 self.ttplValueLabel.setText(self._fmt(last.get("temp")))
-                self.thtrValueLabel.setText(self._fmt(last.get("Thtr")))
+                # Thtr is heater-derived (Rhtr = U/i). This live readout only
+                # ever streams idle-monitoring data: the sole heater drive (iso
+                # "Set") blocks the Qt event loop for its ~1 s run and drops AO
+                # on return, so a live tick never coincides with a sustained
+                # drive. At idle i ~ 0, Rhtr blows up and Thtr reads the ~-1071
+                # sentinel (todo P0-3) -- blank it. The meaningful Thtr is in
+                # the experiment result frame, not this live readout.
+                self.thtrValueLabel.setText(self._fmt(None))
                 self.thtrdynValueLabel.setText(self._fmt(last.get("temp-hr")))
 
         # Modulation frequency + Umod amplitude via FFT demod.
@@ -263,8 +274,34 @@ class mainWindow(mainWindowUi):
             self._after_connect()
             self.start_live_stream()
         except Exception as exc:
-            ErrorWindow(f"Local backend failed to start:\n{exc}")
+            ErrorWindow(self._local_connect_error_text(exc))
+            logger.exception("Local backend failed to start")
             self.controller = None
+            self.sysStatusLabel.setText("Connection failed")
+
+    @staticmethod
+    def _local_connect_error_text(exc: Exception) -> str:
+        """Map a connect failure to an actionable message for the operator.
+
+        Message-mapping only -- the underlying exceptions are raised by the
+        backend (``daq_device.py`` / ``ai_device.py``); we just translate the
+        common real-hardware failure modes into something the operator can act
+        on instead of the raw text.
+        """
+        msg = str(exc)
+        if isinstance(exc, RuntimeError) and "No DAQ devices found" in msg:
+            return ("No DAQ device found on the configured interface.\n"
+                    "Check the USB cable / power and that the board enumerates "
+                    "(MCC USB-2637), then press ON again.")
+        if isinstance(exc, RuntimeError) and "SINGLE_ENDED" in msg:
+            return ("The connected board reports no SINGLE_ENDED channels.\n"
+                    "PIONER expects an MCC USB-2637; verify the hardware model "
+                    "and the AI input-mode / range configuration.")
+        if isinstance(exc, OSError):
+            return ("Failed to load the uldaq driver library (libuldaq).\n"
+                    "Install libuldaq and reinstall with the [hardware] extra, "
+                    f"or run with the mock backend.\n\nDetails: {msg}")
+        return f"Local backend failed to start:\n{msg}"
 
     def _after_connect(self):
         """Shared post-connect setup for both backends."""
@@ -276,6 +313,14 @@ class mainWindow(mainWindowUi):
             item.setEnabled(True)
         if self.controller is not None:
             self.controller.set_sample_rate(self.settings.sample_rate)
+            # Surface real-vs-mock so the operator is never guessing which
+            # backend actually bound (the "run without hardware" checkbox only
+            # picks Local vs Tango). backend_description is defined on every
+            # DeviceController; getattr keeps this safe if that ever changes.
+            desc = getattr(self.controller, "backend_description",
+                           type(self.controller).__name__)
+            self.sysStatusLabel.setText(f"Connected: {desc}")
+            logger.info("Connected backend: %s", desc)
 
     def disconnect(self):
         self.stop_live_stream()
@@ -284,6 +329,7 @@ class mainWindow(mainWindowUi):
             self.controller = None
         [item.setEnabled(False) for item in [self.experimentBox, self.controlTab]]
         self.sysNoHardware.setEnabled(True)
+        self.sysStatusLabel.setText("Not connected")
     
     def select_data_path(self):
         dpath = qt.QFileDialog.getExistingDirectory(self, "Choose folder to save experiment files", \

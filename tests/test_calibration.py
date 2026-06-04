@@ -115,3 +115,30 @@ def test_production_calibration_polynomial_inverts():
     # Asking for T < T(V=0) clamps to V=0.
     sub_zero = temperature_to_voltage(np.array([-1.0]), cal)
     assert sub_zero[0] == 0.0
+
+
+def test_default_calibration_pins_identity_constants():
+    """Pin the bundled default calibration to its identity coefficients.
+
+    Until an SI recalibration procedure exists (todo P2-21), the production
+    pipeline relies on these being the dimensionless identity values: the
+    heater-current proxy ``ih = ihtr0 + ihtr1 * V_ch0`` must stay ``V_ch0``
+    (ihtr0=0, ihtr1=1), and the voltage/temperature polynomials must stay
+    identity. If any of these drift the live readouts silently change scale,
+    so this test fails loudly to force a deliberate recalibration commit.
+    """
+    cal = Calibration()
+    cal.read(DEFAULT_CALIBRATION_FILE_REL_PATH)
+
+    # Heater current proxy: identity (see modes.apply_calibration + P2-21).
+    assert cal.ihtr0 == 0.0
+    assert cal.ihtr1 == 1.0
+    # Heater voltage offset/gain inside the Rhtr formula: identity.
+    assert cal.uhtr0 == 0.0
+    assert cal.uhtr1 == 1.0
+    # Thtr / Thtrd polynomials: identity (proxy Rhtr passes through unscaled).
+    assert (cal.thtr0, cal.thtr1, cal.thtr2, cal.thtrcorr) == (0.0, 1.0, 0.0, 0.0)
+    assert (cal.thtrd0, cal.thtrd1, cal.thtrd2, cal.thtrdcorr) == (0.0, 1.0, 0.0, 0.0)
+    # Theater (T = f(U)) and the lock-in amplitude correction: identity.
+    assert (cal.theater0, cal.theater1, cal.theater2) == (0.0, 1.0, 0.0)
+    assert (cal.ac0, cal.ac1, cal.ac2, cal.ac3) == (0.0, 1.0, 0.0, 0.0)

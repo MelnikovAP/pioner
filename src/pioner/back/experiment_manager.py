@@ -560,6 +560,21 @@ class ExperimentManager:
             last_index = current_index
             time.sleep(0.001)
 
+        # Observability (todo P0-5 / P1-17): on real hardware a pacer underrun
+        # or a missed half-buffer flip shows up as a frame shorter than the
+        # commanded length. Surface the count explicitly so a short frame is a
+        # visible WARNING, not a silent truncation downstream.
+        if collected < total_samples_per_channel:
+            logger.warning(
+                "AI finite scan short: collected %d / %d samples per channel",
+                collected, total_samples_per_channel,
+            )
+        else:
+            logger.info(
+                "AI finite scan complete: %d / %d samples per channel",
+                collected, total_samples_per_channel,
+            )
+
         if not chunks:
             return pd.DataFrame(columns=list(ai_channels))
 
@@ -598,10 +613,13 @@ class ExperimentManager:
         last_index = 0
         lower_half_collected = False
         upper_half_collected = False
+        appended = 0  # half-buffer chunks copied during this ring session
+        driver_stopped = False
 
         while not self._ring_stop.is_set():
             ai_status, transfer = ai_handler.status()
             if ai_status != ul.ScanStatus.RUNNING:
+                driver_stopped = True
                 break
             current_index = transfer.current_index
 
@@ -632,6 +650,7 @@ class ExperimentManager:
                 lower_half_collected = False
 
             if chunk is not None:
+                appended += int(chunk.shape[0])
                 with self._ring_lock:
                     self._ring_data.append(chunk)
                     self._ring_total_samples += int(chunk.shape[0])
@@ -640,6 +659,20 @@ class ExperimentManager:
 
             last_index = current_index
             time.sleep(0.001)
+
+        # Observability: a clean stop exits because ``_ring_stop`` was set; an
+        # unexpected exit (driver no longer RUNNING) usually means an underrun.
+        # Log the latter at WARNING so a stalled persistent stream is visible.
+        if driver_stopped:
+            logger.warning(
+                "Ring buffer worker exited: AI scan stopped running after "
+                "%d samples per channel (possible underrun)", appended,
+            )
+        else:
+            logger.info(
+                "Ring buffer worker stopped cleanly after %d samples per channel",
+                appended,
+            )
 
     # ------------------------------------------------------------------
     # Helper used by tests / Tango layer

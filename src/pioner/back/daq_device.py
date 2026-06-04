@@ -26,9 +26,11 @@ class DaqParams:
         # When True, AO and AI scans are armed with ``ScanOption.EXTTRIGGER``
         # and started by a single software trigger pulse so they share the
         # same DAQ clock edge. Eliminates the ~100 us start skew between AO
-        # and AI on real hardware (todo P0-5). Default False until the
-        # production DAQ is wired up — flipping it on without a trigger line
-        # will hang the scans.
+        # and AI on real hardware (todo P0-5). Settings-driven: parsed from the
+        # ``HardwareTrigger`` boolean in the DAQ block (see
+        # ``BackSettings.parse_daq_params``); default False. Flipping it on
+        # without a trigger line wired will hang the scans, so keep it off
+        # until the loopback step in docs/hardware-bringup.md.
         self.hardware_trigger: bool = False
 
     def __str__(self) -> str:  # pragma: no cover - debug only

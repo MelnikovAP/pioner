@@ -74,9 +74,15 @@ the production fix is one of:
    samples = 0.96 s) by exposing the AO buffer length as a setting.
 
 **Priority: low** (quasi-seamless is acceptable for current measurements).
-Confirm with the physicist whether (1) is acceptable before touching f_mod.
 
-### P0-5. AO/AI start skew — confirmed order, real-hardware validation pending
+**Physicist answer (2026-06-04):** keep `f_mod = 37.5 Hz` as-is for now. It is
+changeable later, but the open question is *why exactly 37.5 Hz* historically
+(provenance to be recovered). The one hard constraint when it is eventually
+retuned: **avoid mains frequencies (50 / 60 Hz)** and their harmonics so the
+lock-in does not sit on line pickup. No code change now; revisit when the
+provenance is known and a bench re-check of C_p is scheduled.
+
+### P0-5. AO/AI start skew — no trigger on rig; software offset-trim if needed
 
 **Where:** `src/pioner/back/experiment_manager.py` (`finite_scan`),
 `src/pioner/back/daq_device.py` (`DaqParams.hardware_trigger`,
@@ -89,15 +95,29 @@ Both AO and AI pre-arm with `ScanOption.EXTTRIGGER` when
 `fire_software_trigger` call releases them on a shared t=0. Default is
 `False` so existing callers and mock tests are unaffected.
 
+**Now config-driven (2026-06-03):** `hardware_trigger` is parsed from the
+`HardwareTrigger` boolean in the `DAQ` block of `settings.json` /
+`default_settings.json` (`HARDWARE_TRIGGER_FIELD` in `shared/constants.py`,
+parsed in `BackSettings.parse_daq_params`). The loopback validation below can
+now be turned on without a code edit — just flip `HardwareTrigger: true`.
+
 **Confirmed with physicist 2026-06-01:** correct start order is AI first,
 then AO — this matches the current code (`_start_ai_scan` is called before
 `_start_ao_scan` in `finite_scan`).
 
-**Open:** real-hardware loopback validation. Drive a 1 kHz square wave on
-AO ch1, read it back on AI ch1, find the leading edge — must be within 1
-sample of t=0 with `hardware_trigger=True`. If the board does not respond
-to `EXTTRIGGER` cleanly, fallback options are documented inline in
-`finite_scan` (pacer-clock sharing or a per-host software offset trim).
+**Physicist answer (2026-06-04):** the production rig has **no external
+trigger line** (no DIO/jumper wired to the board trigger input). So the
+`EXTTRIGGER` loopback below cannot be run as-is, and `HardwareTrigger` stays
+`false` by default. If the residual AO/AI start skew turns out to matter, the
+planned path is the **per-host software offset trim** (measure the persistent
+skew once, store it, trim the leading N samples in `apply_calibration`) rather
+than wiring a trigger.
+
+**Open:** if/when skew matters, implement the software offset-trim. (The
+`EXTTRIGGER` loopback validation only applies if a trigger line is ever added.)
+Drive a 1 kHz square wave on AO ch1, read it back on AI ch1, find the leading
+edge; the fallback options are documented inline in `finite_scan`
+(pacer-clock sharing or a per-host software offset trim).
 
 ---
 
@@ -145,6 +165,21 @@ scenario still routes through `_mode.run(duration_seconds=0.0)` which
 returns immediately and the surrounding `finally: em.stop()` drops the
 voltage within milliseconds. P1-1 added the `stop()` primitive that this
 fix relies on, but the legacy `do_ai=False` path was not rewired.
+
+**Product answer (2026-06-04):** iso has two intended behaviours.
+1. **Default = hold.** "Set V/T" must drive the commanded value and **hold it
+   indefinitely** until the operator presses "Off" (or `stop()` is called).
+   This is the rewire described below. (Confirmed in review: today the GUI
+   "Set" drives only ~1 s then `stop_ao()` drops it — see the
+   `_run_iso_streaming` injected path and `IsoMode.run`'s `duration_seconds`.)
+2. **Optional timed program.** Also support an iso "temperature program":
+   target T (or V) **plus a duration**, after which the run **auto-stops**.
+   This is the existing finite-duration path; expose it in the GUI as an
+   alternative to the indefinite hold. The two share one code path — a hold is
+   just "duration = until Off".
+
+Note the front-end side (a hold vs. timed-program toggle in the iso panel) is
+tracked here for context but lands in `front/`, after the back-end rewire.
 
 **Action:**
 1. When `do_ai=False`, do **not** route through `_mode.run`. Instead keep
@@ -418,6 +453,104 @@ layer (parallel to DAQ). Add T_ambient / setpoint / flow signals,
 PID command path, safety interlocks for chamber sealed-state.
 **Significant scope** — multi-month feature, not a fix.
 
+### P1-24. Closed-loop (feedback) temperature control
+
+**Priority: medium.** **Where:** new control layer over
+`back/experiment_manager.py` / `back/modes.py`; iso is the easiest first test
+bed (single setpoint), but the loop is mode-agnostic.
+
+**What:** today every mode is open-loop: a commanded voltage profile is played
+out on AO and the resulting temperature is only *measured*, never *corrected*.
+Add a closed-loop controller that adjusts the drive in real time so the chip
+tracks a temperature setpoint (and, importantly, does not overshoot/overheat).
+
+- **Controller:** PID in the Laplace (s-domain) formulation. The derivative
+  term is what bounds overshoot and protects the chip from overheating; tune
+  for the chip's fast thermal time constant. (User note said "Laplacian" —
+  read as the s-domain transfer-function / derivative term; confirm the exact
+  formulation with the physicist before implementing.)
+- **Actuator:** `Uref` is the direct drive signal we already command, so it is
+  the natural control handle — the loop modulates `Uref` (within the
+  `safe_voltage` clamp) instead of replaying a fixed profile.
+- **Measured variable / error:** `temp-hr` (the high-rate temperature and its
+  change over time) feeds the negative-feedback path; error = setpoint - temp.
+- **Prior art:** the legacy Bondar / uCal implementation did **not** account
+  for feedback properly — do not port it verbatim; treat as a clean design.
+- **Advanced option (research / open question):** state-space ("state-matrix")
+  modelling and modern control theory (e.g. LQR / model-based) instead of a
+  hand-tuned PID, possibly tied into the calibration. Investigate feasibility
+  and whether it buys accuracy over PID. Flagged as a research spike.
+- **Reuse:** the same PID path serves the cryothermostat / atmosphere control
+  loop (see P1-23).
+
+**Verification (mock first):** drive a step setpoint on the mock, confirm the
+loop settles without sustained overshoot; only then tune on real hardware
+(HARD STOP — overshoot melts the heater, see the `safe_voltage` rules in
+CLAUDE.md). Depends on the iso "hold" rewire (P1-5) landing first.
+
+### P1-25. Replace AD595 cold-junction with a K-type thermocouple converter
+
+**Priority: medium** (accuracy + cost). **Where:** AI ch3 / `Taux` path in
+`back/modes.apply_calibration` and `hardware.correct_ad595`;
+`shared/channels.py`.
+
+**What:** the AD595 (cold-junction-compensated op-amp on ch3, scaled
+100 C/V) is an expensive part of limited value, and its whole-scan averaging
+already costs accuracy on slow ramps (~0.5 C drift, see CLAUDE.md and
+P2-21 / Martin-calibration-procedure.md). Plan to replace it:
+
+- Read a **type-K (chromel-alumel) thermocouple** through a
+  **MAX6675 Cold-Junction-Compensated K-Thermocouple-to-Digital Converter**
+  (0 C to +1024 C) instead of the AD595 analog channel.
+- **Remove the `Taux` AI channel (ch3)** from the analog pipeline once the
+  thermocouple path is in; **repurpose ch3** for chips that carry an on-chip
+  **thermoresistor** (ties into P1-19's thermistor / Tamb channel).
+
+**Open / verify before ordering:** MAX6675 is an **SPI digital** device, not
+an analog voltage source — it does **not** read on a USB-2637 AI channel
+directly and needs an SPI interface (microcontroller / adapter), which is an
+acquisition-path change, not just a calibration tweak. Also confirm its
+range / resolution (~0.25 C, 12-bit) fit the experiments and whether its
+newer successor (MAX31855) is a better choice. Decision pending with the
+physicist / EE.
+
+### P1-26. Split codebase: open-source core library vs. proprietary nanocal code
+
+**Priority: high.** **Where:** repo-wide (cross-cutting; tracked here per
+request even though it is not back-end-only).
+
+**What:** investigate whether the code can be cleanly separated into
+(1) a **general open-source library** — the reusable, instrument-agnostic
+parts (DAQ abstraction + mock backend, software lock-in / demodulation, the
+calibration framework, settings plumbing) — and (2) **proprietary code
+specific to the PIONER nanocalorimeter** (chip calibration coefficients and
+fits, the chip-specific modes, heater/guard topology, safety limits).
+
+**Action:** map every module to "generic" vs "nanocal-specific", identify the
+API boundary and any leaks across it, decide packaging (two distributions vs
+a plugin/extras split) and licensing for each side. Output a short proposal
+before any code move. **No code change until the boundary is agreed.**
+
+### P1-27. SPICE digital twin of the analog front-end / board
+
+**Where:** documentation + EDA tooling (cross-cutting; not back-end code).
+
+**What:** build a SPICE model of the board / analog front-end as a digital
+twin (per-component SPICE models of each element of the system/board), so the
+amplifier loop, the heater-current proxy on ch0, and the thermocouple /
+thermistor path can be understood and simulated rather than reasoned about
+from the schematic by hand.
+
+**Action / references to evaluate:**
+- SPICE component libraries: <https://youspice.com/spice-libraries/>
+- Background article: <https://habr.com/ru/articles/948954/>
+- Altium Designer (eCAD) ships simulation modules with a SPICE model per
+  element — evaluate using it to navigate and simulate the schematics.
+
+Goal: a maintained schematic + SPICE model that documents the real signal
+chain (feeds back into P0-3 calibration provenance and P1-25 front-end
+changes). Investigation first; deliverable is a model + short notes, not code.
+
 ---
 
 ## P2 — code quality / DX
@@ -583,6 +716,12 @@ proper SI units (ih in amperes, Rhtr in ohms), the transfer function of
 the amplifier loop on AI ch0 must be measured. Low priority — the
 proxy-based calibration works for relative temperature measurements.
 
+**Interim guard:** `tests/test_calibration.py::test_default_calibration_pins_identity_constants`
+pins `ihtr0/ihtr1/uhtr0/uhtr1` and the Thtr/Theater/amplitude polynomials to
+their identity values, so they cannot silently drift before this SI
+recalibration procedure is defined. When P2-21 lands, update that test with
+the new measured coefficients in the same commit.
+
 ### P2-22. Progress bar for slow/iso experiments (low priority)
 
 **Where:** `src/pioner/front/mainWindow.py`
@@ -660,17 +799,22 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
 
 ## Suggested execution order
 
-1. **P0-3** — needs a conversation with the physicist; do not touch
-   calibration coefficients before that.
-2. **P0-5** — real-hardware loopback validation of the new
-   `hardware_trigger` path, when access to the production DAQ is
-   available.
-3. **P1-5** — small follow-up to P1-1; the `stop()` primitive is in
-   place, just needs the legacy `do_ai=False` path rewired around it.
-4. **P1-3, P1-4** — independent, do in parallel.
-5. **P1-6 → P1-16** — two or three at a time.
-6. **P2-\*** — code-quality round after P0/P1 close.
-7. **P3-\*** — last, or piggy-back on each P0/P1 PR.
+1. **P0-3** — settled with the physicist (dimensionless Ihtr is intentional);
+   do not touch calibration coefficients without a new SI procedure (P2-21).
+2. **P1-5** — iso "hold by default" + optional timed program (auto-stop). The
+   `stop()` primitive is in place; rewire the legacy `do_ai=False` / injected
+   path so "Set" holds until "Off". Front-end toggle follows.
+3. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
+   boundary mapping early; it constrains where later work lands.
+4. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
+   per-host software offset-trim (not the `EXTTRIGGER` loopback).
+5. **P1-24 (medium)** — closed-loop PID control (after P1-5); iso first.
+6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +
+   acquisition-path work; coordinate with P1-27 SPICE model).
+7. **P1-3, P1-4** — independent, do in parallel.
+8. **P1-6 → P1-16** — two or three at a time.
+9. **P2-\*** — code-quality round after P0/P1 close.
+10. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 
 ## Notes
 

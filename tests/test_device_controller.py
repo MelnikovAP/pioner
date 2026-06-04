@@ -63,6 +63,15 @@ class TestConnection:
     def test_ai_sample_rate_reported(self, local_controller):
         assert local_controller.ai_sample_rate > 0
 
+    def test_reports_mock_backend(self):
+        # The real uldaq is absent on the dev/CI host, so the controller must
+        # self-report as the mock backend. This is the truth source the GUI
+        # status readout consumes to tell real-vs-mock apart (B2 / A1).
+        settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+        controller = LocalDeviceController(settings)
+        assert controller.is_mock is True
+        assert controller.backend_description == "MOCK DAQ (no hardware)"
+
 
 class TestSampleRate:
     def test_set_and_get(self, local_controller):

@@ -55,6 +55,14 @@ class mainWindowUi(qt.QWidget):
         self.sysNoHardware = qt.QCheckBox(" run without hardware")
         lout_0.addWidget(self.sysNoHardware)
 
+        # Backend/DAQ status readout. After connect it reports whether the
+        # in-process backend bound the real uldaq driver or the mock, so the
+        # operator is never guessing real-vs-mock (the checkbox above only
+        # picks Local vs Tango, not real vs mock).
+        self.sysStatusLabel = qt.QLabel("Not connected")
+        self.sysStatusLabel.setWordWrap(True)
+        lout_0.addWidget(self.sysStatusLabel)
+
         
         # ####### Experiment Group Box
         # ########################################
