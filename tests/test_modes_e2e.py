@@ -391,3 +391,71 @@ def test_finite_scan_single_shot_full_buffer(connected_daq, settings):
         result = em.finite_scan(profiles, ai_channels, seconds=secs, single_shot=True)
         assert len(result.data) == n, f"{secs}s -> {len(result.data)} != {n}"
         assert list(result.data.columns) == ai_channels
+
+
+# --- interruptible run + Stop (P1-17 step 3) -------------------------------
+
+def test_slow_mode_stop_cancels_and_zeroes(connected_daq, settings, calibration):
+    """A Stop mid-run (CONTINUOUS path) aborts the collect loop, returns a
+    short frame, and drives the heater to 0 V (heater-safety rule)."""
+    settings.modulation = settings.modulation.with_amplitude(0.0)  # no lock-in
+    rate = settings.ai_params.sample_rate
+    programs = {
+        "ch0": {"time": [0, 5000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 5000], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    holder: dict = {}
+
+    def _run():
+        holder["df"] = mode.run()
+
+    t = threading.Thread(target=_run)
+    t.start()
+    time.sleep(0.8)          # let at least one half-buffer (0.5 s) collect
+    mode.stop()
+    t.join(timeout=3.0)
+
+    assert not t.is_alive(), "run did not stop after mode.stop()"
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, "heater (ch1) not zeroed on abort"
+    df = holder["df"]
+    assert df is not None and 0 < len(df) < rate * 5, (
+        f"expected a short (cancelled) frame, got {None if df is None else len(df)}"
+    )
+
+
+def test_fast_mode_stop_returns_early_and_zeroes(connected_daq, settings, calibration):
+    """A Stop mid-run (single-shot path) returns well before the full duration
+    and zeroes the heater. The single-shot buffer is full-length, so the frame
+    length is not the signal here -- the early return is."""
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    programs = {
+        "ch0": {"time": [0, 3000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 3000], "volt": [0, 1]},
+    }
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    mode.arm()
+    holder: dict = {}
+
+    def _run():
+        holder["df"] = mode.run()
+
+    t = threading.Thread(target=_run)
+    t.start()
+    time.sleep(0.4)
+    mode.stop()
+    t.join(timeout=2.0)      # < 3 s nominal: only passes if the abort worked
+
+    assert not t.is_alive(), "fast run did not stop early after mode.stop()"
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, "heater (ch1) not zeroed on abort"
+
+
+def test_mode_stop_without_run_is_noop(connected_daq, settings, calibration):
+    """stop() before any run() is a harmless no-op (no active ExperimentManager)."""
+    programs = {"ch1": {"time": [0, 1000], "volt": [0, 1]}}
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    mode.arm()
+    mode.stop()  # must not raise

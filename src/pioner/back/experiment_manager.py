@@ -86,6 +86,11 @@ class ExperimentManager:
         self._ao_buffer: Optional[Sequence[float]] = None
         self._ai_buffer_samples_per_channel: int = 0
 
+        # Cooperative cancel for a finite_scan in flight (P1-17 step 3). Set by
+        # ``request_stop`` (e.g. from a GUI Stop button on another thread); the
+        # collect loops poll it and break, then finite_scan zeroes AO.
+        self._cancel = threading.Event()
+
         # Background ring-buffer worker (used by iso_scan and the
         # AIProvider live-streaming layer).
         self._ring_thread: Optional[threading.Thread] = None
@@ -192,6 +197,10 @@ class ExperimentManager:
         if not voltage_profiles:
             raise ValueError("voltage_profiles is empty")
 
+        # Fresh cancel state for this scan (a stale set() from a prior aborted
+        # run must not abort this one before it starts).
+        self._cancel.clear()
+
         total_samples = int(round(self._ai_params.sample_rate * seconds))
         # Single-shot sizes the AI buffer to the full scan (DEFAULTIO, read once
         # at the end); the CONTINUOUS path keeps the 1 s half-flip buffer.
@@ -259,12 +268,28 @@ class ExperimentManager:
         ao_handler.stop()
         ai_handler.stop()
 
+        # On a cooperative abort (request_stop) the scan stop above only halts
+        # the pacer; the DAC holds its last sample. Drive AO to 0 so the heater
+        # is never left powered after a Stop (P1-17 step 3 / heater-safety rule).
+        if self._cancel.is_set():
+            self.zero_ao()
+            logger.info("finite_scan cancelled; AO driven to 0 V")
+
         return ScanResult(
             data=df,
             ai_rate=float(ai_rate),
             ao_rate=float(ao_rate),
             samples_per_channel=int(round(ai_rate * seconds)),
         )
+
+    def request_stop(self) -> None:
+        """Cooperatively abort a finite_scan in flight (P1-17 step 3).
+
+        Sets the cancel flag the collect loops poll. Safe to call from another
+        thread (e.g. a GUI Stop button) while ``finite_scan`` runs; the loop
+        breaks, the scan stops, and AO is zeroed. No-op if nothing is running.
+        """
+        self._cancel.set()
 
     def ao_set(self, channel: int, voltage: float) -> None:
         """Hold a static voltage on a single AO channel (iso primitive)."""
@@ -560,6 +585,9 @@ class ExperimentManager:
 
         collected = 0
         while collected < total_samples_per_channel:
+            if self._cancel.is_set():
+                logger.info("AI collection cancelled by request_stop")
+                break
             if time.monotonic() > deadline:
                 logger.warning("AI collection deadline exceeded")
                 break
@@ -652,6 +680,9 @@ class ExperimentManager:
         deadline = time.monotonic() + seconds + 5.0  # generous safety margin
         completed = False
         while time.monotonic() < deadline:
+            if self._cancel.is_set():
+                logger.info("AI single-shot scan cancelled by request_stop")
+                break
             ai_status, _ = ai_handler.status()
             if ai_status != ul.ScanStatus.RUNNING:
                 completed = True

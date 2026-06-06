@@ -27,6 +27,7 @@ from pioner.back.acquisition.base import AIProvider, AcquisitionMode
 from pioner.back.acquisition.persistent import PersistentAIProvider
 from pioner.back.acquisition.per_experiment import PerExperimentAIProvider
 from pioner.back.acquisition.factory import create_ai_provider
+from pioner.back.acquisition.disk_recorder import DiskRecorder
 
 __all__ = [
     "AIProvider",
@@ -34,4 +35,5 @@ __all__ = [
     "PersistentAIProvider",
     "PerExperimentAIProvider",
     "create_ai_provider",
+    "DiskRecorder",
 ]

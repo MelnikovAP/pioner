@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **122 passed** (mock backend, ~30 s).
+- `pytest tests/`: **131 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -299,15 +299,18 @@ the heater, finalise the save". Button gating: `start` disabled until `arm`,
 
 *Per mode (rate from the per-mode map in settings; landed 2026-06-05):*
 - **fast** (20 kHz, own single-shot DEFAULTIO scan): `arm` = pause ring +
-  reconfigure AI to 20 kHz (configure only, NOT acquiring -- live plot freezes
-  during the arm->start wait, accepted). `start` = AI-arm then AO back-to-back
-  (AI-first, P0-5) in a tight critical section -> read once -> resume ring at
-  2 kHz. No baseline (set by hand in the temperature program). AI-arm sits on
-  `start` (not `arm`) precisely because there is no trigger -- see P0-5 note.
-  Jitter minimisation: tight back-to-back issue + post-hoc leading-edge
-  detection (the rise is in the captured baseline). Fast `stop` is low value
-  (sub-second) but must still zero AO cleanly; **fast zeroing is optional for
-  now (operator)**.
+  reconfigure AI to 20 kHz (configure only, NOT acquiring). **Live runs only
+  up to `arm`** -- the plot freezes AT `arm` (the ring is paused there), not at
+  `start`, and stays frozen through the arm->start wait and the run. **On `arm`
+  the GUI shows the full planned temperature program T(t)** in the plot (since
+  live is frozen, the operator sees what is about to run). `start` = AI-arm then
+  AO back-to-back (AI-first, P0-5) in a tight critical section -> read once ->
+  resume ring at 2 kHz (then the result frame replaces the program plot). No
+  baseline (set by hand in the temperature program). AI-arm sits on `start`
+  (not `arm`) precisely because there is no trigger -- see P0-5 note. Jitter
+  minimisation: tight back-to-back issue + post-hoc leading-edge detection (the
+  rise is in the captured baseline). Fast `stop` is low value (sub-second) but
+  must still zero AO cleanly; **fast zeroing is optional for now (operator)**.
 - **slow** (2 kHz == monitor rate, reads from persistent ring, **no pause** --
   this is the long-deferred "Approach A"): `arm` = start the DiskRecorder
   (baseline begins from the live ring, plot uninterrupted). `start` = launch the
@@ -327,21 +330,30 @@ the heater, finalise the save". Button gating: `start` disabled until `arm`,
     -> save h5. `stop` aborts early -> `zero_ao` + save partial (marked
     aborted).
 
-*DiskRecorder (P1-17 item b, now needed -- gating dependency).* A ring consumer
-that records from `arm`. `start(provider)` at arm: `reset_ring_cursor` -> open
-h5 (append) -> background drain loop appends raw AI via `read_new`.
-`mark_start()` at start: store the current sample index as experiment t=0.
-`stop()` at end/stop: final drain, flush, close, then `apply_calibration`
-(using the AO program offset by the cursor) and `save_run_to_h5`. Record **raw
-AI**, calibrate at finalise. Works for slow and finite-iso (both ring
-consumers); fast does not use it (single-shot, no baseline -- keeps its
-end-of-scan `save_run_to_h5`). Drain frequently to stay ahead of overrun.
+*DiskRecorder (P1-17 item b).* **Capture core DONE 2026-06-06**
+(`back/acquisition/disk_recorder.py`, `tests/test_disk_recorder.py`): a ring
+consumer that `start()`s at arm (primes the cursor at head via
+`reset_ring_cursor` + a discarded `read_new`, then a background thread drains
+raw AI), `mark_start()` records the baseline|run boundary row, and `stop()`
+returns the assembled raw frame `(rows, channels)` plus `mark_index`. Draining
+is serialized under one lock so chunk order is preserved. **Still to wire (steps
+4/5):** call it from slow / finite-iso, and at finalise run `apply_calibration`
+(AO program offset by the cursor) + `save_run_to_h5`. Records **raw AI** in
+memory for now; incremental-to-disk append is a later optimisation. Fast does
+not use it (single-shot, no baseline). Drains every `poll_interval` (< ring
+depth) so a long run does not overflow the ring.
 
-*Interruptible run + Stop button (P1-17 follow-on).* Today `run()` blocks, so
-only an iso hold is stoppable. To make `stop` work for slow/fast the collect
-loops (`_collect_finite_ai`, `_collect_finite_ai_single_shot`) must poll a
-cancel flag; `stop` then `scan_stop`s AO+AI, calls `zero_ao()`, and finalises
-the DiskRecorder (partial save marked aborted).
+*Interruptible run + Stop.* **Backend DONE 2026-06-06.** `ExperimentManager`
+has `request_stop()` + a `_cancel` event the collect loops
+(`_collect_finite_ai`, `_collect_finite_ai_single_shot`) poll and break on;
+`finite_scan` clears it at start and `zero_ao()`s on abort (heater safety).
+`BaseMode.stop()` requests cancel on the in-flight `ExperimentManager`
+(Fast/Slow expose it via `_active_em`; IsoMode keeps its own `_stop_event`).
+Controller `stop_run()` already routes to `mode.stop()` for fast/slow. Verified
+threaded on the mock (`tests/test_modes_e2e.py`). **Still to do:** the GUI must
+call `run()` off the main thread so Stop is clickable mid-run (step 7), a Stop
+button, and marking the partial save `aborted` (needs a flag + DiskRecorder
+wiring).
 
 *Temperature limits (config, no cryostat yet).* Add `min`/`max` experiment
 temperature to settings (decided: **min 0 C, max 300 C**, heating-only). Reject
@@ -349,9 +361,11 @@ programs / iso targets outside `[min, max]` at validation; this is in addition
 to the existing `safe_voltage` clamp.
 
 *Implementation order:* (1) per-mode rate + Apply gate -- **DONE 2026-06-05**
-(in settings/controller/GUI; see README invariants); (2) DiskRecorder;
-(3) slow off-ring (needs 2 + cursor); (4) iso two paths; (5) interruptible
-run + Stop for all + temp limits + chip-detect gate (P1-36).
+(settings/controller/GUI; see README invariants); (2) DiskRecorder capture core
+-- **DONE 2026-06-06** (wiring pending); interruptible-run + Stop backend --
+**DONE 2026-06-06** (GUI threading + Stop button pending); (3) slow off-ring
+(needs the recorder wired + cursor); (4) iso two paths; (5) GUI three-button
+lifecycle + Stop button + temp limits + chip-detect gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 

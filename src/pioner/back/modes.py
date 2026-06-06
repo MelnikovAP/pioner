@@ -346,6 +346,9 @@ class BaseMode(abc.ABC):
         self._duration_ms: Optional[float] = None
         self._voltage_profiles: Dict[str, np.ndarray] = {}
         self._samples_per_channel: int = 0
+        # ExperimentManager of an in-flight run(), exposed so stop() can abort
+        # it from another thread (P1-17 step 3). None when no run is active.
+        self._active_em: Optional[ExperimentManager] = None
 
     # ------------------------------------------------------------------
     # Arming / introspection
@@ -388,6 +391,17 @@ class BaseMode(abc.ABC):
     def _post_arm_check(self) -> None:
         """Hook for concrete modes; default is a no-op."""
 
+    def stop(self) -> None:
+        """Cooperatively abort an in-flight run() from another thread (P1-17).
+
+        No-op if nothing is running. The active ExperimentManager's collect
+        loop polls the cancel flag, stops the scan, and zeroes AO on abort.
+        IsoMode overrides this with its own ring-stop event.
+        """
+        em = self._active_em
+        if em is not None:
+            em.request_stop()
+
     # ------------------------------------------------------------------
     # Execution
     # ------------------------------------------------------------------
@@ -409,12 +423,16 @@ class FastHeat(BaseMode):
             # Fast-heat uses the single-shot DEFAULTIO full-buffer scan: the
             # host reads once at the end, so the ballistic high-rate scan cannot
             # hit a FIFO OVERRUN (todo P1-30). Slow keeps the CONTINUOUS path.
-            result = em.finite_scan(
-                self._voltage_profiles,
-                self._ai_channels,
-                seconds=self.duration_seconds,
-                single_shot=True,
-            )
+            self._active_em = em  # expose for stop() while the scan runs
+            try:
+                result = em.finite_scan(
+                    self._voltage_profiles,
+                    self._ai_channels,
+                    seconds=self.duration_seconds,
+                    single_shot=True,
+                )
+            finally:
+                self._active_em = None
         return apply_calibration(
             result.data,
             sample_rate=result.ai_rate,
@@ -473,11 +491,15 @@ class SlowMode(BaseMode):
             raise RuntimeError("SlowMode is not armed; call arm() first")
 
         with ExperimentManager(self._daq, self._settings) as em:
-            result = em.finite_scan(
-                self._voltage_profiles,
-                self._ai_channels,
-                seconds=self.duration_seconds,
-            )
+            self._active_em = em  # expose for stop() while the scan runs
+            try:
+                result = em.finite_scan(
+                    self._voltage_profiles,
+                    self._ai_channels,
+                    seconds=self.duration_seconds,
+                )
+            finally:
+                self._active_em = None
         df = apply_calibration(
             result.data,
             sample_rate=result.ai_rate,
