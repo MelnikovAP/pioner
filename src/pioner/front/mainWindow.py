@@ -20,6 +20,7 @@ import shutil
 from typing import Any, Optional
 
 import numpy as np
+import pandas as pd
 from silx.gui import qt
 
 from pioner.back.device_controller import (
@@ -27,6 +28,7 @@ from pioner.back.device_controller import (
     LocalDeviceController,
     TangoDeviceController,
 )
+from pioner.back.modes import read_calibrated_h5
 from pioner.front.calibWindow import *
 from pioner.front.configWindow import *
 from pioner.front.mainWindowUi import mainWindowUi
@@ -626,14 +628,25 @@ class mainWindow(mainWindowUi):
             self.mainTabWidget.setCurrentIndex(1)
         self.resultsDataWidget.resultPlot.resetZoom()
 
+    #: Max points plotted in the result view; the on-disk record can be far
+    #: larger, so we read it back decimated (P1-17 step 4c-3).
+    _RESULT_PLOT_MAX_POINTS = 5000
+
     def fh_run(self):
         if self.controller is None:
             ErrorWindow("No backend connection: cannot run experiment.")
             return
-        # run() executes whatever was armed (fast or slow); the result frame
-        # is plotted the same way for both.
-        df = self.controller.run()
-        self._fh_plot_df(df)
+        # run() writes the full record to disk and returns a RunResult (paths),
+        # not a frame -- so a long run never loads wholly into the GUI. Read the
+        # calibrated (T) file back decimated for the result plot (P1-17 4c-3).
+        result = self.controller.run()
+        if result is None or result.rows == 0:
+            # No data (e.g. an aborted run wrote nothing); clear the result plot
+            # rather than read a file that was never written.
+            self._fh_plot_df(pd.DataFrame())
+            return
+        data = read_calibrated_h5(result.cal_path, max_points=self._RESULT_PLOT_MAX_POINTS)
+        self._fh_plot_df(pd.DataFrame(data))
 
     # ===================================
     # Iso (set) mode

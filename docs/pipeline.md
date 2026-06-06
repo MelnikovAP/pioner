@@ -261,6 +261,19 @@ seamless. See §3.7c.
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+**Streaming persistence (slow off-ring, P1-17 step 4).** Fast and iso assemble
+the frame in RAM and call ``save_run_to_h5`` as above (bounded: fast is
+single-shot, iso is short). **Slow streams to disk instead** so a multi-hour run
+never holds the full record in RAM: ``back.acquisition.DiskRecorder`` appends raw
+AI (U, ADC volts) straight to ``data/exp_data_raw.h5`` as it drains the ring,
+then ``modes.finalize_raw_to_h5`` reads that back **block-by-block**, calibrates
+each block (per-sample; ``Taux`` from a streaming first pass; lock-in on the 1-D
+``temp-hr`` column) and writes the same ``exp_data.h5`` layout. The same shape is
+produced either way. ``DeviceController.run()`` returns a ``RunResult`` (paths +
+summary, never an in-RAM frame); the GUI plots it via
+``modes.read_calibrated_h5`` (decimated stride / ``max_points``). See
+``docs/live-streaming.md`` and the P1-17 plan in ``TODO.md``.
+
 ### Half-buffer reading (no point loss)
 
 The AI buffer is exactly `sample_rate` samples per channel = 1 s of data. We
@@ -639,7 +652,7 @@ working end-to-end on mock or on real hardware.
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input, **Rhtr units in Ω with production calibration** (regression for #1) |
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest tests/              # 141 tests, ~30 s
+PYTHONPATH=src .venv/bin/pytest tests/              # 143 tests, ~30 s
 PYTHONPATH=src .venv/bin/python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

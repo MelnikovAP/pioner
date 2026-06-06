@@ -398,7 +398,7 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**141 tests, ~30 seconds** locally.
+**143 tests, ~30 seconds** locally.
 
 ---
 
@@ -463,13 +463,20 @@ boundary and migration plan.
 
 `data/` holds HDF5 working files written by runs (not reference fixtures):
 
-* `data/exp_data.h5` — last experiment result (fast/slow/iso); the GUI/Tango
-  download path and the legacy facades write here.
+* `data/exp_data.h5` — last experiment result in **engineering units (T)**
+  (fast/slow/iso); the GUI/Tango download path and the legacy facades write here.
+  `DeviceController.run()` returns a `RunResult` (file paths + summary, **not** an
+  in-RAM frame); the GUI reads this file back **decimated** for the plot
+  (`modes.read_calibrated_h5`), so a long run never loads wholly into memory.
+* `data/exp_data_raw.h5` — **raw AI (U, ADC volts)** streamed straight to disk by
+  the `DiskRecorder` during a slow off-ring run, then calibrated into
+  `exp_data.h5` by `modes.finalize_raw_to_h5` (chunked, flat memory). Kept for
+  re-calibration.
 * `data/raw_data.h5` (+ `data/raw_data/`) — raw AI buffer dumps from the
   acquisition layer.
 
-These are runtime artefacts; a run overwrites `exp_data.h5`, so restore it
-from git if you clobbered a reference scan.
+These are runtime artefacts; a run overwrites `exp_data.h5` (and
+`exp_data_raw.h5`), so restore them from git if you clobbered a reference scan.
 
 ## 12. Documentation map
 

@@ -18,6 +18,7 @@ from pioner.back.device_controller import (
     DeviceController,
     LocalDeviceController,
 )
+from pioner.back.modes import read_calibrated_h5
 from pioner.shared.constants import DEFAULT_SETTINGS_FILE_REL_PATH
 from pioner.shared.settings import BackSettings
 
@@ -156,12 +157,15 @@ class TestExperiment:
         '"ch2": {"time": [0, 1000], "volt": [5, 5]}}'
     )
 
-    def test_arm_run_fast_heat_returns_frame(self, local_controller):
+    def test_arm_run_fast_heat_writes_result(self, local_controller):
+        # run() returns a RunResult (paths + summary), not a frame; the data is
+        # on disk -> read it back to check the engineering columns (P1-17 4c-3).
         local_controller.arm_fast_heat(self._FAST)
-        df = local_controller.run_fast_heat()
-        assert df is not None
+        result = local_controller.run_fast_heat()
+        assert result is not None and result.mode == "fast" and result.rows > 0
+        data = read_calibrated_h5(result.cal_path)
         for col in ("time", "Taux", "Thtr", "temp", "Uref"):
-            assert col in df.columns
+            assert col in data
 
     def test_run_without_arm_returns_none(self, local_controller):
         assert local_controller.run() is None
@@ -175,6 +179,63 @@ class TestExperiment:
         data = _wait_for_stream(local_controller)
         assert data.shape[0] > 0
 
+    def test_slow_run_streams_off_ring_and_writes_paths(
+        self, local_controller, tmp_path, monkeypatch
+    ):
+        # Redirect the result file into tmp so data/exp_data.h5 is untouched.
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
+
+        _wait_for_stream(local_controller)
+        local_controller.arm(
+            "slow",
+            '{"ch0": {"time": [0, 500], "volt": [0.1, 0.1]}, '
+            '"ch1": {"time": [0, 500], "volt": [0, 1]}}',
+        )
+        result = local_controller.run()
+        # Off-ring: the live stream must NOT pause for slow.
+        assert local_controller.is_streaming()
+        assert result is not None and result.mode == "slow" and result.rows > 0
+        # Result lives on disk in two files (raw U + calibrated T), distinct.
+        assert result.raw_path is not None and result.raw_path != result.cal_path
+        import os
+        assert os.path.exists(result.cal_path) and os.path.exists(result.raw_path)
+        data = read_calibrated_h5(result.cal_path)
+        for col in ("time", "temp", "Thtr"):
+            assert col in data
+
+    def test_slow_run_stop_aborts_and_zeroes(
+        self, local_controller, tmp_path, monkeypatch
+    ):
+        # Stop mid slow streaming -> RunResult.aborted, heater zeroed, partial
+        # data finalised, and the live stream still alive (off-ring).
+        import pioner.back.device_controller as dc
+        import threading
+
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
+        _wait_for_stream(local_controller)
+        local_controller.arm(
+            "slow",
+            '{"ch0": {"time": [0, 5000], "volt": [0.1, 0.1]}, '
+            '"ch1": {"time": [0, 5000], "volt": [0, 1]}}',
+        )
+        holder: dict = {}
+
+        def _go():
+            holder["r"] = local_controller.run()
+
+        t = threading.Thread(target=_go)
+        t.start()
+        time.sleep(0.6)
+        local_controller.stop_run()
+        t.join(timeout=4.0)        # 5 s ramp; only passes if the abort worked
+
+        assert not t.is_alive(), "slow streaming run did not stop"
+        result = holder["r"]
+        assert result is not None and result.aborted
+        assert _ao_shared(local_controller).iso_voltages.get(1) == 0.0  # heater off
+        assert local_controller.is_streaming()                          # off-ring
+
     def test_iso_run_keeps_stream_live(self, local_controller):
         # Iso drives only AO and reads AI from the persistent ring buffer
         # (P1-17, Approach C), so the live stream must NOT pause for an iso
@@ -183,11 +244,12 @@ class TestExperiment:
         local_controller.arm_iso_mode(
             '{"ch1": {"time": [0, 1000], "volt": [0.5, 0.5]}}'
         )
-        df = local_controller.run_iso_mode()
+        result = local_controller.run_iso_mode()
         assert local_controller.is_streaming()
-        assert df is not None
+        assert result is not None and result.rows > 0
+        data = read_calibrated_h5(result.cal_path)
         for col in ("time", "Taux", "Thtr", "temp"):
-            assert col in df.columns
+            assert col in data
 
     def test_iso_run_streams_during_run(self, local_controller):
         # Fresh samples must keep arriving WHILE an iso run is in flight.

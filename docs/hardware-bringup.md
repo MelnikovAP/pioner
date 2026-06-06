@@ -96,6 +96,32 @@ on the USB-2637 layout. Confirm before bring-up:
   `N == M` means no short frame.
 - Restore `data/exp_data.h5` afterwards if a run clobbered a reference scan.
 
+## Slow off-ring soak (P1-17 step 4d) -- real hardware only
+
+The slow mode now reads AI from the persistent ring instead of its own finite
+scan (off-ring, P1-17 step 4c), and `DiskRecorder` streams the raw samples
+straight to disk. Two things the mock **cannot** prove and that must be checked
+on the real USB-2637 before trusting a long slow run:
+
+1. **No FIFO `OVERRUN` over the full ramp duration.** The persistent ring runs
+   CONTINUOUS at 2 kHz for the whole slow ramp (minutes to hours). Run the
+   longest realistic slow ramp and confirm the log shows **no `OVERRUN`** and no
+   `Ring buffer consumer ... fell behind` warnings (the `DiskRecorder` consumer
+   must keep up; lower `poll_interval` if needed). At 2 kHz the drain margin is
+   ~10x the 20 kHz that triggered the historical OVERRUN
+   (`postmortem/2026-05-23-fifo-overrun-continuous-ai.md`), but verify it.
+2. **Residual AO/AI start skew.** Off-ring alignment uses the software
+   start-cursor (`DiskRecorder.mark_index`), not a hardware trigger, so there is
+   a small skew (todo P0-5). Drive a known feature (e.g. a step in the ramp) and
+   confirm it lands at the expected `Uref`/time within a few samples. If the
+   skew matters, apply the per-host offset trim (P0-5).
+
+Also confirm host RAM stays flat for a long run (streaming to disk works): watch
+RSS during a multi-minute ramp -- it must not grow with the run length.
+
+This is an operator bench procedure, **not** a CI test (the mock reproduces
+neither overrun nor skew). Record the measured numbers here after the first run.
+
 ## Out of scope here
 
 - **Tango path** (`TangoDeviceController`) -- unverified, repair tracked in todo

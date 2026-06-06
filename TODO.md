@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **141 passed** (mock backend, ~30 s).
+- `pytest tests/`: **143 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -400,10 +400,16 @@ DataFrame**; the full record lives only on disk (recorder raw U -> finalize T);
 live view reads the ring (bounded) + the T file decimated. Only remaining
 non-bounded bit: the 1-D temp-hr column for the lock-in (block-wise zero-phase
 lock-in for multi-day = future refinement). **4c-3 controller orchestration**
-(`_run_slow_streaming`: DiskRecorder + cursor/mark + finalize, `run()` returns
-paths; stop = zero + finalize partial `aborted`) -- NEXT; **4d HW soak**
-(overrun/skew bench procedure, not CI) -- pending hardware. (4) iso two paths
-(reuse 4c-3); (5) GUI three-button lifecycle + Stop button + temp limits +
+-- **DONE 2026-06-06** (`LocalDeviceController._run_slow_streaming`: DiskRecorder
++ cursor/mark + finalize; **`run()` now returns a `RunResult`** {mode, cal_path,
+raw_path, rows, mark_index, aborted} for ALL modes -- data on disk, never an
+in-RAM frame; GUI reads it back decimated via `read_calibrated_h5`; stop = zero
+AO + partial save marked aborted; Tango adapted). **4d HW soak** -- **doc DONE
+2026-06-06** (`docs/hardware-bringup.md` "Slow off-ring soak": overrun/skew/RAM
+checks); the bench run itself is pending hardware. **Step 4 (slow off-ring) is
+functionally complete on mock.** Next: (4) **iso two paths** (reuse 4c-3 -- the
+finite iso experiment streams via DiskRecorder + finalize like slow; keep the
+eternal hold); (5) GUI three-button lifecycle + Stop button + temp limits +
 chip-detect gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)

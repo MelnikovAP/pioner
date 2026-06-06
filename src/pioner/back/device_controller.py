@@ -33,16 +33,22 @@ import abc
 import json
 import logging
 import os
+from dataclasses import dataclass
 from typing import Any, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
-from pioner.back.acquisition import AIProvider, create_ai_provider
+from pioner.back.acquisition import AIProvider, DiskRecorder, create_ai_provider
 from pioner.back.daq_device import DaqDeviceHandler
 from pioner.back.experiment_manager import ExperimentManager
 from pioner.back.mock_uldaq import DAQ_AVAILABLE
-from pioner.back.modes import apply_calibration, create_mode, save_run_to_h5
+from pioner.back.modes import (
+    apply_calibration,
+    create_mode,
+    finalize_raw_to_h5,
+    save_run_to_h5,
+)
 from pioner.shared.calibration import Calibration
 from pioner.shared.constants import (
     CALIBRATION_FILE_REL_PATH,
@@ -52,6 +58,27 @@ from pioner.shared.constants import (
 from pioner.shared.settings import BackSettings
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RunResult:
+    """Outcome of ``DeviceController.run()`` -- uniform across modes (P1-17 4c-3).
+
+    The full dataset lives **on disk**, never returned as an in-RAM frame, so a
+    multi-hour run cannot exhaust memory. ``cal_path`` is the calibrated (T)
+    ``exp_data.h5``; ``raw_path`` is the raw (U) recorder file for the streaming
+    modes (``None`` for fast, which is single-shot and not ring-based). Read the
+    result for display with :func:`pioner.back.modes.read_calibrated_h5`
+    (decimated). ``mark_index`` is the baseline|run boundary row; ``aborted`` is
+    True if a Stop interrupted the run (partial data).
+    """
+
+    mode: str
+    cal_path: str
+    rows: int
+    raw_path: Optional[str] = None
+    mark_index: Optional[int] = None
+    aborted: bool = False
 
 
 class DeviceController(abc.ABC):
@@ -129,8 +156,12 @@ class DeviceController(abc.ABC):
         """Arm ``mode_name`` (``fast`` / ``slow`` / ``iso``) with a JSON payload."""
 
     @abc.abstractmethod
-    def run(self) -> Optional[pd.DataFrame]:
-        """Run the armed mode; return the result frame (``None`` if no data)."""
+    def run(self) -> Optional["RunResult"]:
+        """Run the armed mode; return a :class:`RunResult` (paths + summary).
+
+        The data lives on disk, not in the return value (``None`` if no mode is
+        armed). Read it for display with ``modes.read_calibrated_h5``.
+        """
 
     def stop_run(self) -> None:
         """Abort an in-flight run (only meaningful for iso today)."""
@@ -152,13 +183,13 @@ class DeviceController(abc.ABC):
     def arm_fast_heat(self, programs_json: str) -> None:
         self.arm("fast", programs_json)
 
-    def run_fast_heat(self) -> Optional[pd.DataFrame]:
+    def run_fast_heat(self) -> Optional["RunResult"]:
         return self.run()
 
     def arm_iso_mode(self, programs_json: str) -> None:
         self.arm("iso", programs_json)
 
-    def run_iso_mode(self) -> Optional[pd.DataFrame]:
+    def run_iso_mode(self) -> Optional["RunResult"]:
         return self.run()
 
     # ------------------------------------------------------------------
@@ -212,6 +243,7 @@ class LocalDeviceController(DeviceController):
 
     _STREAM_CONSUMER = "local_controller_default"
     _ISO_CONSUMER = "local_controller_iso_run"
+    _SLOW_RECORDER = "local_controller_slow_recorder"
 
     def __init__(
         self,
@@ -234,6 +266,9 @@ class LocalDeviceController(DeviceController):
         # Active sample rate before fast was armed (fast switches to 20 kHz);
         # the ring is resumed at this rate after a fast run (P1-17 fast bullet).
         self._pre_fast_rate: Optional[int] = None
+        # Set by stop_run() while a run is in flight; cleared at run() entry.
+        # Marks a RunResult / partial save as aborted (P1-17 step 4c-3).
+        self._stop_requested: bool = False
         # True while an eternal iso hold (start_iso_hold) is driving AO.
         self._iso_holding: bool = False
 
@@ -420,44 +455,109 @@ class LocalDeviceController(DeviceController):
         self._last_programs = programs
         logger.info("Mode %s armed", mode_name)
 
-    def run(self) -> Optional[pd.DataFrame]:
+    def run(self) -> Optional[RunResult]:
+        """Run the armed mode and return a :class:`RunResult` (paths, not data).
+
+        The full record is written to disk (``cal_path`` calibrated T, plus
+        ``raw_path`` raw U for the streaming modes); nothing is held in RAM as a
+        returned frame, so a multi-hour run cannot exhaust memory (P1-17 4c-3).
+        Per mode:
+
+        * **slow** -- off-ring streaming: drive only the ramp AO on our manager,
+          stream raw AI from the persistent ring to disk (no live-stream pause),
+          finalise to the calibrated file.
+        * **iso** -- streams live off the ring (Approach C); in-memory frame is
+          saved (the iso recorder/finalise wiring is step 5).
+        * **fast** -- own single-shot finite scan; pause the live ring around it
+          (bounded, sub-second), save its frame.
+        """
         if self._mode is None or not self._mode.is_armed():
             logger.warning("run() called with no armed mode")
             return None
-        # Iso streams live (P1-17, Approach C): it drives only AO and reads
-        # AI from the persistent ring buffer, so the GUI live plot keeps
-        # updating during the run. Fast / slow still own a finite AI scan
-        # that collides with the persistent ring, so for those we pause the
-        # live stream around the run and resume afterwards. Lifting the
-        # pause for fast/slow needs the mode-side AI refactor (P1-17,
-        # Approach A) and real-hardware sample-alignment validation.
-        if self._mode_name == "iso" and self._provider is not None and self._provider.is_active():
-            df = self._run_iso_streaming()
-        else:
-            self._pause_stream()
-            try:
-                df = self._mode.run()
-            finally:
-                # Fast ran at 20 kHz; restore the pre-fast monitor rate before
-                # the ring is brought back up so live monitoring resumes at the
-                # rate that was active before fast was armed (P1-17 fast bullet).
-                if self._mode_name == "fast" and self._pre_fast_rate is not None:
-                    self.set_sample_rate(self._pre_fast_rate)
-                    self._pre_fast_rate = None
-                self._resume_stream()
+        self._stop_requested = False
+        cal_path = EXP_DATA_FILE_REL_PATH
+
+        streaming = self._provider is not None and self._provider.is_active()
+        if self._mode_name == "slow" and streaming:
+            return self._run_slow_streaming(cal_path)
+        if self._mode_name == "iso" and streaming:
+            return self._save_df_result("iso", self._run_iso_streaming(), cal_path)
+
+        # Fast (or any mode without an active ring): own finite scan, pause the
+        # live ring around it and resume afterwards.
+        self._pause_stream()
+        try:
+            df = self._mode.run()
+        finally:
+            # Fast ran at 20 kHz; restore the pre-fast monitor rate before the
+            # ring is brought back up so live monitoring resumes at the rate
+            # active before fast was armed (P1-17 fast bullet).
+            if self._mode_name == "fast" and self._pre_fast_rate is not None:
+                self.set_sample_rate(self._pre_fast_rate)
+                self._pre_fast_rate = None
+            self._resume_stream()
+        return self._save_df_result(self._mode_name, df, cal_path)
+
+    def _save_df_result(
+        self, mode: str, df: Optional[pd.DataFrame], cal_path: str
+    ) -> RunResult:
+        """Persist an in-memory result frame (fast / iso) and wrap it in a RunResult."""
+        rows = 0
         if df is not None and not df.empty:
+            rows = int(len(df))
             try:
                 save_run_to_h5(
-                    df,
-                    self._mode.voltage_profiles,
-                    self._last_programs,
-                    self._calibration,
-                    self._settings,
-                    EXP_DATA_FILE_REL_PATH,
+                    df, self._mode.voltage_profiles, self._last_programs,
+                    self._calibration, self._settings, cal_path,
                 )
             except Exception:
-                logger.exception("Failed to persist exp_data.h5")
-        return df
+                logger.exception("Failed to persist %s", cal_path)
+        return RunResult(mode=mode, cal_path=cal_path, rows=rows,
+                         aborted=self._stop_requested)
+
+    def _run_slow_streaming(self, cal_path: str) -> RunResult:
+        """Slow off-ring (P1-17 step 4c-3): drive the ramp on our manager while a
+        DiskRecorder streams raw AI from the persistent ring to disk (never
+        pausing the live stream), then finalise to a separate calibrated file.
+
+        ``run()`` returns paths only -- the data is never assembled in RAM.
+        """
+        if self._em is None:
+            raise RuntimeError("LocalDeviceController is not connected")
+        em = self._em
+        raw_path = self._raw_path_for(cal_path)
+        recorder = DiskRecorder(em, raw_path, consumer_id=self._SLOW_RECORDER)
+        recorder.start()
+        try:
+            recorder.mark_start()                    # ramp t=0 boundary
+            self._mode.run(em=em, snapshot=None)     # drive ramp only
+        finally:
+            recorder.stop()
+            # Slow drives AO on our manager (no finite_scan to self-zero on
+            # cancel), so on a Stop drive the heater to 0 explicitly.
+            if self._stop_requested:
+                em.zero_ao()
+        mark = recorder.mark_index or 0
+        summary = finalize_raw_to_h5(
+            raw_path, cal_path,
+            sample_rate=float(self._settings.ai_params.sample_rate),
+            calibration=self._calibration,
+            settings=self._settings,
+            voltage_profiles=self._mode.voltage_profiles,
+            programs=self._last_programs,
+            ai_channels=self._ai_channels,
+            modulation=self._settings.modulation,
+            program_offset=mark,
+        )
+        rows = int(summary["rows"]) if summary else 0
+        return RunResult(mode="slow", cal_path=cal_path, raw_path=raw_path,
+                         rows=rows, mark_index=mark, aborted=self._stop_requested)
+
+    @staticmethod
+    def _raw_path_for(cal_path: str) -> str:
+        """Raw (U) sibling path for a calibrated (T) path: ``x.h5`` -> ``x_raw.h5``."""
+        base, ext = os.path.splitext(cal_path)
+        return f"{base}_raw{ext or '.h5'}"
 
     def _run_iso_streaming(self) -> Optional[pd.DataFrame]:
         """Run the armed iso mode against the live persistent ring buffer.
@@ -538,9 +638,15 @@ class LocalDeviceController(DeviceController):
             self._iso_holding = False
             logger.info("iso hold stopped (AO driven to 0 V)")
             return
+        self._stop_requested = True
         stop = getattr(self._mode, "stop", None) if self._mode is not None else None
         if stop is not None:
             stop()
+        # Slow streaming drives the ramp AO on our manager (no finite_scan to
+        # self-zero on cancel), so zero the heater here too (heater safety).
+        # Fast's finite_scan zeroes its own manager on cancel.
+        if self._mode_name == "slow" and self._em is not None:
+            self._em.zero_ao()
 
     def _pause_stream(self) -> None:
         if self._provider is not None and self._provider.is_active():
@@ -659,9 +765,15 @@ class TangoDeviceController(DeviceController):
         self._device.select_mode(mode_name.lower().strip())
         self._device.arm(programs_json)
 
-    def run(self) -> Optional[pd.DataFrame]:
+    def run(self) -> Optional[RunResult]:
         self._device.run()
-        return self._download_exp_data()
+        frame = self._download_exp_data()  # writes EXP_DATA_FILE_REL_PATH
+        rows = 0 if frame is None else int(len(frame))
+        return RunResult(
+            mode=getattr(self, "_mode_name", "") or "tango",
+            cal_path=EXP_DATA_FILE_REL_PATH,
+            rows=rows,
+        )
 
     def stop_run(self) -> None:
         if self._device is not None:
