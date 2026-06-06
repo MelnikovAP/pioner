@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **143 passed** (mock backend, ~30 s).
+- `pytest tests/`: **144 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -407,10 +407,28 @@ in-RAM frame; GUI reads it back decimated via `read_calibrated_h5`; stop = zero
 AO + partial save marked aborted; Tango adapted). **4d HW soak** -- **doc DONE
 2026-06-06** (`docs/hardware-bringup.md` "Slow off-ring soak": overrun/skew/RAM
 checks); the bench run itself is pending hardware. **Step 4 (slow off-ring) is
-functionally complete on mock.** Next: (4) **iso two paths** (reuse 4c-3 -- the
-finite iso experiment streams via DiskRecorder + finalize like slow; keep the
-eternal hold); (5) GUI three-button lifecycle + Stop button + temp limits +
-chip-detect gate (P1-36).
+functionally complete on mock.** (4) **iso two paths -- DONE 2026-06-06**: the
+finite iso experiment (`run()` / `run_iso_mode`) now streams off-ring via the
+same `_run_streaming` as slow (DiskRecorder + chunked finalize) with
+`tile_profile=True` (the iso AO buffer is periodic/constant, so `finalize` tiles
+it -- `ref[idx % len]` -- giving a constant `Uref` over the hold instead of NaN
+past 1 s); the **eternal hold** stays the separate non-recording
+`start_iso_hold()`. `RunResult` carries both raw + cal paths. **Deferred:** the
+iso FFT harmonics (1f/2f/3f) the old in-memory iso path logged are not computed
+in the streaming path -- re-add at finalise on the `temp-hr` column if the
+harmonic scalars are needed (they were never persisted, only logged). Next:
+(5) GUI step 7: **7a non-blocking run + Stop -- DONE 2026-06-06**
+(`front/mainWindow.py`: `_RunWorker` runs `controller.run()` on a worker thread,
+`finished` signal plots the result decimated on the main thread; Stop button
+wired to `stop_run`; arm/start/stop + mode-combo button-state gated by
+`_set_running`; the live plot keeps updating during slow/iso off-ring runs).
+Smoke-verified offscreen; an automated offscreen GUI test belongs to P1-29 (no
+Qt test harness yet). **Remaining step 7:** **7b** unify iso onto the
+arm/start/stop buttons + wire the GUI finite-iso path (duration set -> threaded
+`run_iso_mode`, recording -- today the GUI's timed iso is still the eternal hold
++ auto-zero, not a recorded run); **7c** the multi-segment program builder
+(P1-39) + per-segment rate validation (P1-38); temp limits (step 8); chip-detect
+gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -788,6 +806,44 @@ P0-5/P1-18):
 **Verification:** on real HW, measure the spread of the detected edge position
 across repeated identical fast runs before/after; mock cannot reproduce the
 jitter.
+
+### P1-38. Per-segment rate validation for multi-segment programs (high)
+
+**Priority: high.** **Where:** `back/modes._validate_programs` /
+`_program_to_voltage`, and the segment UI (P1-39).
+
+**What:** slow/iso programs are piecewise-linear over the `(time, temp)` points
+(heat / iso / cool segments already work via interpolation -- no code needed for
+the basic capability). But nothing validates that a commanded segment is
+**physically achievable**: with no cryostat, cooling is passive, so a
+cool-segment whose rate exceeds the chip's natural thermal relaxation cannot be
+followed -- the heater goes to 0 and T lags the command silently. Likewise a
+heat segment can exceed the safe slew.
+
+**Action:** compute each segment's dT/dt and warn (fail-loud, not silent) when a
+**cool** segment is faster than a configurable max passive cool rate, or a
+**heat** segment exceeds a max heat rate. Surface the offending segment index +
+the requested vs allowed rate. Make the limits config (`settings.json`,
+alongside the temp limits of step 8). Mock-testable (pure validation on the
+program table). The actual achievable cool rate must be measured on hardware
+(ties into P0-5 / the soak run); the validator just guards against obviously
+impossible commands.
+
+### P1-39. GUI multi-segment program builder (heat / iso / cool) (high)
+
+**Priority: high.** **Where:** `front/mainWindow.py` + `front/mainWindowUi.py`
+(the experiment table), part of the step-7 GUI work.
+
+**What:** today a multi-segment slow/iso program is entered as raw `(time, temp)`
+points in the experiment table (works, but unfriendly). Add a **segment-oriented
+builder**: rows of `{type: heat|iso|cool, target T, duration|rate}` that compile
+down to the existing `(time, temp)` point list. Heat = ramp to target; iso =
+hold at target for a duration; cool = ramp down (passive-limited, see P1-38).
+
+**Action:** a small segment table/editor in the GUI that produces the program
+JSON the backend already consumes; validate each segment via P1-38 before arm;
+keep the raw-points entry as an "advanced" fallback. Offscreen GUI regression
+test (P1-29). No backend change -- the program format is unchanged.
 
 ---
 

@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 from typing import Any, Optional
 
 import numpy as np
@@ -42,6 +43,30 @@ from pioner.shared.utils import Dict2Class
 
 
 logger = logging.getLogger(__name__)
+
+
+class _RunWorker(qt.QObject):
+    """Runs ``DeviceController.run()`` off the GUI thread (P1-17 step 7).
+
+    ``run()`` can block for the whole experiment (slow / finite-iso last minutes
+    to hours); doing it on a worker keeps the GUI responsive and lets Stop fire
+    mid-run. The ``finished`` signal carries the ``RunResult`` (or ``None``) back
+    to the main thread (queued connection), where the result is plotted.
+    """
+
+    finished = qt.Signal(object)
+
+    def __init__(self, controller):
+        super().__init__()
+        self._controller = controller
+
+    def run(self):
+        result = None
+        try:
+            result = self._controller.run()
+        except Exception:
+            logger.exception("Experiment run failed on the worker thread")
+        self.finished.emit(result)
 
 
 def _relative_if_under_cwd(path: str) -> str:
@@ -81,6 +106,11 @@ class mainWindow(mainWindowUi):
         # into an unconfirmed state; the experiment-launch buttons stay disabled
         # until the operator presses Apply (or Reset) to confirm it.
         self._rate_confirmed: bool = True
+        # Background experiment run (P1-17 step 7): fast/slow/iso runs execute on
+        # a worker thread so the GUI stays responsive (and Stop works) for the
+        # whole duration instead of freezing inside a blocking run().
+        self._run_thread: Optional[Any] = None
+        self._run_worker: Optional[Any] = None
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -100,6 +130,8 @@ class mainWindow(mainWindowUi):
 
         self.armButton.clicked.connect(self.fh_arm)
         self.startButton.clicked.connect(self.fh_run)
+        self.stopButton.clicked.connect(self.fh_stop)
+        self.stopButton.setEnabled(False)  # enabled only while a run is in flight
 
         self.setTempVoltButton.clicked.connect(self.set_temp_volt)
         self.unsetTempVoltButton.clicked.connect(self.unset_temp_volt)
@@ -636,10 +668,24 @@ class mainWindow(mainWindowUi):
         if self.controller is None:
             ErrorWindow("No backend connection: cannot run experiment.")
             return
-        # run() writes the full record to disk and returns a RunResult (paths),
-        # not a frame -- so a long run never loads wholly into the GUI. Read the
-        # calibrated (T) file back decimated for the result plot (P1-17 4c-3).
-        result = self.controller.run()
+        if self._run_thread is not None:
+            return  # a run is already in flight
+        # Run on a worker thread: run() can block for the whole experiment
+        # (slow / finite-iso minutes-to-hours), so doing it inline would freeze
+        # the GUI and make Stop impossible. The worker writes the full record to
+        # disk and emits the RunResult; we plot it (decimated) on completion.
+        self._set_running(True)
+        worker = _RunWorker(self.controller)
+        worker.finished.connect(self._on_run_finished)
+        self._run_worker = worker  # keep a reference so it is not GC'd
+        self._run_thread = threading.Thread(target=worker.run, daemon=True)
+        self._run_thread.start()
+
+    def _on_run_finished(self, result):
+        """Main-thread slot: plot the finished run (decimated from disk)."""
+        self._run_thread = None
+        self._run_worker = None
+        self._set_running(False)
         if result is None or result.rows == 0:
             # No data (e.g. an aborted run wrote nothing); clear the result plot
             # rather than read a file that was never written.
@@ -647,6 +693,18 @@ class mainWindow(mainWindowUi):
             return
         data = read_calibrated_h5(result.cal_path, max_points=self._RESULT_PLOT_MAX_POINTS)
         self._fh_plot_df(pd.DataFrame(data))
+
+    def fh_stop(self):
+        """Abort an in-flight run (zeroes the heater + finalises a partial)."""
+        if self.controller is not None:
+            self.controller.stop_run()
+
+    def _set_running(self, running: bool) -> None:
+        """Toggle button state for the duration of a run (P1-17 step 7)."""
+        self.startButton.setEnabled(not running)
+        self.armButton.setEnabled(not running and self._rate_confirmed)
+        self.stopButton.setEnabled(running)
+        self.modeComboBox.setEnabled(not running)
 
     # ===================================
     # Iso (set) mode

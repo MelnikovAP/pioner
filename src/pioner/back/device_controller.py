@@ -242,8 +242,9 @@ class LocalDeviceController(DeviceController):
     """
 
     _STREAM_CONSUMER = "local_controller_default"
-    _ISO_CONSUMER = "local_controller_iso_run"
-    _SLOW_RECORDER = "local_controller_slow_recorder"
+    # Ring consumer-id for the DiskRecorder that streams a slow / finite-iso run
+    # to disk (distinct from the live-plot and any other consumer cursors).
+    _STREAM_RECORDER = "local_controller_stream_recorder"
 
     def __init__(
         self,
@@ -479,9 +480,12 @@ class LocalDeviceController(DeviceController):
 
         streaming = self._provider is not None and self._provider.is_active()
         if self._mode_name == "slow" and streaming:
-            return self._run_slow_streaming(cal_path)
+            return self._run_streaming(cal_path, tile_profile=False)
         if self._mode_name == "iso" and streaming:
-            return self._save_df_result("iso", self._run_iso_streaming(), cal_path)
+            # Finite iso experiment: same off-ring streaming as slow, but the AO
+            # is a periodic/constant buffer, so tile it (P1-17 step 5). The
+            # eternal hold is the separate non-recording start_iso_hold().
+            return self._run_streaming(cal_path, tile_profile=True)
 
         # Fast (or any mode without an active ring): own finite scan, pause the
         # live ring around it and resume afterwards.
@@ -515,25 +519,30 @@ class LocalDeviceController(DeviceController):
         return RunResult(mode=mode, cal_path=cal_path, rows=rows,
                          aborted=self._stop_requested)
 
-    def _run_slow_streaming(self, cal_path: str) -> RunResult:
-        """Slow off-ring (P1-17 step 4c-3): drive the ramp on our manager while a
-        DiskRecorder streams raw AI from the persistent ring to disk (never
-        pausing the live stream), then finalise to a separate calibrated file.
+    def _run_streaming(self, cal_path: str, tile_profile: bool) -> RunResult:
+        """Off-ring streaming run for slow / finite-iso (P1-17 steps 4c-3, 5).
 
-        ``run()`` returns paths only -- the data is never assembled in RAM.
+        Drive the AO program (slow ramp or iso hold) on our manager while a
+        DiskRecorder streams raw AI from the persistent ring straight to disk --
+        the live stream is never paused and the full record never sits in RAM --
+        then finalise to a separate calibrated file. ``tile_profile`` is False
+        for the slow ramp (profile spans the run) and True for iso (a short AO
+        buffer replayed CONTINUOUS / a DC constant).
+
+        ``run()`` returns paths only (a :class:`RunResult`).
         """
         if self._em is None:
             raise RuntimeError("LocalDeviceController is not connected")
         em = self._em
         raw_path = self._raw_path_for(cal_path)
-        recorder = DiskRecorder(em, raw_path, consumer_id=self._SLOW_RECORDER)
+        recorder = DiskRecorder(em, raw_path, consumer_id=self._STREAM_RECORDER)
         recorder.start()
         try:
-            recorder.mark_start()                    # ramp t=0 boundary
-            self._mode.run(em=em, snapshot=None)     # drive ramp only
+            recorder.mark_start()                    # program t=0 boundary
+            self._mode.run(em=em, snapshot=None)     # drive AO only
         finally:
             recorder.stop()
-            # Slow drives AO on our manager (no finite_scan to self-zero on
+            # The mode drives AO on our manager (no finite_scan to self-zero on
             # cancel), so on a Stop drive the heater to 0 explicitly.
             if self._stop_requested:
                 em.zero_ao()
@@ -548,9 +557,10 @@ class LocalDeviceController(DeviceController):
             ai_channels=self._ai_channels,
             modulation=self._settings.modulation,
             program_offset=mark,
+            tile_profile=tile_profile,
         )
         rows = int(summary["rows"]) if summary else 0
-        return RunResult(mode="slow", cal_path=cal_path, raw_path=raw_path,
+        return RunResult(mode=self._mode_name, cal_path=cal_path, raw_path=raw_path,
                          rows=rows, mark_index=mark, aborted=self._stop_requested)
 
     @staticmethod
@@ -558,54 +568,6 @@ class LocalDeviceController(DeviceController):
         """Raw (U) sibling path for a calibrated (T) path: ``x.h5`` -> ``x_raw.h5``."""
         base, ext = os.path.splitext(cal_path)
         return f"{base}_raw{ext or '.h5'}"
-
-    def _run_iso_streaming(self) -> Optional[pd.DataFrame]:
-        """Run the armed iso mode against the live persistent ring buffer.
-
-        The mode drives AO on the controller's :class:`ExperimentManager`
-        (the one whose ring buffer the live plot reads) and reads AI back
-        through the provider's snapshot, never starting a second AI scan.
-        The persistent stream stays active for the whole run.
-
-        The persistent ring keeps the full hardware AI range
-        (``self._ai_channels``), but the iso mode expects only its own
-        curated subset (``mode._ai_channels``, e.g. ch2/guard dropped). The
-        snapshot therefore selects the mode's channels, by position, out of
-        the ring layout before handing them to the mode.
-        """
-        if self._em is None or self._provider is None:
-            return None
-        provider = self._provider  # local binding keeps the non-None narrowing
-        mode_channels = list(getattr(self._mode, "_ai_channels", self._ai_channels))
-        # Map each mode channel to its column position in the ring layout.
-        try:
-            keep = [self._ai_channels.index(ch) for ch in mode_channels]
-        except ValueError as exc:
-            raise RuntimeError(
-                f"iso mode AI channels {mode_channels} are not a subset of the "
-                f"streamed channels {self._ai_channels}"
-            ) from exc
-
-        # Capture only the run window. read_new establishes its cursor at the
-        # current head on the first call (returning the existing ring) and
-        # thereafter returns only samples appended since. So we prime the
-        # cursor *now* (drop the pre-run backlog) and read the delta in the
-        # snapshot, giving the samples taken while AO was driving rather than
-        # the trailing ring contents (which would include pre-run baseline).
-        # reset_ring_cursor first guarantees a clean "first call" even if a
-        # previous iso run left a stale cursor. The AO drive starts inside
-        # mode.run() a sub-millisecond after priming, so at most a couple of
-        # pre-drive samples leak in -- negligible for a stationary iso run.
-        self._em.reset_ring_cursor(self._ISO_CONSUMER)
-        provider.read_new(self._ISO_CONSUMER)  # prime cursor at head
-
-        def snapshot() -> np.ndarray:
-            raw = provider.read_new(self._ISO_CONSUMER)
-            if raw.size == 0:
-                return raw
-            return raw[:, keep]
-
-        return self._mode.run(em=self._em, snapshot=snapshot)
 
     def start_iso_hold(self) -> None:
         """Drive the armed iso mode and hold AO until stop_run() (non-blocking).

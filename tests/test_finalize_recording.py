@@ -208,6 +208,36 @@ def test_read_calibrated_decimation(tmp_path):
     assert len(full["temp"]) == n
 
 
+def test_finalize_tile_profile_iso_vs_slice(tmp_path):
+    """tile_profile=True (iso, periodic AO) tiles the short profile across the
+    whole hold; tile_profile=False (slow ramp) slices and NaNs past the end."""
+    raw_path = str(tmp_path / "raw.h5")
+    n = 1000
+    raw = np.random.default_rng(5).uniform(0.1, 1.0, size=(n, len(DEFAULT_AI_CHANNELS)))
+    _write_raw(raw_path, raw)
+    ref = np.arange(100, dtype=float)  # short 100-sample AO buffer
+    common = dict(
+        sample_rate=2000.0, calibration=Calibration(),
+        settings=BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH),
+        voltage_profiles={"ch1": ref},
+        programs={"ch1": {"time": [0, 500], "volt": [0, 1]}},
+        ai_channels=DEFAULT_AI_CHANNELS, block_rows=137,
+    )
+
+    tiled_path = str(tmp_path / "iso.h5")
+    finalize_raw_to_h5(raw_path, tiled_path, tile_profile=True, **common)
+    uref_tiled = _read_col(tiled_path, "Uref")
+    expected = np.tile(ref, int(np.ceil(n / ref.size)))[:n]
+    assert np.allclose(uref_tiled, expected)        # ref[idx % len], all finite
+    assert np.all(np.isfinite(uref_tiled))
+
+    sliced_path = str(tmp_path / "slow.h5")
+    finalize_raw_to_h5(raw_path, sliced_path, tile_profile=False, **common)
+    uref_sliced = _read_col(sliced_path, "Uref")
+    assert np.allclose(uref_sliced[:100], ref)      # first 100 = the buffer
+    assert np.all(np.isnan(uref_sliced[100:]))      # past the profile -> NaN
+
+
 def test_finalize_rejects_same_path(tmp_path):
     raw_path = str(tmp_path / "same.h5")
     _write_raw(raw_path, np.zeros((10, len(DEFAULT_AI_CHANNELS))))

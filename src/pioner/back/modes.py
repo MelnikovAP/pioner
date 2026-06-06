@@ -989,6 +989,7 @@ def finalize_raw_to_h5(
     dataset: str = "raw_ai",
     block_rows: int = 200_000,
     program_offset: int = 0,
+    tile_profile: bool = False,
 ) -> Optional[dict]:
     """Chunked calibrate: raw (U) recorder file -> separate calibrated (T) file.
 
@@ -1013,10 +1014,16 @@ def finalize_raw_to_h5(
     output -- the only non-bounded array here. Truly multi-day runs want a
     block-wise zero-phase lock-in instead (flagged refinement, P1-17).
 
-    ``program_offset`` is the raw row where the AO program (ramp) starts -- the
-    DiskRecorder ``mark_index``. Returns a summary dict
-    ``{"path", "rows", "taux"}`` (no DataFrame -- the result lives on disk),
-    or ``None`` if the raw file holds no samples.
+    ``program_offset`` is the raw row where the AO program starts -- the
+    DiskRecorder ``mark_index``. ``tile_profile`` selects how the heater profile
+    maps to raw samples: ``False`` (slow ramp -- the profile spans the whole run)
+    slices ``ref[idx]`` and marks rows past its end NaN; ``True`` (iso -- a short
+    AO buffer replayed CONTINUOUS, or a DC constant) **tiles** it
+    (``ref[idx % len]``) so every hold sample gets the commanded voltage, matching
+    the whole-frame ``apply_calibration`` iso branch.
+
+    Returns a summary dict ``{"path", "rows", "taux"}`` (no DataFrame -- the
+    result lives on disk), or ``None`` if the raw file holds no samples.
     """
     import os
     import h5py
@@ -1074,8 +1081,14 @@ def finalize_raw_to_h5(
                     idx = np.arange(s, s + m) - program_offset
                     uref = np.full(m, np.nan)
                     if ref.size:
-                        ok = (idx >= 0) & (idx < ref.size)
-                        uref[ok] = ref[idx[ok]]
+                        if tile_profile:
+                            # iso: short AO buffer replayed CONTINUOUS -> tile.
+                            ok = idx >= 0
+                            uref[ok] = ref[idx[ok] % ref.size]
+                        else:
+                            # slow ramp: profile spans the run -> slice.
+                            ok = (idx >= 0) & (idx < ref.size)
+                            uref[ok] = ref[idx[ok]]
                     block_profiles[HEATER_AO] = uref
                 cal = apply_calibration(
                     pd.DataFrame(block, columns=channels),

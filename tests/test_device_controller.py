@@ -236,25 +236,35 @@ class TestExperiment:
         assert _ao_shared(local_controller).iso_voltages.get(1) == 0.0  # heater off
         assert local_controller.is_streaming()                          # off-ring
 
-    def test_iso_run_keeps_stream_live(self, local_controller):
-        # Iso drives only AO and reads AI from the persistent ring buffer
-        # (P1-17, Approach C), so the live stream must NOT pause for an iso
-        # run -- unlike fast/slow which still pause their finite AI scan.
+    def test_iso_finite_run_streams_off_ring_and_writes_paths(
+        self, local_controller, tmp_path, monkeypatch
+    ):
+        # Finite iso experiment (P1-17 step 5): off-ring streaming like slow, so
+        # the live stream must NOT pause; the result is on disk (raw U + cal T).
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
         _wait_for_stream(local_controller)
         local_controller.arm_iso_mode(
             '{"ch1": {"time": [0, 1000], "volt": [0.5, 0.5]}}'
         )
         result = local_controller.run_iso_mode()
         assert local_controller.is_streaming()
-        assert result is not None and result.rows > 0
+        assert result is not None and result.mode == "iso" and result.rows > 0
+        assert result.raw_path is not None and result.raw_path != result.cal_path
+        import os
+        assert os.path.exists(result.cal_path) and os.path.exists(result.raw_path)
         data = read_calibrated_h5(result.cal_path)
         for col in ("time", "Taux", "Thtr", "temp"):
             assert col in data
+        # Iso AO is a constant hold -> Uref is tiled (constant), never NaN.
+        assert np.all(np.isfinite(data["Uref"]))
 
-    def test_iso_run_streams_during_run(self, local_controller):
+    def test_iso_run_streams_during_run(self, local_controller, tmp_path, monkeypatch):
         # Fresh samples must keep arriving WHILE an iso run is in flight.
         import threading
 
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
         _wait_for_stream(local_controller)
         local_controller.arm_iso_mode(
             '{"ch1": {"time": [0, 2000], "volt": [0.5, 0.5]}}'
