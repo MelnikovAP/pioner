@@ -375,6 +375,15 @@ class mainWindow(mainWindowUi):
     def disconnect(self):
         self.stop_live_stream()
         self._cancel_iso_timer()
+        # Abort an in-flight run before tearing down the controller, so the
+        # worker stops cleanly (heater zeroed, partial finalised) rather than
+        # erroring on a half-disconnected backend (P1-17 step 7b).
+        if self._run_thread is not None and self.controller is not None:
+            self.controller.stop_run()
+            self._run_thread.join(timeout=3.0)
+            self._run_thread = None
+            self._run_worker = None
+            self._set_running(False)
         self._heater_driven = False
         if self.controller is not None:
             self.controller.disconnect()
@@ -668,23 +677,32 @@ class mainWindow(mainWindowUi):
         if self.controller is None:
             ErrorWindow("No backend connection: cannot run experiment.")
             return
-        if self._run_thread is not None:
-            return  # a run is already in flight
-        # Run on a worker thread: run() can block for the whole experiment
-        # (slow / finite-iso minutes-to-hours), so doing it inline would freeze
-        # the GUI and make Stop impossible. The worker writes the full record to
-        # disk and emits the RunResult; we plot it (decimated) on completion.
+        self._start_run_worker()
+
+    def _start_run_worker(self) -> bool:
+        """Launch ``controller.run()`` on a worker thread (P1-17 step 7).
+
+        ``run()`` can block for the whole experiment (slow / finite-iso last
+        minutes to hours), so doing it inline would freeze the GUI and make Stop
+        impossible. The worker writes the full record to disk and emits the
+        RunResult; we plot it (decimated) on completion. Returns False if a run
+        is already in flight or there is no backend.
+        """
+        if self.controller is None or self._run_thread is not None:
+            return False
         self._set_running(True)
         worker = _RunWorker(self.controller)
         worker.finished.connect(self._on_run_finished)
         self._run_worker = worker  # keep a reference so it is not GC'd
         self._run_thread = threading.Thread(target=worker.run, daemon=True)
         self._run_thread.start()
+        return True
 
     def _on_run_finished(self, result):
         """Main-thread slot: plot the finished run (decimated from disk)."""
         self._run_thread = None
         self._run_worker = None
+        self._heater_driven = False  # the run finished -> heater no longer driven
         self._set_running(False)
         if result is None or result.rows == 0:
             # No data (e.g. an aborted run wrote nothing); clear the result plot
@@ -700,10 +718,16 @@ class mainWindow(mainWindowUi):
             self.controller.stop_run()
 
     def _set_running(self, running: bool) -> None:
-        """Toggle button state for the duration of a run (P1-17 step 7)."""
+        """Toggle button state for the duration of a run (P1-17 step 7).
+
+        Disables every experiment-launch control (fast/slow arm+start, iso Set)
+        and the mode combo; enables Stop. The iso Off button stays enabled -- it
+        is the abort for a finite iso run.
+        """
         self.startButton.setEnabled(not running)
         self.armButton.setEnabled(not running and self._rate_confirmed)
         self.stopButton.setEnabled(running)
+        self.setTempVoltButton.setEnabled(not running and self._rate_confirmed)
         self.modeComboBox.setEnabled(not running)
 
     # ===================================
@@ -737,27 +761,35 @@ class mainWindow(mainWindowUi):
                 ErrorWindow("Iso duration must be numeric seconds, or empty for eternal hold.")
                 return
         key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
-        chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
-        self.chan_temp_volt_str = json.dumps(chan_temp_volt)
-        self._cancel_iso_timer()
-        self.controller.arm_iso_mode(self.chan_temp_volt_str)
-        # Non-blocking: drive AO and hold; the persistent AI stream keeps the
-        # live plot alive (P1-5). The heater is genuinely driven now, so the
-        # live Thtr readout is meaningful.
-        self.controller.start_iso_hold()
-        self._heater_driven = True
         if duration > 0:
-            self._iso_timer = qt.QTimer(self)
-            self._iso_timer.setSingleShot(True)
-            self._iso_timer.timeout.connect(self.unset_temp_volt)
-            self._iso_timer.start(int(duration * 1000))
+            # Finite iso experiment: arm a constant program of duration D and run
+            # it on the worker thread -- this RECORDS (raw U + calibrated T) and
+            # auto-stops after D (P1-17 step 5/7). Off acts as the abort.
+            program = {self.HEATER_CHANNEL_KEY: {
+                "time": [0, int(round(duration * 1000))], key: [value, value]}}
+            self.controller.arm_iso_mode(json.dumps(program))
+            self._heater_driven = True
+            if not self._start_run_worker():
+                self._heater_driven = False  # a run was already in flight
+        else:
+            # Eternal hold (no recording): drive AO and hold until Off. The
+            # persistent AI stream keeps the live plot alive (P1-5); the heater
+            # is genuinely driven, so the live Thtr readout is meaningful.
+            chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
+            self.chan_temp_volt_str = json.dumps(chan_temp_volt)
+            self.controller.arm_iso_mode(self.chan_temp_volt_str)
+            self.controller.start_iso_hold()
+            self._heater_driven = True
 
     def unset_temp_volt(self):
         if self.controller is None:
             return
-        # "Off": actively drive 0 V and hold it (a bare AO stop would latch the
-        # last setpoint and leave the heater hot). Cancels any pending timed
-        # program. The live Thtr readout reverts to "---" (no drive).
+        # "Off": if a finite iso run is in flight it acts as Stop (abort ->
+        # zero + finalise partial). Otherwise it ends an eternal hold by actively
+        # driving 0 V (a bare AO stop would latch the last setpoint hot).
+        if self._run_thread is not None:
+            self.controller.stop_run()
+            return
         self._cancel_iso_timer()
         chan_temp_volt = {self.HEATER_CHANNEL_KEY: {"volt": 0}}
         self.chan_temp_volt_str = json.dumps(chan_temp_volt)

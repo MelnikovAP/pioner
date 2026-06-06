@@ -423,12 +423,18 @@ harmonic scalars are needed (they were never persisted, only logged). Next:
 wired to `stop_run`; arm/start/stop + mode-combo button-state gated by
 `_set_running`; the live plot keeps updating during slow/iso off-ring runs).
 Smoke-verified offscreen; an automated offscreen GUI test belongs to P1-29 (no
-Qt test harness yet). **Remaining step 7:** **7b** unify iso onto the
-arm/start/stop buttons + wire the GUI finite-iso path (duration set -> threaded
-`run_iso_mode`, recording -- today the GUI's timed iso is still the eternal hold
-+ auto-zero, not a recorded run); **7c** the multi-segment program builder
-(P1-39) + per-segment rate validation (P1-38); temp limits (step 8); chip-detect
-gate (P1-36).
+Qt test harness yet). **7b finite-iso recording + abort -- DONE 2026-06-06**: the
+GUI iso "Set" with a duration now arms a constant duration-D program and runs it
+on the worker thread (records raw U + calibrated T, auto-stops after D) instead
+of the old eternal-hold + auto-zero; "Set" with no duration is still the eternal
+hold; "Off" aborts an in-flight finite run (`stop_run` -> zero + partial) else
+ends the hold; `_set_running` also gates the iso Set button; `disconnect` aborts
+an in-flight run first. So functionally every mode now has start (arm+Set/Start),
+stop (Stop/Off), and -- for iso -- the eternal hold; smoke-verified offscreen.
+**Remaining step 7:** **7b-cosmetic** -- collapse the iso Set/Off panel onto the
+literal arm/start/stop buttons (purely visual; the function is complete);
+**7c** the multi-segment program builder (P1-39) + per-segment rate validation
+(P1-38); temp limits (step 8); chip-detect gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
