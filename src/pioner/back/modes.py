@@ -201,6 +201,8 @@ def apply_calibration(
     calibration: Calibration,
     voltage_profiles: Dict[str, np.ndarray],
     ai_channels: Sequence[int] = DEFAULT_AI_CHANNELS,
+    taux_override: Optional[float] = None,
+    sample_offset: int = 0,
 ) -> pd.DataFrame:
     """Convert raw AI samples into engineering units (Taux, Thtr, T, ...).
 
@@ -208,13 +210,20 @@ def apply_calibration(
     several magic constants hard-coded. The amplifier gains and AD595
     correction polynomial are now read from
     :attr:`Calibration.hardware`.
+
+    ``taux_override`` / ``sample_offset`` make this safe to call **per block** on
+    a slice of a larger scan (chunked finalise, P1-17 step 4c-1). ``Taux`` is the
+    only whole-scan quantity (AD595 mean); pass the globally-computed value as
+    ``taux_override`` so every block agrees. ``sample_offset`` is the block's
+    first-sample index so the ``time`` column is continuous across blocks. The
+    defaults reproduce the original whole-frame behaviour exactly.
     """
     df = raw.copy()
     if df.empty:
         return df
 
-    # Time scale in ms.
-    df["time"] = (np.arange(len(df)) * 1000.0) / sample_rate
+    # Time scale in ms (offset by the block's first-sample index).
+    df["time"] = ((sample_offset + np.arange(len(df))) * 1000.0) / sample_rate
 
     hw = calibration.hardware
 
@@ -228,7 +237,11 @@ def apply_calibration(
     # the apply_calibration diagnostics so 50/60 Hz mains pickup on the cold
     # junction is visible quantitatively. Cheap to add (one np.fft.rfft per
     # scan); see ``shared.modulation.fft_demodulate`` for the pattern.
-    if AD595_AI in df.columns:
+    if taux_override is not None:
+        # Block-wise finalise: the caller computed the whole-scan AD595 mean in
+        # a streaming first pass and passes it here so every block agrees.
+        df["Taux"] = taux_override
+    elif AD595_AI in df.columns:
         u_aux = float(cast(pd.Series, df[AD595_AI]).mean())
         t_aux = 100.0 * u_aux
         t_aux = hw.correct_ad595(t_aux)
@@ -462,6 +475,15 @@ class SlowMode(BaseMode):
         super().__init__(*args, **kwargs)
         self._modulation = modulation
         self._modulation_channel = modulation_channel
+        # Abort flag for the injected (off-ring) path, which waits on it instead
+        # of running a finite scan. The owned finite_scan path is aborted via
+        # BaseMode.stop() -> ExperimentManager.request_stop().
+        self._stop_event = threading.Event()
+
+    def stop(self) -> None:
+        """Abort an in-flight run from another thread (owned or injected)."""
+        self._stop_event.set()
+        super().stop()  # request_stop on the owned finite_scan, if any
 
     def _build_profiles(self) -> Dict[str, np.ndarray]:
         profiles = super()._build_profiles()
@@ -486,10 +508,31 @@ class SlowMode(BaseMode):
         )
         return profiles
 
-    def run(self) -> pd.DataFrame:
+    def run(
+        self,
+        em: Optional[ExperimentManager] = None,
+        snapshot: Optional[Callable[[], np.ndarray]] = None,
+    ) -> pd.DataFrame:
+        """Run the slow ramp and return a calibrated DataFrame.
+
+        Two paths (mirroring :class:`IsoMode`):
+
+        * **Owned** (``em is None``, default / Tango / scripts): create a private
+          :class:`ExperimentManager` and run a finite AO+AI scan (CONTINUOUS AI
+          half-flip). Self-contained but the AI scan collides with a persistent
+          ring, so a caller streaming live must pause it.
+        * **Injected** (``em`` + ``snapshot`` supplied, P1-17 step 4b "off-ring"):
+          drive **only** the ramp AO on the caller's manager and read AI from
+          the caller's already-running persistent ring via ``snapshot`` -- no
+          second AI scan, so the live stream is never paused. Stops only AO.
+        """
         if not self.is_armed():
             raise RuntimeError("SlowMode is not armed; call arm() first")
+        if em is not None:
+            return self._run_injected(em, snapshot)
+        return self._run_owned()
 
+    def _run_owned(self) -> pd.DataFrame:
         with ExperimentManager(self._daq, self._settings) as em:
             self._active_em = em  # expose for stop() while the scan runs
             try:
@@ -500,28 +543,52 @@ class SlowMode(BaseMode):
                 )
             finally:
                 self._active_em = None
+        return self._finish(result.data, result.ai_rate)
+
+    def _run_injected(
+        self, em: ExperimentManager, snapshot: Optional[Callable[[], np.ndarray]]
+    ) -> pd.DataFrame:
+        self._stop_event.clear()
+        rate = self._settings.ai_params.sample_rate
+        total = int(round(rate * self.duration_seconds))
+        try:
+            # Drive the ramp (with AC if enabled) on the caller's manager. The
+            # CONTINUOUS buffer is the full ramp; we hold it for the ramp
+            # duration (or until stop()) and never let it loop.
+            em.stop_ao()
+            em.ao_modulated(self._voltage_profiles)
+            self._stop_event.wait(timeout=self.duration_seconds)
+            samples = snapshot() if snapshot is not None else np.empty((0, 0), dtype=float)
+        finally:
+            em.stop_ao()  # drop only AO; the caller's AI ring keeps running
+
+        if samples.size == 0:
+            return pd.DataFrame(columns=["time", "Taux", "Thtr", "temp", "temp-hr"])
+        # Trim to the ramp length so apply_calibration aligns Uref to the
+        # commanded ramp (extra samples would hit the iso/CONTINUOUS tiling
+        # branch, which is wrong for a non-periodic ramp).
+        samples = samples[:total]
+        return self._finish(pd.DataFrame(samples, columns=self._ai_channels), rate)
+
+    def _finish(self, raw_df: pd.DataFrame, sample_rate: float) -> pd.DataFrame:
+        """Calibrate the raw AI frame and append the lock-in columns."""
         df = apply_calibration(
-            result.data,
-            sample_rate=result.ai_rate,
+            raw_df,
+            sample_rate=sample_rate,
             calibration=self._calibration,
             voltage_profiles=self._voltage_profiles,
             ai_channels=self._ai_channels,
         )
-
-        # Lock-in: extract AC amplitude and phase of the temperature response.
-        # Only run the lock-in if both frequency and amplitude are non-zero;
-        # otherwise the bandwidth and reference are undefined.
-        # We use the *time-domain* lock-in here (not fft_demodulate) because
-        # SlowMode's DC base ramps across the scan, so the AC amplitude is a
-        # function of T and the natural observable is per-sample
-        # ``amp(t), phi(t)`` -- exactly what ``lockin_demodulate`` returns.
-        # ``fft_demodulate`` would collapse the ramp into a single scalar
-        # which is meaningless for slow mode.
+        # Lock-in: AC amplitude/phase of the temperature response. Only when
+        # both frequency and amplitude are non-zero (else the bandwidth and
+        # reference are undefined). Time-domain lock-in (not fft_demodulate)
+        # because the DC base ramps, so the natural observable is per-sample
+        # ``amp(t), phi(t)``.
         params = self._modulation or self._settings.modulation
         if params.lockin_capable and "temp-hr" in df.columns:
             amp, phase, valid = lockin_demodulate(
                 df["temp-hr"].to_numpy(),
-                sample_rate=result.ai_rate,
+                sample_rate=sample_rate,
                 frequency=params.frequency,
                 return_valid=True,
             )
@@ -909,6 +976,202 @@ def save_run_to_h5(
             profiles_group.create_dataset(chan, data=np.asarray(profile))
 
 
+def finalize_raw_to_h5(
+    raw_h5_path: str,
+    out_h5_path: str,
+    sample_rate: float,
+    calibration: Calibration,
+    settings: BackSettings,
+    voltage_profiles: Dict[str, np.ndarray],
+    programs: Dict[str, dict],
+    ai_channels: Sequence[int] = DEFAULT_AI_CHANNELS,
+    modulation: Optional[ModulationParams] = None,
+    dataset: str = "raw_ai",
+    block_rows: int = 200_000,
+    program_offset: int = 0,
+) -> Optional[dict]:
+    """Chunked calibrate: raw (U) recorder file -> separate calibrated (T) file.
+
+    Streaming finalise (P1-17 step 4c-1): the multi-channel **raw AI (U, ADC
+    volts)** is read from ``raw_h5_path`` in blocks of ``block_rows`` and written
+    to a **separate** ``out_h5_path`` (the ``exp_data.h5`` layout) in engineering
+    units, so the full multi-channel scan is **never held in RAM** -- only one
+    block at a time. The raw (U) file is left intact for re-calibration.
+
+    Two streaming passes:
+
+    * **pass 1** accumulates the AD595 (cold-junction) mean over the whole scan
+      (the only whole-scan quantity) -> ``Taux``;
+    * **pass 2** calibrates each block with that ``Taux`` and a per-block
+      ``Uref`` slice (the heater profile in ``voltage_profiles`` aligned to the
+      raw via ``program_offset`` -- the ramp begins at raw row ``program_offset``,
+      earlier rows are baseline with ``Uref = NaN``), appending the per-sample
+      columns to extendable datasets.
+
+    The AC lock-in (``temp-hr_amp/phase/valid``) needs the whole signal, so it
+    runs once at the end over the (1-D) ``temp-hr`` column read back from the
+    output -- the only non-bounded array here. Truly multi-day runs want a
+    block-wise zero-phase lock-in instead (flagged refinement, P1-17).
+
+    ``program_offset`` is the raw row where the AO program (ramp) starts -- the
+    DiskRecorder ``mark_index``. Returns a summary dict
+    ``{"path", "rows", "taux"}`` (no DataFrame -- the result lives on disk),
+    or ``None`` if the raw file holds no samples.
+    """
+    import os
+    import h5py
+
+    if os.path.abspath(raw_h5_path) == os.path.abspath(out_h5_path):
+        raise ValueError(
+            "finalize_raw_to_h5: raw (U) and calibrated (T) paths must differ "
+            f"(both {raw_h5_path!r}); the raw file must be preserved."
+        )
+    block_rows = max(1, int(block_rows))
+    channels = list(ai_channels)
+    nchan = len(channels)
+    has_ref = HEATER_AO in voltage_profiles
+    ref = np.asarray(voltage_profiles.get(HEATER_AO, []), dtype=float)
+    per_sample = [c for c in _EXP_DATA_COLUMNS if not c.startswith("temp-hr_")]
+
+    os.makedirs(os.path.dirname(os.path.abspath(out_h5_path)) or ".", exist_ok=True)
+    with h5py.File(raw_h5_path, "r") as rf:
+        if dataset not in rf:
+            logger.warning("finalize_raw_to_h5: no '%s' dataset in %s (empty run)",
+                           dataset, raw_h5_path)
+            return None
+        rds = cast("h5py.Dataset", rf[dataset])
+        n = int(rds.shape[0])
+        if n == 0:
+            return None
+        if int(rds.shape[1]) != nchan:
+            raise ValueError(
+                f"finalize_raw_to_h5: raw has {rds.shape[1]} channels but "
+                f"ai_channels has {nchan} ({channels})"
+            )
+
+        # Pass 1: streaming AD595 mean -> Taux (the only whole-scan quantity).
+        if AD595_AI in channels:
+            pos = channels.index(AD595_AI)
+            ssum, cnt = 0.0, 0
+            for s in range(0, n, block_rows):
+                col = np.asarray(rds[s:s + block_rows, pos], dtype=float)
+                ssum += float(col.sum())
+                cnt += int(col.shape[0])
+            taux = float(calibration.hardware.correct_ad595(100.0 * (ssum / cnt))) if cnt else 0.0
+        else:
+            taux = 0.0
+
+        # Pass 2: per-block calibrate -> append per-sample columns.
+        with h5py.File(out_h5_path, "w") as of:
+            data = of.create_group("data")
+            dsets: Dict[str, "h5py.Dataset"] = {}
+            written = 0
+            for s in range(0, n, block_rows):
+                block = np.asarray(rds[s:s + block_rows], dtype=float)
+                m = int(block.shape[0])
+                block_profiles: Dict[str, np.ndarray] = {}
+                if has_ref:
+                    idx = np.arange(s, s + m) - program_offset
+                    uref = np.full(m, np.nan)
+                    if ref.size:
+                        ok = (idx >= 0) & (idx < ref.size)
+                        uref[ok] = ref[idx[ok]]
+                    block_profiles[HEATER_AO] = uref
+                cal = apply_calibration(
+                    pd.DataFrame(block, columns=channels),
+                    sample_rate=sample_rate,
+                    calibration=calibration,
+                    voltage_profiles=block_profiles,
+                    ai_channels=channels,
+                    taux_override=taux,
+                    sample_offset=s,
+                )
+                for col in per_sample:
+                    if col not in cal.columns:
+                        continue
+                    arr = np.asarray(cal[col], dtype="float64")
+                    if col not in dsets:
+                        dsets[col] = data.create_dataset(
+                            col, shape=(0,), maxshape=(None,), chunks=True, dtype="float64"
+                        )
+                    dsets[col].resize(written + m, axis=0)
+                    dsets[col][written:written + m] = arr
+                written += m
+
+            # AC lock-in over the 1-D temp-hr column (read back once).
+            if modulation is not None and modulation.lockin_capable and "temp-hr" in dsets:
+                temphr = np.asarray(dsets["temp-hr"][:], dtype=float)
+                amp, phase, valid = lockin_demodulate(
+                    temphr, sample_rate=sample_rate,
+                    frequency=modulation.frequency, return_valid=True,
+                )
+                for col, arr in (
+                    ("temp-hr_amp", amp),
+                    ("temp-hr_phase", phase),
+                    ("temp-hr_valid", np.asarray(valid, dtype=float)),
+                ):
+                    data.create_dataset(col, data=np.asarray(arr, dtype="float64"))
+
+            # Metadata groups (mirror save_run_to_h5).
+            of.create_dataset("calibration", data=calibration.get_str())
+            of.create_dataset("settings", data=settings.get_str())
+            prog_group = of.create_group("temp_volt_programs")
+            for chan, table in programs.items():
+                pg = prog_group.create_group(chan)
+                if "time" in table:
+                    pg.create_dataset("time", data=np.asarray(table["time"]))
+                    key = next(k for k in table if k != "time")
+                    pg.create_dataset(key, data=np.asarray(table[key]))
+                else:
+                    for key, val in table.items():
+                        pg.create_dataset(key, data=np.asarray([val]))
+            prof_group = of.create_group("voltage_profiles")
+            for chan, profile in voltage_profiles.items():
+                prof_group.create_dataset(chan, data=np.asarray(profile))
+
+    logger.info("finalize_raw_to_h5: %s (U, %d rows) -> %s (T), Taux=%.4g",
+                raw_h5_path, n, out_h5_path, taux)
+    return {"path": out_h5_path, "rows": int(written), "taux": float(taux)}
+
+
+def read_calibrated_h5(
+    path: str,
+    columns: Optional[Sequence[str]] = None,
+    step: int = 1,
+    max_points: Optional[int] = None,
+) -> Dict[str, np.ndarray]:
+    """Read **decimated** columns from a calibrated (T) exp_data file (P1-17 4c-2).
+
+    For the GUI result view, which must never load a full multi-hour record.
+    Decimation is by **stride** -- keep every ``step``-th sample. If
+    ``max_points`` is given it overrides ``step`` with ``ceil(rows / max_points)``
+    so each returned column has at most ``max_points`` samples. (Stride keeps it
+    simple; min/max-per-bin decimation that preserves narrow spikes is a future
+    fidelity option.)
+
+    Returns a dict of column name -> 1-D array (empty if the file has no
+    ``data`` group or none of the requested columns).
+    """
+    import h5py
+
+    result: Dict[str, np.ndarray] = {}
+    with h5py.File(path, "r") as f:
+        if "data" not in f:
+            return result
+        data = cast("h5py.Group", f["data"])
+        avail = list(data.keys())
+        cols = [c for c in (list(columns) if columns is not None else avail) if c in avail]
+        if not cols:
+            return result
+        rows = int(cast("h5py.Dataset", data[cols[0]]).shape[0])
+        stride = max(1, int(step))
+        if max_points is not None and max_points > 0 and rows > max_points:
+            stride = int(np.ceil(rows / max_points))
+        for c in cols:
+            result[c] = np.asarray(cast("h5py.Dataset", data[c])[::stride], dtype=float)
+    return result
+
+
 __all__ = [
     "DEFAULT_AI_CHANNELS",
     "BaseMode",
@@ -918,5 +1181,7 @@ __all__ = [
     "create_mode",
     "apply_calibration",
     "save_run_to_h5",
+    "finalize_raw_to_h5",
+    "read_calibrated_h5",
     "ChannelProgram",
 ]

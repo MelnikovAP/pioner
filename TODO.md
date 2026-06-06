@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **132 passed** (mock backend, ~30 s).
+- `pytest tests/`: **141 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -323,6 +323,23 @@ the heater, finalise the save". Button gating: `start` disabled until `arm`,
   more drain margin than the 20 kHz that triggered the OVERRUN postmortem, but
   **soak-test on real hardware for full slow-ramp durations** (mock cannot
   prove it).
+
+  *Step-4 breakdown (decided 2026-06-06):*
+  - **4a finalize.** The DiskRecorder writes a **raw (U, ADC volts) file**;
+    finalize reads it back, runs `apply_calibration` (AO program offset by the
+    cursor), and writes a **separate calibrated (T, engineering units) file
+    under a different name** -- keep both (raw for re-calibration, calibrated as
+    the result). Do not overwrite the raw with the calibrated output.
+  - **4b** slow drives only the AO ramp and reads AI from the persistent ring
+    (no own finite scan, no live pause) -- the `_run_iso_streaming` pattern
+    (injected `em` + `snapshot`).
+  - **4c orchestration** (`arm`=baseline, `start`=cursor/`mark_start`,
+    end=finalize, early `stop`=`zero_ao`+partial) is **shared by slow and the
+    finite-iso path** -- wired for slow here, reused in step 5 for iso.
+  - **4d** is a **real-hardware bench procedure**, NOT a mock unit test:
+    a `docs/hardware-bringup.md` checklist (+ optional live-DAQ-only script)
+    that runs a long ramp, asserts no `OVERRUN`, and measures residual AO/AI
+    skew. Not in CI.
 - **iso -- two paths**, selected by whether the duration field is set:
   - *Eternal hold* (duration empty, exists today): `start_iso_hold` drives AO
     DC+AC, live from ring, **no recording**, `stop` -> `zero_ao`.
@@ -370,9 +387,24 @@ to the existing `safe_voltage` clamp.
 *Implementation order:* (1) per-mode rate + Apply gate -- **DONE 2026-06-05**
 (settings/controller/GUI; see README invariants); (2) DiskRecorder capture core
 -- **DONE 2026-06-06** (wiring pending); interruptible-run + Stop backend --
-**DONE 2026-06-06** (GUI threading + Stop button pending); (3) slow off-ring
-(needs the recorder wired + cursor); (4) iso two paths; (5) GUI three-button
-lifecycle + Stop button + temp limits + chip-detect gate (P1-36).
+**DONE 2026-06-06** (GUI threading + Stop button pending); (3) slow off-ring:
+**4a finalize** -- **DONE 2026-06-06** (`modes.finalize_raw_to_h5`: **chunked**
+streaming raw U file -> separate calibrated T file, never the full multi-channel
+scan in RAM; 2-pass AD595-mean + per-block calibrate, lock-in on the 1-D temp-hr
+column, `program_offset` aligns the ramp; returns a summary dict, not a frame).
+**4c-2 decimated reader** -- **DONE 2026-06-06** (`modes.read_calibrated_h5`,
+stride / `max_points` for the GUI result view). **4b SlowMode injected/off-ring
+path** -- **DONE 2026-06-06** (`SlowMode.run(em, snapshot)`). **Streaming data
+model (decided 2026-06-06):** `run()` returns **paths + summary, not a
+DataFrame**; the full record lives only on disk (recorder raw U -> finalize T);
+live view reads the ring (bounded) + the T file decimated. Only remaining
+non-bounded bit: the 1-D temp-hr column for the lock-in (block-wise zero-phase
+lock-in for multi-day = future refinement). **4c-3 controller orchestration**
+(`_run_slow_streaming`: DiskRecorder + cursor/mark + finalize, `run()` returns
+paths; stop = zero + finalize partial `aborted`) -- NEXT; **4d HW soak**
+(overrun/skew bench procedure, not CI) -- pending hardware. (4) iso two paths
+(reuse 4c-3); (5) GUI three-button lifecycle + Stop button + temp limits +
+chip-detect gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 

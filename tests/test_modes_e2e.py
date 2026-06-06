@@ -459,3 +459,59 @@ def test_mode_stop_without_run_is_noop(connected_daq, settings, calibration):
     mode = FastHeat(connected_daq, settings, calibration, programs)
     mode.arm()
     mode.stop()  # must not raise
+
+
+# --- slow off-ring: injected ring + snapshot (P1-17 step 4b) ----------------
+
+def test_slow_mode_injected_off_ring(connected_daq, settings, calibration):
+    """Injected path: SlowMode drives only AO and reads AI from a caller-supplied
+    snapshot (the persistent ring), never starting its own AI scan. The frame is
+    calibrated and trimmed to the ramp length."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    settings.modulation = settings.modulation.with_amplitude(0.0)  # no lock-in
+    rate = settings.ai_params.sample_rate
+    programs = {
+        "ch0": {"time": [0, 400], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 400], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    total = int(round(rate * 0.4))
+    # Snapshot returns MORE rows than the ramp -> must be trimmed to `total`
+    # (else apply_calibration would tile Uref, wrong for a ramp).
+    fake = np.random.default_rng(0).uniform(0.0, 1.0,
+                                            size=(total + 64, len(DEFAULT_AI_CHANNELS)))
+    with ExperimentManager(connected_daq, settings) as em:
+        df = mode.run(em=em, snapshot=lambda: fake)
+    assert len(df) == total
+    for col in ("time", "Taux", "Thtr", "temp", "Uref"):
+        assert col in df.columns
+
+
+def test_slow_mode_injected_stop_interrupts(connected_daq, settings, calibration):
+    """stop() interrupts the injected ramp wait promptly (no own scan to cancel,
+    so it must be the _stop_event path)."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    programs = {
+        "ch0": {"time": [0, 5000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 5000], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    holder: dict = {}
+    with ExperimentManager(connected_daq, settings) as em:
+        def _run():
+            holder["df"] = mode.run(
+                em=em,
+                snapshot=lambda: np.zeros((10, len(DEFAULT_AI_CHANNELS))),
+            )
+        t = threading.Thread(target=_run)
+        t.start()
+        time.sleep(0.2)
+        mode.stop()
+        t.join(timeout=2.0)        # 5 s ramp; only passes if stop interrupted it
+        assert not t.is_alive(), "injected slow run did not stop"
+    assert "df" in holder
