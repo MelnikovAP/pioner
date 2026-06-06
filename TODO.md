@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **131 passed** (mock backend, ~30 s).
+- `pytest tests/`: **132 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -305,7 +305,9 @@ the heater, finalise the save". Button gating: `start` disabled until `arm`,
   the GUI shows the full planned temperature program T(t)** in the plot (since
   live is frozen, the operator sees what is about to run). `start` = AI-arm then
   AO back-to-back (AI-first, P0-5) in a tight critical section -> read once ->
-  resume ring at 2 kHz (then the result frame replaces the program plot). No
+  resume ring at the rate that was active **before** fast was armed (the last
+  monitor rate; the `default` if none), then the result frame replaces the
+  program plot. No
   baseline (set by hand in the temperature program). AI-arm sits on `start`
   (not `arm`) precisely because there is no trigger -- see P0-5 note. Jitter
   minimisation: tight back-to-back issue + post-hoc leading-edge detection (the
@@ -332,16 +334,21 @@ the heater, finalise the save". Button gating: `start` disabled until `arm`,
 
 *DiskRecorder (P1-17 item b).* **Capture core DONE 2026-06-06**
 (`back/acquisition/disk_recorder.py`, `tests/test_disk_recorder.py`): a ring
-consumer that `start()`s at arm (primes the cursor at head via
-`reset_ring_cursor` + a discarded `read_new`, then a background thread drains
-raw AI), `mark_start()` records the baseline|run boundary row, and `stop()`
-returns the assembled raw frame `(rows, channels)` plus `mark_index`. Draining
-is serialized under one lock so chunk order is preserved. **Still to wire (steps
-4/5):** call it from slow / finite-iso, and at finalise run `apply_calibration`
-(AO program offset by the cursor) + `save_run_to_h5`. Records **raw AI** in
-memory for now; incremental-to-disk append is a later optimisation. Fast does
-not use it (single-shot, no baseline). Drains every `poll_interval` (< ring
-depth) so a long run does not overflow the ring.
+consumer that **streams raw AI straight to an extendable HDF5 dataset** -- host
+memory stays flat regardless of run length, so multi-hour / multi-day slow and
+finite-iso runs do not accumulate samples in RAM (the requirement that motivated
+streaming over an in-memory buffer; verified lossless/order-preserving).
+`start()` at arm opens the file + primes the cursor at head (`reset_ring_cursor`
++ a discarded `read_new`); a background thread appends each drained chunk
+(`resize`+write); `mark_start()` records the baseline|run boundary row; `stop()`
+writes `mark_index`/`rows` attrs and returns the file path. Every HDF5 access is
+under one lock (h5py is not thread-safe) which also serializes drains so chunk
+order is preserved. Drains every `poll_interval` (< ring depth) so a long run
+does not overflow the ring. Fast does not use it (single-shot, no baseline).
+**Still to wire (steps 4/5):** call it from slow / finite-iso, and at finalise
+read the raw back to run `apply_calibration` (AO program offset by the cursor) +
+`save_run_to_h5`. (Finalise still calibrates a full frame in RAM; chunked
+finalise-calibration for truly huge files is a later refinement.)
 
 *Interruptible run + Stop.* **Backend DONE 2026-06-06.** `ExperimentManager`
 has `request_stop()` + a `_cancel` event the collect loops
@@ -679,7 +686,9 @@ parser with clear errors on malformed files; UI combo lists `experiment-config/
 
 ### P1-36. Chip-presence detection -- gate arm/start/stop
 
-**Priority: high (safety).** **Where:** `back/experiment_manager.py` /
+**Priority: medium.** (Gates the arm/start/stop lifecycle, but the
+`safe_voltage` clamp + heater-zero-on-abort already protect the chip, so it is
+not a release blocker.) **Where:** `back/experiment_manager.py` /
 `back/device_controller.py`, `front/` (button gating). **Related:** P2-24
 (heater broken/shorted thresholds) -- same primitive.
 
@@ -698,6 +707,25 @@ present. The heater-voltage feedback on AI ch5 (`UHTR_AI`) can cross-check.
 Same family as Bondar's broken/shorted-heater thresholds (P2-24). **Unknowns to
 confirm before coding:** whether a dedicated presence pin exists, the exact
 wiring, and the proxy threshold. Do not implement the threshold from a guess.
+
+**Questions for the physicists / hardware engineers (BLOCKS coding -- 2026-06-06):**
+1. Is there a **dedicated chip-presence signal** (a pin / DIO line), or must we
+   infer presence purely electrically?
+2. Probe method: drive a small voltage on AO ch1 (heater) and read the
+   current proxy on AI ch0. What proxy value (V) is expected **with a good chip**
+   vs an **open circuit** (no chip / broken heater)? -> gives the threshold.
+3. What is a **safe probe voltage** (and max dwell) that will not heat or damage
+   the chip during the presence check?
+4. Heater nominal R ~ 1700 Ohm -- what current / proxy reading does the probe
+   voltage imply, as a sanity cross-check?
+5. Can AI ch5 (`UHTR_AI`, heater-voltage feedback) cross-check open-vs-connected?
+6. Is the check valid only at room temperature / before any drive, or anytime?
+7. Do we need to distinguish "no chip" from "broken / shorted heater"
+   (the P2-24 thresholds), or is a single present/absent flag enough?
+8. Any settling time / filtering required before reading the proxy?
+
+Until these are answered the threshold cannot be set; do not implement it from a
+guess.
 
 **Action (after confirmation):** `DeviceController.chip_present() -> bool`
 (probe + threshold); poll it for the button-enable state; re-check at `arm`.

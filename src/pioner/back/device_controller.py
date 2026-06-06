@@ -231,6 +231,9 @@ class LocalDeviceController(DeviceController):
         self._mode_name: str = ""
         self._last_programs: dict = {}
         self._ai_channels: list[int] = []
+        # Active sample rate before fast was armed (fast switches to 20 kHz);
+        # the ring is resumed at this rate after a fast run (P1-17 fast bullet).
+        self._pre_fast_rate: Optional[int] = None
         # True while an eternal iso hold (start_iso_hold) is driving AO.
         self._iso_holding: bool = False
 
@@ -398,7 +401,13 @@ class LocalDeviceController(DeviceController):
         # otherwise briefly empty it and stall the stream (e.g. iso == default).
         desired_rate = self.rate_for_mode(self._mode_name)
         self._validate_rate(desired_rate)
-        if desired_rate != self.get_sample_rate():
+        current_rate = self.get_sample_rate()
+        if desired_rate != current_rate:
+            # Remember the monitor rate before fast so run() can restore it when
+            # the (20 kHz) fast scan finishes -- the ring goes back to its
+            # pre-fast cadence rather than staying at 20 kHz.
+            if self._mode_name == "fast":
+                self._pre_fast_rate = current_rate
             self.set_sample_rate(desired_rate)
         self._mode = create_mode(
             self._mode_name,
@@ -429,6 +438,12 @@ class LocalDeviceController(DeviceController):
             try:
                 df = self._mode.run()
             finally:
+                # Fast ran at 20 kHz; restore the pre-fast monitor rate before
+                # the ring is brought back up so live monitoring resumes at the
+                # rate that was active before fast was armed (P1-17 fast bullet).
+                if self._mode_name == "fast" and self._pre_fast_rate is not None:
+                    self.set_sample_rate(self._pre_fast_rate)
+                    self._pre_fast_rate = None
                 self._resume_stream()
         if df is not None and not df.empty:
             try:

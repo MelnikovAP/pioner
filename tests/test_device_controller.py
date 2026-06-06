@@ -115,6 +115,15 @@ class TestSampleRate:
         local_controller.arm_fast_heat(TestExperiment._FAST)
         assert local_controller.get_sample_rate() == 20000
 
+    def test_fast_run_restores_pre_fast_rate(self, local_controller):
+        # Fast arms at 20 kHz, but after the run the ring returns to the rate
+        # active before fast (the monitor default), not stays at 20 kHz.
+        assert local_controller.get_sample_rate() == 2000
+        local_controller.arm_fast_heat(TestExperiment._FAST)
+        assert local_controller.get_sample_rate() == 20000
+        local_controller.run_fast_heat()
+        assert local_controller.get_sample_rate() == 2000
+
     def test_override_mode_rate_is_used_on_arm(self, local_controller):
         # The UI 'Apply' overrides a mode's rate for the session; a later arm
         # of that mode must pick it up.

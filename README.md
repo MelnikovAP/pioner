@@ -398,7 +398,7 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**131 tests, ~30 seconds** locally.
+**132 tests, ~30 seconds** locally.
 
 ---
 
