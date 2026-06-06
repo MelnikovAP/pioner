@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (112 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (122 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - GUI (single window, all modes + live streaming): `python -m pioner.runUI
   --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
@@ -148,10 +148,14 @@ Rules:
 - If you cannot do something the user asked for (missing data, wrong tool,
   environment limit) - say so directly. Do not produce a plausible-looking but
   fabricated result.
-- Don't invent unit/scale assumptions. Calibration `ihtr1` is in `1/Ω` (so
-  `ih = ihtr0 + ihtr1 * V_shunt` is in amperes). The default test calibration
-  uses identity `ihtr1 = 1.0` and is dimensionally meaningless — never use it
-  to back out physical numbers. State the unit convention you assumed.
+- Don't invent unit/scale assumptions. Production (and the bundled defaults)
+  use identity `ihtr0 = 0.0, ihtr1 = 1.0`, so `ih = ihtr0 + ihtr1 * V_ch0 =
+  V_ch0` in **volts** — a voltage proxy for heater current, NOT amperes. AI ch0
+  is the node after the series resistor, not a calibrated shunt with a known
+  `R_shunt`, so `Rhtr = U/ih` is dimensionless (V/V) and the `Thtr` polynomial
+  absorbs the scaling. Never back out physical amperes/ohms from these. A proper
+  SI calibration is future work (`TODO.md` P2-21). State the unit convention you
+  assumed.
 
 ## Conventions
 
@@ -176,17 +180,20 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
 - **Units in identifiers and comments.** Time is **ms** in user-facing arrays
   (program tables, GUI), **s** at the DAQ boundary. Voltages are **V** at the
   AO/AI boundary, **mV** after front-end gain (`df[4] *= 1000/gain_utpl`,
-  `df[5] *= 1000`). Currents are **A** after `ihtr1` is applied. When you add
-  a variable, name or comment its unit (`time_s`, `u_aux  # V`,
-  `ih  # amperes`).
+  `df[5] *= 1000`). The heater-current proxy `ih` is in **V** (production
+  `ihtr1 = 1`, so `ih = V_ch0`), NOT amperes. When you add a variable, name or
+  comment its unit (`time_s`, `u_aux  # V`, `ih  # V (current proxy)`).
 - **Don't mix °C and K.** Chip calibration polynomials and AD595 correction
   are in °C; never feed them Kelvin. Heater target temperature in user
   programs is °C.
 - **Calibration dimensions.** `apply_calibration` in
-  `src/pioner/back/modes.py` assumes `ih = ihtr0 + ihtr1 * V_shunt` yields
-  amperes, so production `ihtr1 ≈ 1/Rshunt ≈ 5.88e-4` (Rshunt ≈ 1700 Ω).
-  Identity `ihtr1 = 1.0` is the **test fallback only** — `Rhtr` derived from
-  it has units of `Ω·V/A`, not Ω. See `TODO.md` P0-3.
+  `src/pioner/back/modes.py` computes `ih = ihtr0 + ihtr1 * V_ch0`. Production
+  (and the bundled defaults) use `ihtr0 = 0.0, ihtr1 = 1.0`, so `ih = V_ch0` in
+  **volts** — a proxy for heater current, not amperes (AI ch0 is not a
+  calibrated shunt). `Rhtr = U/ih` is therefore dimensionless (V/V) and the
+  `Thtr` polynomial absorbs the implicit scaling. A future SI calibration
+  (`ihtr1 ~ 1/R_shunt`, `ih` in amperes, `Rhtr` in ohms) is tracked in
+  `TODO.md` P2-21 — do not assume it is in effect. See also P0-3.
 - **Heater R undefined at zero current.** When `|ih| < 1e-9 A` mark `Rhtr` as
   NaN. Never let `R = U/0` propagate; the legacy code produced ~−1070 °C and
   it took a long time to track down.

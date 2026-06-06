@@ -79,7 +79,7 @@ activated automatically — no env var or flag required.
 - `test_modulation.py` — `apply_modulation`, lock-in amplitude/phase recovery
   with known phase lag, invalid input rejection.
 
-`pytest tests/` → **112 passed in ~30 s**. `python -m pioner.back.debug` runs
+`pytest tests/` → **122 passed in ~30 s**. `python -m pioner.back.debug` runs
 all three modes end-to-end without errors.
 
 ---
@@ -105,13 +105,12 @@ be re-validated on real hardware before MVP sign-off.
    together; mock-tested but not yet validated against a physical board.
    Tracked as `TODO.md` P0-5.
 
-3. **`Ihtr` / `Rhtr` dimensions** — With the default identity calibration
-   `ihtr1 = 1.0`, the formula `Rhtr = (Uhtr_mV − V_shunt·1000 + uhtr0) ·
-   uhtr1 / Ihtr` produces a number in `[Ω·V/A]`, not Ω. Tests pass because
-   identity is dimensionally consistent in itself, but the production
-   `calibration.json` must set `ihtr1 ≈ 1/R_shunt ≈ 5.88e-4` for real Ω.
-   Tracked as `TODO.md` P0-3 — needs a conversation with the physicist
-   before MVP claims about heater resistance.
+3. **`Ihtr` / `Rhtr` dimensions** — Production (and the bundled defaults) use
+   the identity `ihtr0=0, ihtr1=1`, so `ih = V_ch0` is a voltage proxy and
+   `Rhtr = (U_AI5 − U_AI0 + uhtr0) · uhtr1 / Ihtr` is **dimensionless** (V/V),
+   by design — the `Thtr` polynomial absorbs the scaling (settled in P0-3, no
+   physical ohms are claimed). A proper SI calibration (`ihtr1 ~ 1/R_shunt`,
+   `Rhtr` in ohms) is future work, `TODO.md` P2-21.
 
 4. **AD595 cold-junction drift** — `apply_calibration` averages `df[3]` over
    the entire scan. On slow ramps longer than ~30 s the cold-junction can
@@ -161,7 +160,7 @@ Iso mode: 20000 samples
 PYTHONPATH=src .venv/bin/pytest tests/ -v
 ```
 
-112 tests, ~30 s. If any fail, do not move on. The pinned-down physics
+122 tests, ~30 s. If any fail, do not move on. The pinned-down physics
 checks (FFT amplitude/frequency on the AC drive, lock-in amplitude vs
 the analytical expected value, `Uref` tiling for finite / CONTINUOUS /
 DC-iso paths, AO period integrity, T->V inversion endpoints and
@@ -234,8 +233,9 @@ arm / run` wiring before real hardware.
 
 Before the first real-hardware run, three items in `TODO.md` need attention:
 
-1. **P0-3** — Confirm `ihtr1` semantics with the physicist; commit a
-   production `calibration.json` with `ihtr1 ≈ 1/R_shunt`.
+1. **P0-3** — *Settled:* `ihtr1` is intentionally the identity (`ih = V_ch0`,
+   a voltage proxy; `Rhtr` dimensionless). No physical-amperes claims. A future
+   SI calibration is `TODO.md` P2-21, not a blocker.
 2. **P0-5** — Plan the hardware-trigger upgrade (`RETRIGGER` /
    `EXTTRIGGER`) so AO and AI start on the same DAQ pulse.
 3. Awareness of the mock's coherent ~196 Hz noise tone (P1-15) and the

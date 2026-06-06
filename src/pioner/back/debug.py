@@ -18,6 +18,17 @@ from pioner.back.modes import create_mode
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 
+def _use_mode_rate(settings: BackSettings, mode: str) -> None:
+    """Switch the active AI/AO rate to ``mode``'s configured value (P1-31).
+
+    Mirrors what ``LocalDeviceController.arm`` does for the GUI path; here the
+    smoke test drives modes directly, so apply the per-mode rate by hand.
+    """
+    rate = settings.sample_rate_by_mode[mode]
+    settings.ai_params.sample_rate = rate
+    settings.ao_params.sample_rate = rate
+
+
 def main() -> None:
     settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
     calibration = Calibration()
@@ -30,6 +41,7 @@ def main() -> None:
             "ch1": {"time": [0, 500, 1000], "volt": [0, 1, 0]},
             "ch2": {"time": [0, 1000], "volt": [5, 5]},
         }
+        _use_mode_rate(settings, "fast")
         mode = create_mode("fast", daq, settings, calibration, fast_programs)
         mode.arm()
         df = mode.run()
@@ -40,6 +52,7 @@ def main() -> None:
             "ch0": {"time": [0, 2000], "volt": [0.1, 0.1]},
             "ch1": {"time": [0, 2000], "volt": [0, 1]},
         }
+        _use_mode_rate(settings, "slow")
         mode = create_mode("slow", daq, settings, calibration, slow_programs)
         mode.arm()
         df = mode.run()
@@ -54,6 +67,7 @@ def main() -> None:
         }
         from pioner.back.iso_mode import IsoMode
 
+        _use_mode_rate(settings, "iso")
         iso = IsoMode(daq, settings, iso_programs, calibration, duration_seconds=1)
         iso.arm()
         df = iso.run(do_ai=True, duration_seconds=1.0)

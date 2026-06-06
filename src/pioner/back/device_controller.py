@@ -106,6 +106,21 @@ class DeviceController(abc.ABC):
     def get_sample_rate(self) -> int:
         ...
 
+    def rate_for_mode(self, mode_name: str) -> int:
+        """Configured sample rate for ``mode_name`` (P1-31).
+
+        Base fallback: the single active rate. ``LocalDeviceController``
+        overrides this with the per-mode map from settings.
+        """
+        return self.get_sample_rate()
+
+    def override_mode_rate(self, mode_name: str, rate: int) -> None:
+        """Set the session sample rate for ``mode_name`` (the UI 'Apply').
+
+        Base fallback: just set the single active rate (no per-mode map).
+        """
+        self.set_sample_rate(rate)
+
     # ------------------------------------------------------------------
     # Experiment (mode arm/run)
     # ------------------------------------------------------------------
@@ -301,6 +316,26 @@ class LocalDeviceController(DeviceController):
         return json.loads(self._calibration.get_str())
 
     # -- sample rate ---------------------------------------------------
+    def _validate_rate(self, rate: int) -> None:
+        """Fail loud on a sample rate the pipeline cannot honour (P1-31).
+
+        - positive;
+        - even (the persistent ring and the slow/iso CONTINUOUS path both use
+          the 1 s half-buffer flip, which needs an even length);
+        - above the lock-in Nyquist (``f_mod < rate / 2``) whenever AC
+          modulation is configured.
+        """
+        if rate <= 0:
+            raise ValueError(f"sample rate must be positive, got {rate}")
+        if rate % 2 != 0:
+            raise ValueError(f"sample rate must be even (half-buffer flip), got {rate}")
+        f_mod = float(getattr(self._settings.modulation, "frequency", 0.0) or 0.0)
+        if f_mod > 0 and rate <= 2 * f_mod:
+            raise ValueError(
+                f"sample rate {rate} Hz is below the lock-in Nyquist for "
+                f"f_mod={f_mod} Hz (need rate > {2 * f_mod})"
+            )
+
     def set_sample_rate(self, rate: int) -> None:
         rate = int(rate)
         self._settings.ai_params.sample_rate = rate
@@ -325,12 +360,46 @@ class LocalDeviceController(DeviceController):
     def get_sample_rate(self) -> int:
         return int(self._settings.ai_params.sample_rate)
 
+    def rate_for_mode(self, mode_name: str) -> int:
+        """Configured rate for ``mode_name`` from the per-mode map (P1-31).
+
+        Falls back to the ``default`` entry for unknown modes, and to the
+        single active rate if the settings predate the per-mode map.
+        """
+        by_mode = getattr(self._settings, "sample_rate_by_mode", None)
+        if not by_mode:
+            return self.get_sample_rate()
+        key = (mode_name or "").lower().strip()
+        return int(by_mode.get(key, by_mode["default"]))
+
+    def override_mode_rate(self, mode_name: str, rate: int) -> None:
+        """Session override of a mode's rate (the UI 'Apply' button).
+
+        Records the value in the per-mode map so a later ``arm`` of that mode
+        picks it up, then applies it as the active rate immediately.
+        """
+        rate = int(rate)
+        self._validate_rate(rate)
+        by_mode = getattr(self._settings, "sample_rate_by_mode", None)
+        if by_mode is not None:
+            by_mode[(mode_name or "").lower().strip()] = rate
+        self.set_sample_rate(rate)
+
     # -- experiment ----------------------------------------------------
     def arm(self, mode_name: str, programs_json: str) -> None:
         if self._daq is None:
             raise RuntimeError("LocalDeviceController is not connected")
         programs = json.loads(programs_json)
         self._mode_name = mode_name.lower().strip()
+        # Apply this mode's configured (or session-overridden) sample rate
+        # before building the mode, which reads ai_params.sample_rate (P1-31).
+        # AO == AI is kept by set_sample_rate. Only switch when the rate
+        # actually changes: set_sample_rate restarts the live ring, which would
+        # otherwise briefly empty it and stall the stream (e.g. iso == default).
+        desired_rate = self.rate_for_mode(self._mode_name)
+        self._validate_rate(desired_rate)
+        if desired_rate != self.get_sample_rate():
+            self.set_sample_rate(desired_rate)
         self._mode = create_mode(
             self._mode_name,
             self._daq,

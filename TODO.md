@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **112 passed** (mock backend, ~30 s).
+- `pytest tests/`: **122 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -119,6 +119,17 @@ trigger line** (no DIO/jumper wired to the board trigger input). So the
 planned path is the **per-host software offset trim** (measure the persistent
 skew once, store it, trim the leading N samples in `apply_calibration`) rather
 than wiring a trigger.
+
+**Note (arm/start workflow, 2026-06-05):** the absence of a hardware trigger
+is what forces fast's AI-arm (begin acquisition) to live on **start**, not on
+**arm**. Without a trigger an armed AI scan acquires immediately, so a human
+pause between arm and start would fill fast's single-shot buffer with baseline
+before the event fires. Today fast's **arm** therefore only reconfigures the AI
+device to the fast rate (and pauses the live ring); **start** does AI-arm then
+AO back-to-back (AI-first, ms apart). If a trigger line is ever added, AI can
+prime-and-wait at **arm** and **start** just fires `fire_software_trigger`,
+restoring the natural arm=prime / start=fire model and removing the leading-edge
+latency window. See the P1-17 "Plan 2026-06-05" block for the arm/start design.
 
 **Open:** if/when skew matters, implement the software offset-trim. (The
 `EXTTRIGGER` loopback validation only applies if a trigger line is ever added.)
@@ -269,6 +280,78 @@ but is unverified -- repair when Tango becomes relevant again.
 current) because the NaN-at-zero-current threshold (1e-9 A) is below mock
 noise; suppress R/T readout when no AO drive is active, or raise the
 threshold. See P0-3.
+
+**Plan (2026-06-05): unified arm/start/stop workflow + record-from-arm.**
+Design agreed with the operator. Reframes live streaming as the *default device
+state* (not a mode) and gives every experiment a three-button lifecycle.
+
+*Mental model.* A single persistent AI provider (the ring) runs from Connect to
+Disconnect. The "default state" is a room-temperature / zero isotherm: watch the
+modulated ch0 signal and optionally set the (infinite) hold temperature. There
+is exactly **one AI scan on the USB-2637 at a time** -- that hardware fact is
+why iso/slow read from the ring while fast must own a separate scan.
+
+*Three-button lifecycle (all modes).* `arm` = "signals OK, prepare / start
+recording baseline"; `start` = "launch the experiment"; `stop` = "abort, zero
+the heater, finalise the save". Button gating: `start` disabled until `arm`,
+`stop` disabled until `start`, `arm` disabled until `Apply` (the per-mode rate
++ Apply gate landed 2026-06-05) and until a chip is detected (P1-36).
+
+*Per mode (rate from the per-mode map in settings; landed 2026-06-05):*
+- **fast** (20 kHz, own single-shot DEFAULTIO scan): `arm` = pause ring +
+  reconfigure AI to 20 kHz (configure only, NOT acquiring -- live plot freezes
+  during the arm->start wait, accepted). `start` = AI-arm then AO back-to-back
+  (AI-first, P0-5) in a tight critical section -> read once -> resume ring at
+  2 kHz. No baseline (set by hand in the temperature program). AI-arm sits on
+  `start` (not `arm`) precisely because there is no trigger -- see P0-5 note.
+  Jitter minimisation: tight back-to-back issue + post-hoc leading-edge
+  detection (the rise is in the captured baseline). Fast `stop` is low value
+  (sub-second) but must still zero AO cleanly; **fast zeroing is optional for
+  now (operator)**.
+- **slow** (2 kHz == monitor rate, reads from persistent ring, **no pause** --
+  this is the long-deferred "Approach A"): `arm` = start the DiskRecorder
+  (baseline begins from the live ring, plot uninterrupted). `start` = launch the
+  ramp + set the start-cursor (the ring read-index marking ramp t=0). Dataset =
+  `[baseline][ramp]`. `stop` must be available and zero the heater. AO/AI
+  alignment is by the software start-cursor (jitter is negligible for a slow
+  ramp; measure residual skew on HW, P0-5). Overrun: 2 kHz CONTINUOUS has ~10x
+  more drain margin than the 20 kHz that triggered the OVERRUN postmortem, but
+  **soak-test on real hardware for full slow-ramp durations** (mock cannot
+  prove it).
+- **iso -- two paths**, selected by whether the duration field is set:
+  - *Eternal hold* (duration empty, exists today): `start_iso_hold` drives AO
+    DC+AC, live from ring, **no recording**, `stop` -> `zero_ao`.
+  - *Finite iso experiment* (duration set, NEW): `arm` = start DiskRecorder
+    (baseline); `start` = mark cursor + drive AO to the target **T > room temp
+    (heating-only, no cryostat yet)** + AC; auto-stop after `total_ms`; finalise
+    -> save h5. `stop` aborts early -> `zero_ao` + save partial (marked
+    aborted).
+
+*DiskRecorder (P1-17 item b, now needed -- gating dependency).* A ring consumer
+that records from `arm`. `start(provider)` at arm: `reset_ring_cursor` -> open
+h5 (append) -> background drain loop appends raw AI via `read_new`.
+`mark_start()` at start: store the current sample index as experiment t=0.
+`stop()` at end/stop: final drain, flush, close, then `apply_calibration`
+(using the AO program offset by the cursor) and `save_run_to_h5`. Record **raw
+AI**, calibrate at finalise. Works for slow and finite-iso (both ring
+consumers); fast does not use it (single-shot, no baseline -- keeps its
+end-of-scan `save_run_to_h5`). Drain frequently to stay ahead of overrun.
+
+*Interruptible run + Stop button (P1-17 follow-on).* Today `run()` blocks, so
+only an iso hold is stoppable. To make `stop` work for slow/fast the collect
+loops (`_collect_finite_ai`, `_collect_finite_ai_single_shot`) must poll a
+cancel flag; `stop` then `scan_stop`s AO+AI, calls `zero_ao()`, and finalises
+the DiskRecorder (partial save marked aborted).
+
+*Temperature limits (config, no cryostat yet).* Add `min`/`max` experiment
+temperature to settings (decided: **min 0 C, max 300 C**, heating-only). Reject
+programs / iso targets outside `[min, max]` at validation; this is in addition
+to the existing `safe_voltage` clamp.
+
+*Implementation order:* (1) per-mode rate + Apply gate -- **DONE 2026-06-05**
+(in settings/controller/GUI; see README invariants); (2) DiskRecorder;
+(3) slow off-ring (needs 2 + cursor); (4) iso two paths; (5) interruptible
+run + Stop for all + temp limits + chip-detect gate (P1-36).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -518,34 +601,6 @@ mock for whole + fractional seconds.
 - Investigate whether `DEFAULTIO` issues larger DMA transfers than `CONTINUOUS`
   (would further raise the effective drain rate). Not yet verified.
 
-### P1-31. Per-mode sample rate (high)
-
-**Priority: high.** **Where:** `shared/settings.py` (one global
-`Experiment settings.Scan.Sample rate`), `back/experiment_manager.py`,
-`back/modes.py`, `settings/settings.json` + `src/pioner/settings/default_settings.json`.
-
-**What:** the sample rate is a single global value (20 kHz) shared by all three
-modes. Only fast-heat needs it that high (ballistic >1000 K/s); slow and iso
-run AC at `f_mod = 37.5 Hz`, where even 1-2 kHz is far above Nyquist, so 20 kHz
-just wastes samples, RAM, and host bandwidth (and raises the FIFO-OVERRUN risk
-on the slow CONTINUOUS path -- see P1-30).
-
-**Action:** allow a per-mode AI/AO sample rate (default: keep fast at 20 kHz,
-drop slow/iso to e.g. 2 kHz), chosen at `arm`. Plumb it through `ai_params` /
-`ao_params` instead of one shared `Scan.Sample rate`.
-
-**Constraints to respect (see the invariants in README / CLAUDE.md):**
-- AO and AI rate must stay equal (the pipeline assumes one clock domain).
-- The half-flip CONTINUOUS path requires an **even** rate (slow/iso); fast's
-  single-shot DEFAULTIO path does not.
-- The AI buffer is sized to one second of the chosen rate.
-- `f_mod < rate / 2` (lock-in Nyquist) must hold at the lower rate -- trivially
-  true for 37.5 Hz at >= 2 kHz, but assert it.
-
-**Verification:** mock e2e for each mode at its own rate; lock-in amplitude on
-slow/iso at the lower rate still matches the analytical value
-(`docs/mock-verification.md` tolerances).
-
 ### P1-32. Apply AC amplitude correction (`ac0..ac3`) -- from Bondar uCal
 
 **Priority: high.** **Where:** `shared/calibration.py` (`ac0..ac3` exist),
@@ -586,6 +641,73 @@ measured reference puts the phase zero on the actual driving force. Add an
 optional `reference: np.ndarray | None` to `lockin_demodulate`; when given, use
 it instead of the synthetic sine. Confirm the phase-lag magnitude on the bench
 before making it the default.
+
+### P1-35. Experiment presets (`experiment-config/` TOML)
+
+**Priority: medium.** **Where:** new `experiment-config/` folder, `front/`
+(combo-box loader), `shared/` (preset parser).
+
+**What:** let users save reusable experiment presets as commented TOML files in
+`experiment-config/`, each holding a preset name, mode (`fast`/`slow`/`iso`),
+temperature program (and/or iso target + duration), sample rate override, and
+free-text comments documenting the experiment. The GUI gains a preset combo-box
+that loads the selected file into the program/mode/rate fields. **Default
+selection is empty** (no preset) so nothing is auto-applied.
+
+**Why TOML:** human-editable, comments are first-class (unlike JSON), maps
+cleanly to the program-table + metadata shape. Keep the existing `settings.json`
+as-is; presets are a separate, optional input layer.
+
+**Action:** define the preset schema (name, mode, program table, rate, notes);
+parser with clear errors on malformed files; UI combo lists `experiment-config/
+*.toml` by `name`; selecting one populates fields (still requires `Apply` ->
+`arm`; the Apply gate). Ship 1-2 example presets with comments.
+
+### P1-36. Chip-presence detection -- gate arm/start/stop
+
+**Priority: high (safety).** **Where:** `back/experiment_manager.py` /
+`back/device_controller.py`, `front/` (button gating). **Related:** P2-24
+(heater broken/shorted thresholds) -- same primitive.
+
+**What:** there is no point driving voltage if no chip is connected. Detect
+presence programmatically and **disable arm/start/stop when absent**.
+
+**Approach (UNVERIFIED -- needs bench/physicist confirmation):** continuity
+probe -- drive a small safe voltage on the heater (AO ch1) and watch the
+**heater-current proxy on AI ch0**. NOTE: AI ch0 is a *voltage proxy* for heater
+current, **not a calibrated shunt** (`channels.py`; `modes.py:261` says
+explicitly "NOT a shunt voltage with a known R_shunt") -- the shunt-path *bias*
+is on AO ch0. So this can only be a **presence/continuity** test (does current
+flow at all when probed), not a precise resistance reading: open circuit
+(proxy ~ 0, no current) => no chip / broken heater; clear current response =>
+present. The heater-voltage feedback on AI ch5 (`UHTR_AI`) can cross-check.
+Same family as Bondar's broken/shorted-heater thresholds (P2-24). **Unknowns to
+confirm before coding:** whether a dedicated presence pin exists, the exact
+wiring, and the proxy threshold. Do not implement the threshold from a guess.
+
+**Action (after confirmation):** `DeviceController.chip_present() -> bool`
+(probe + threshold); poll it for the button-enable state; re-check at `arm`.
+
+### P1-37. Minimise fast-heat start jitter (no trigger on rig)
+
+**Priority: medium.** **Where:** `back/experiment_manager.py` (`finite_scan`
+single-shot path), `back/modes.py` (`FastHeat`). **Related:** P0-5 (skew),
+P1-17 plan.
+
+**What:** without a hardware trigger the AI-arm -> AO-start gap has variable
+latency (jitter), skewing the captured leading edge of the ballistic event.
+Two practical mitigations (the real cure -- a trigger line -- is deferred,
+P0-5/P1-18):
+1. **Tight critical section:** issue AI-arm then AO-start back-to-back with no
+   logging / allocation / GC between them, on one thread. Shrinks the mean gap
+   and its variance.
+2. **Post-hoc edge detection:** fast captures leading baseline, so the rise is
+   in the data -- align the analysis to the detected edge instead of commanded
+   t=0. Removes jitter's effect on alignment entirely (robust fix).
+
+**Verification:** on real HW, measure the spread of the detected edge position
+across repeated identical fast runs before/after; mock cannot reproduce the
+jitter.
 
 ---
 
@@ -727,6 +849,12 @@ pins `ihtr0/ihtr1/uhtr0/uhtr1` and the Thtr/Theater/amplitude polynomials to
 their identity values, so they cannot silently drift before this SI
 recalibration procedure is defined. When P2-21 lands, update that test with
 the new measured coefficients in the same commit.
+
+`tests/test_apply_calibration.py::test_rhtr_units_are_ohms_with_si_calibration`
+already exercises the *hypothetical* SI path (`ihtr1 = 1/R_shunt`, `Rhtr` in
+ohms); it documents the target arithmetic and can become the production unit
+check once real coefficients are measured. **This is the low-priority "revisit
+the heater-current calibration" task** (raised 2026-06-06).
 
 ### P2-22. Progress bar for slow/iso experiments (low priority)
 
@@ -873,10 +1001,17 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
    do not touch calibration coefficients without a new SI procedure (P2-21).
 2. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
    boundary mapping early; it constrains where later work lands.
-3. **P1-31 (high)** — per-mode sample rate (drop slow/iso off 20 kHz). Small,
-   mock-testable, and cuts the slow-path OVERRUN risk (ties into P1-30).
+3. **Unified arm/start/stop workflow** (P1-17 "Plan 2026-06-05"). Step 1
+   (per-mode sample rate + Apply gate) is **DONE 2026-06-05** -- cut slow/iso
+   off 20 kHz, reducing the slow-path OVERRUN risk (P1-30). Continue with the
+   rest of that plan in order: DiskRecorder -> slow off-ring -> iso two paths
+   -> interruptible run + Stop + temp limits.
+   - **P1-36 (high, safety)** — chip-presence detection to gate arm/start/stop
+     (needs bench confirmation of the probe threshold first); land alongside
+     the workflow gating.
 4. **P0-5** — no external trigger on the rig; if AO/AI skew matters, do the
-   per-host software offset-trim (not the `EXTTRIGGER` loopback).
+   per-host software offset-trim (not the `EXTTRIGGER` loopback). Related:
+   P1-37 fast-jitter mitigation.
 5. **P1-24 (medium)** — closed-loop PID control (iso hold is now in place as
    the test bed); iso first.
 6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +

@@ -35,6 +35,44 @@ from pioner.shared.utils import is_int_or_raise, list_bitwise_or
 from pioner.shared.constants import *  # noqa: F401,F403 - intentional re-export of field names
 
 
+#: Per-mode keys recognised in the ``Scan.Sample rate`` map (besides
+#: ``default``, which is the idle-monitor rate and the fallback for any
+#: mode key that is absent). See P1-31.
+SAMPLE_RATE_MODE_KEYS = ("fast", "slow", "iso")
+
+
+def resolve_sample_rate_map(value) -> dict:
+    """Normalise the ``Scan.Sample rate`` field into a per-mode rate map.
+
+    Accepts either a bare int (back-compat: every mode uses the same rate) or
+    a dict ``{"default": int, "fast": int, "slow": int, "iso": int}`` where
+    ``default`` is required and any missing per-mode key falls back to it.
+
+    Returns ``{"default", "fast", "slow", "iso"}`` -> int. Raises ``ValueError``
+    / ``TypeError`` on malformed input so the caller can flag the field.
+    """
+    def _as_int(v) -> int:
+        # bool is an int subclass; reject it explicitly so ``true`` is invalid.
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError(f"sample rate must be an int, got {v!r}")
+        return int(v)
+
+    if isinstance(value, bool):
+        raise ValueError("sample rate must be an int or a map, not a bool")
+    if isinstance(value, int):
+        rate = int(value)
+        return {"default": rate, **{k: rate for k in SAMPLE_RATE_MODE_KEYS}}
+    if isinstance(value, dict):
+        if "default" not in value:
+            raise ValueError("sample rate map needs a 'default' key")
+        default = _as_int(value["default"])
+        out = {"default": default}
+        for key in SAMPLE_RATE_MODE_KEYS:
+            out[key] = _as_int(value[key]) if key in value else default
+        return out
+    raise TypeError(f"sample rate must be int or dict, got {type(value).__name__}")
+
+
 class JsonReader:
     """Reads a JSON configuration file."""
 
@@ -174,9 +212,16 @@ class BackSettings:
         scan_dict = self._exp_settings_dict[SCAN_FIELD]
 
         if SAMPLE_RATE_FIELD in scan_dict:
-            sample_rate = scan_dict[SAMPLE_RATE_FIELD]
-            if is_int_or_raise(sample_rate):
-                self.ai_params.sample_rate = int(sample_rate)
+            try:
+                rate_map = resolve_sample_rate_map(scan_dict[SAMPLE_RATE_FIELD])
+            except (ValueError, TypeError):
+                if SAMPLE_RATE_FIELD not in self._invalid_fields:
+                    self._invalid_fields.append(SAMPLE_RATE_FIELD)
+            else:
+                # Per-mode rate map (P1-31); active rate starts at the
+                # idle-monitor ``default`` and is switched per mode at arm.
+                self.sample_rate_by_mode = rate_map
+                self.ai_params.sample_rate = rate_map["default"]
         else:
             if SAMPLE_RATE_FIELD not in self._invalid_fields:
                 self._invalid_fields.append(SAMPLE_RATE_FIELD)
@@ -225,9 +270,15 @@ class BackSettings:
         scan_dict = self._exp_settings_dict[SCAN_FIELD]
 
         if SAMPLE_RATE_FIELD in scan_dict:
-            sample_rate = scan_dict[SAMPLE_RATE_FIELD]
-            if is_int_or_raise(sample_rate):
-                self.ao_params.sample_rate = int(sample_rate)
+            try:
+                rate_map = resolve_sample_rate_map(scan_dict[SAMPLE_RATE_FIELD])
+            except (ValueError, TypeError):
+                if SAMPLE_RATE_FIELD not in self._invalid_fields:
+                    self._invalid_fields.append(SAMPLE_RATE_FIELD)
+            else:
+                # AO shares the AI rate (README invariant); same map.
+                self.sample_rate_by_mode = rate_map
+                self.ao_params.sample_rate = rate_map["default"]
         else:
             if SAMPLE_RATE_FIELD not in self._invalid_fields:
                 self._invalid_fields.append(SAMPLE_RATE_FIELD)
@@ -336,12 +387,13 @@ class FrontSettings:
                 not isinstance(self._exp_settings_dict[PATHS_FIELD][field], str):
                 self._invalid_fields.append(field)
 
-        # ``int`` is fine for sample rate; ``bool`` is excluded explicitly
-        # because in Python ``bool`` is a subclass of ``int``.
-        for field in [SAMPLE_RATE_FIELD]:
-            v = self._exp_settings_dict[SCAN_FIELD].get(field)
-            if not (isinstance(v, int) and not isinstance(v, bool)):
-                self._invalid_fields.append(field)
+        # Sample rate is either a bare int (back-compat) or a per-mode map
+        # (P1-31). ``resolve_sample_rate_map`` rejects bools and bad shapes.
+        v = self._exp_settings_dict[SCAN_FIELD].get(SAMPLE_RATE_FIELD)
+        try:
+            resolve_sample_rate_map(v)
+        except (ValueError, TypeError):
+            self._invalid_fields.append(SAMPLE_RATE_FIELD)
 
         # JSON authors often write ``0`` instead of ``0.0``; accept both.
         for field in [FREQUENCY_FIELD, AMPLITUDE_FIELD, OFFSET_FIELD]:
@@ -372,7 +424,12 @@ class FrontSettings:
             # absolute path; ``os.path.exists`` and ``open`` accept relative.
             self.calib_path = self._exp_settings_dict[PATHS_FIELD][CALIB_PATH_FIELD]
             self.data_path = self._exp_settings_dict[PATHS_FIELD][DATA_PATH_FIELD]
-            self.sample_rate = self._exp_settings_dict[SCAN_FIELD][SAMPLE_RATE_FIELD]
+            # Keep the raw map for a faithful round-trip on save; expose the
+            # per-mode map and the scalar ``default`` (used by the single UI
+            # rate field) for callers (P1-31).
+            self.sample_rate_raw = self._exp_settings_dict[SCAN_FIELD][SAMPLE_RATE_FIELD]
+            self.sample_rate_by_mode = resolve_sample_rate_map(self.sample_rate_raw)
+            self.sample_rate = self.sample_rate_by_mode["default"]
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]
             self.modulation_offset = self._exp_settings_dict[MODULATION_FIELD][OFFSET_FIELD]
@@ -383,7 +440,7 @@ class FrontSettings:
                     DATA_PATH_FIELD: self.data_path
                     },
                 SCAN_FIELD:{
-                    SAMPLE_RATE_FIELD: self.sample_rate
+                    SAMPLE_RATE_FIELD: self.sample_rate_raw
                     },
                 MODULATION_FIELD: {
                     FREQUENCY_FIELD: self.modulation_frequency,

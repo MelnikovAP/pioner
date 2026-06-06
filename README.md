@@ -26,7 +26,7 @@ microgram samples. The codebase covers three experimental modes — *fast*,
   | AO ch1    | 1       | Heater voltage (the temperature program & AC modulation live here) |
   | AO ch2    | 2       | Trigger / gate output                                         |
   | AO ch3    | 3       | Reserved (guard heater)                                       |
-  | AI ch0    | 0       | Heater current (shunt voltage)                                |
+  | AI ch0    | 0       | Heater current (voltage proxy; not a calibrated shunt, see P0-3) |
   | AI ch1    | 1       | Umod — high-gain modulation read-back (gain ≈ 121)            |
   | AI ch3    | 3       | AD595 ambient / cold-junction reference (100 °C/V)            |
   | AI ch4    | 4       | Utpl — standard thermopile (gain ≈ 11)                        |
@@ -284,10 +284,18 @@ These hold across the back-end; breaking one usually produces numbers that
   `round(sample_rate * seconds)` -- but the buffer itself stays 1 s.
 * **Fast-heat uses a single-shot `DEFAULTIO` full-buffer scan** (read once at
   the end, no FIFO overrun); **slow/iso use the `CONTINUOUS` 1 s half-flip**.
-* **Sample rate must be even** for the half-flip reshape (slow/iso); the
-  fast single-shot path does not require it. There is **one global sample
-  rate** today shared by all modes (per-mode rate is planned -- TODO P1-31).
-* **AO and AI share one sample rate / clock domain** -- they are set equal.
+* **Sample rate must be even** for the half-flip reshape (the persistent ring
+  and slow/iso all use it); the fast single-shot path does not strictly need
+  it, but the active rate also feeds the ring, so even is required throughout.
+* **Sample rate is per-mode.** `Scan.Sample rate` in `settings.json` is a map
+  `{default, fast, slow, iso}` (default 2 kHz monitor, fast 20 kHz, slow/iso
+  2 kHz); a bare int still works (same rate for all). Arming a mode applies its
+  rate; the GUI's single rate field shows the selected mode's rate and an
+  **Apply** press confirms it (arming is blocked until then). Odd or
+  sub-Nyquist (`rate <= 2*f_mod`) rates are rejected.
+* **AO and AI MUST share one sample rate / clock domain** -- they are always
+  set equal; the pipeline assumes a single clock, so an AO != AI rate is a bug,
+  not a supported configuration. Any rate change sets both at once.
 * **Lock-in needs `f_mod < sample_rate / 2`**; iso replays a 1 s AO buffer
   CONTINUOUS, so `f_mod` should give an integer number of cycles per second to
   avoid a phase jump at the wrap (37.5 Hz does not -- a known WARNING).
@@ -390,7 +398,7 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**112 tests, ~30 seconds** locally.
+**122 tests, ~30 seconds** locally.
 
 ---
 

@@ -161,12 +161,13 @@ Same channel arithmetic as Option B, but the two AOs now drive two
 3. **R_htr variability between areas / chips.** Manufacturing spread is
    commonly 5-20 %; the same drive voltage delivers different power.
    This must be measured per area and used in calibration.
-4. **Per-heater shunt resistor.** Without it the current cannot be
-   measured. ihtr0/ihtr1 must be calibrated per shunt per area (see
-   the "Calibration dimensions" rule in [../CLAUDE.md](../CLAUDE.md):
-   `ihtr1 ~ 1/R_shunt`, so production R_shunt ~ 1700 Ohm implies
-   ihtr1 ~ 5.88e-4; identity `ihtr1 = 1.0` is the test fallback only
-   and must not propagate into a multi-area config).
+4. **Per-heater current sense.** Without it the current cannot be measured
+   per area. Note PIONER production currently uses the identity (`ihtr0=0,
+   ihtr1=1`), so `ih = V_ch0` is a voltage proxy and `Rhtr` is dimensionless
+   (see the "Calibration dimensions" rule in [../CLAUDE.md](../CLAUDE.md) and
+   P0-3). A multi-area differential build that wants currents in real amperes
+   would need a proper per-area SI calibration (`ihtr1 ~ 1/R_shunt`, future
+   P2-21) — ihtr0/ihtr1 measured per sense path per area.
 5. **Per-AO safe-voltage clamp.** The warning at
    [modes.py:167-172](../src/pioner/back/modes.py#L167-L172) and the
    `np.clip(..., safe_voltage, ...)` calls at

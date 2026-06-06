@@ -75,6 +75,10 @@ class mainWindow(mainWindowUi):
         self._heater_driven: bool = False
         # Single-shot timer for a timed iso program (auto-Off after N seconds).
         self._iso_timer: Optional[Any] = None
+        # Apply gate (P1-31): changing the mode moves the per-mode sample rate
+        # into an unconfirmed state; the experiment-launch buttons stay disabled
+        # until the operator presses Apply (or Reset) to confirm it.
+        self._rate_confirmed: bool = True
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -319,7 +323,12 @@ class mainWindow(mainWindowUi):
         for item in (self.experimentBox, self.controlTab):
             item.setEnabled(True)
         if self.controller is not None:
+            # Idle monitor runs at the default rate; show the selected mode's
+            # configured rate in the field and treat the loaded config as
+            # confirmed (P1-31 Apply gate).
             self.controller.set_sample_rate(self.settings.sample_rate)
+            self.scanSampleRateInput.setText(str(self.controller.rate_for_mode(self._selected_mode())))
+            self._set_rate_confirmed(True)
             # Surface real-vs-mock so the operator is never guessing which
             # backend actually bound (the "run without hardware" checkbox only
             # picks Local vs Tango). backend_description is defined on every
@@ -441,15 +450,27 @@ class mainWindow(mainWindowUi):
     def apply_sample_rate(self):
         if self.controller is None:
             return
-        self.settings.sample_rate = int(self.scanSampleRateInput.text())
-        self.controller.set_sample_rate(self.settings.sample_rate)
+        try:
+            rate = int(self.scanSampleRateInput.text())
+        except ValueError:
+            ErrorWindow("Sample rate must be an integer (Hz).")
+            return
+        # Session override of the selected mode's rate; AO == AI is kept by the
+        # controller, which rejects odd / sub-Nyquist rates. Only confirm the
+        # Apply gate (enabling arm/set) once the rate is accepted.
+        try:
+            self.controller.override_mode_rate(self._selected_mode(), rate)
+        except ValueError as exc:
+            ErrorWindow(f"Invalid sample rate:\n{exc}")
+            return
+        self._set_rate_confirmed(True)
 
     def reset_sample_rate(self):
         if self.controller is None:
             return
         self.controller.reset_sample_rate()
-        self.settings.sample_rate = self.get_sample_rate_from_device()
-        self.scanSampleRateInput.setText(str(self.settings.sample_rate))
+        self.scanSampleRateInput.setText(str(self.controller.rate_for_mode(self._selected_mode())))
+        self._set_rate_confirmed(True)
 
     def get_sample_rate_from_device(self):
         if self.controller is None:
@@ -502,6 +523,17 @@ class mainWindow(mainWindowUi):
             getattr(self, name).setVisible(not is_iso)
         for name in self._ISO_WIDGET_NAMES:
             getattr(self, name).setVisible(is_iso)
+        # Switching modes changes the configured sample rate (P1-31). Show the
+        # new mode's rate and require an explicit Apply before arming/setting.
+        if self.controller is not None:
+            self.scanSampleRateInput.setText(str(self.controller.rate_for_mode(self._selected_mode())))
+            self._set_rate_confirmed(False)
+
+    def _set_rate_confirmed(self, confirmed: bool) -> None:
+        """Gate the experiment-launch buttons on the Apply state (P1-31)."""
+        self._rate_confirmed = confirmed
+        self.armButton.setEnabled(confirmed)
+        self.setTempVoltButton.setEnabled(confirmed)
 
     # ===================================
     # Fast / slow heating (ramp editor)
@@ -568,6 +600,9 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables_str = json.dumps(self.time_temp_volt_tables)
         if self.controller is None:
             return  # no backend: program plotted, but cannot be armed
+        if not self._rate_confirmed:
+            ErrorWindow("Press Apply to confirm the sample rate before arming.")
+            return
         # Fast and slow share this ramp program; the backend mode name picks
         # whether AC modulation is layered on (slow) or not (fast).
         self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
@@ -611,6 +646,9 @@ class mainWindow(mainWindowUi):
     def set_temp_volt(self):
         if self.controller is None:
             ErrorWindow("No backend connection: cannot set iso value.")
+            return
+        if not self._rate_confirmed:
+            ErrorWindow("Press Apply to confirm the sample rate before setting iso.")
             return
         try:
             value = float(self.setInput.text())

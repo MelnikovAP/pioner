@@ -95,9 +95,15 @@ def test_thtr_is_finite_when_heater_current_is_present():
     assert np.isfinite(out["Thtr"]).all()
 
 
-def test_rhtr_units_are_ohms_with_production_calibration():
-    """With production ``ihtr1 = 1/R_shunt`` and a known V/I pair, ``Thtr``
-    must come out in a physically plausible range (tens to hundreds of C).
+def test_rhtr_units_are_ohms_with_si_calibration():
+    """Under a *hypothetical* SI calibration (``ihtr1 = 1/R_shunt``) and a known
+    V/I pair, ``Thtr`` must come out in a physically plausible range (tens to
+    hundreds of C).
+
+    NOTE: production (and the bundled defaults) use the identity ``ihtr0=0,
+    ihtr1=1`` -- ``ih = U_AI0`` is a voltage proxy, ``Rhtr`` dimensionless (see
+    P0-3). This test deliberately sets the future SI calibration (P2-21) to
+    guard the arithmetic, NOT the production identity.
 
     Regression: the historical formula multiplied both V_AO and V_shunt by
     1000 before subtracting and dividing by I (in A), producing R in
@@ -107,7 +113,7 @@ def test_rhtr_units_are_ohms_with_production_calibration():
     cal = Calibration()
     R_shunt = 1700.0
     cal.ihtr0 = 0.0
-    cal.ihtr1 = 1.0 / R_shunt          # production target per todo P0-3
+    cal.ihtr1 = 1.0 / R_shunt          # hypothetical SI calibration (P2-21), not production
     cal.uhtr0 = 0.0
     cal.uhtr1 = 1.0
     cal.thtr0 = -1069.7                 # production polynomial

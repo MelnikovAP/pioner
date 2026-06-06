@@ -25,7 +25,7 @@ PIONER-side commentary.
 | `Uref`       | commanded AO voltage on heater channel                     | `Uref` column produced by `apply_calibration`        |
 | `Utpl`       | thermopile voltage, standard (low-gain) channel            | `Utpl` AI ch + `Calibration.utpl0`                   |
 | `Umod`       | thermopile voltage, high-gain modulation channel           | `Umod` AI ch                                         |
-| `Ihtr`       | heater current (= shunt voltage / `R_shunt`)               | `ihtr0 + ihtr1 * V_shunt`, A                         |
+| `Ihtr`       | heater current proxy (production `ih = U_AI0` in V; SI: shunt voltage / `R_shunt`) | `ihtr0 + ihtr1 * U_AI0` (production identity `0, 1`) |
 | `Thtr`       | heater temperature from heater R, standard polynomial       | `Calibration.thtr0..thtr2`, `thtrcorr`               |
 | `Thtrd`      | heater temperature from differential heater, polynomial    | `Calibration.thtrd0..thtrd2`, `thtrdcorr`            |
 | `Ttpl`       | sample temperature from thermopile                         | `Calibration.ttpl0..ttpl1` (uses `Utpl` and `Taux`)  |
@@ -152,8 +152,8 @@ This is the path computed by `apply_calibration` at
 [src/pioner/back/modes.py:253-276](../src/pioner/back/modes.py#L253-L276):
 
 ```
-ih       = ihtr0 + ihtr1 * V_shunt              # A (production ihtr1 ~= 1/R_shunt)
-R_heater = (V_AO - V_shunt + uhtr0) * uhtr1 / ih  # Ohm  (NaN when |ih|<1e-9)
+ih       = ihtr0 + ihtr1 * U_AI0    # V proxy (production ihtr0=0, ihtr1=1; SI is future P2-21)
+R_heater = (U_AI5 - U_AI0 + uhtr0) * uhtr1 / ih   # V/V dimensionless (NaN when |ih|<1e-9)
 Thtr     = thtr0 + thtr1*(R + thtrcorr) + thtr2*(R + thtrcorr)^2
 Thtrd    = (same shape with thtrd0..thtrd2)
 ```

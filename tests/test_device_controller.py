@@ -99,6 +99,39 @@ class TestSampleRate:
         data = _wait_for_stream(local_controller)
         assert data.shape[0] > 0
 
+    # --- per-mode sample rate (P1-31) -------------------------------------
+
+    def test_rate_for_mode_uses_per_mode_map(self, local_controller):
+        assert local_controller.rate_for_mode("fast") == 20000
+        assert local_controller.rate_for_mode("slow") == 2000
+        assert local_controller.rate_for_mode("iso") == 2000
+        # Unknown mode falls back to the default entry.
+        assert local_controller.rate_for_mode("bogus") == 2000
+
+    def test_arm_applies_mode_rate(self, local_controller):
+        # Idle monitor starts at the default rate; arming fast switches the
+        # active AI/AO rate to fast's configured 20 kHz.
+        assert local_controller.get_sample_rate() == 2000
+        local_controller.arm_fast_heat(TestExperiment._FAST)
+        assert local_controller.get_sample_rate() == 20000
+
+    def test_override_mode_rate_is_used_on_arm(self, local_controller):
+        # The UI 'Apply' overrides a mode's rate for the session; a later arm
+        # of that mode must pick it up.
+        local_controller.override_mode_rate("slow", 4000)
+        assert local_controller.rate_for_mode("slow") == 4000
+        assert local_controller.get_sample_rate() == 4000
+
+    def test_override_rejects_odd_rate(self, local_controller):
+        # Odd rate breaks the 1 s half-buffer flip -> fail loud, gate not set.
+        with pytest.raises(ValueError):
+            local_controller.override_mode_rate("slow", 3001)
+
+    def test_override_rejects_sub_nyquist_rate(self, local_controller):
+        # f_mod = 37.5 Hz in the fixture, so 50 Hz violates rate > 2*f_mod.
+        with pytest.raises(ValueError):
+            local_controller.override_mode_rate("slow", 50)
+
 
 class TestCalibration:
     def test_default_calibration_loaded_on_connect(self, local_controller):

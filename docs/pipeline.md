@@ -22,11 +22,12 @@ modify the back-end or to interface with it.
   `_collect_finite_ai` and `start_ring_buffer`.
 * **Chip**: thin-film calorimeter with two heaters (sample + guard), a
   thermopile (Utpl), an AD595 cold-junction sensor, and a high-resolution
-  modulation channel (Umod). Heater nominal R ≈ 1700 Ω; current shunt also
-  ≈ 1700 Ω in series.
+  modulation channel (Umod). Heater nominal R ≈ 1700 Ω; a series sense
+  resistor (~1700 Ω) puts a voltage proportional to heater current on AI ch0.
 * **Conditioning electronics**: instrumentation amplifiers (`Gain Utpl ≈ 11`,
-  `Gain Umod ≈ 121`) and a current shunt that converts heater current into
-  a voltage on AI ch0.
+  `Gain Umod ≈ 121`). AI ch0 is the node after the series sense resistor -- a
+  voltage proportional to heater current, read as an uncalibrated proxy
+  (production `ihtr1 = 1`), not a calibrated shunt (see §8).
 * **Analog range**: the JSON setting `RangeId = 5` selects `BIPxxVOLTS = ±10 V`
   (see `mock_uldaq.Range`). `AoDeviceHandler.set_voltage` and `.scan` reject
   any value or buffer peak outside the range with a `ValueError`
@@ -38,7 +39,7 @@ Channel layout (named in `pioner.shared.channels`):
 
 | AO ch | Const          | Purpose                                  | AI ch | Const             | Purpose                                |
 |-------|----------------|------------------------------------------|-------|-------------------|----------------------------------------|
-| 0     | `SHUNT_BIAS_AO`| shunt-path bias (~0.1 V)                 | 0     | `HEATER_CURRENT_AI`| V across the heater current shunt     |
+| 0     | `SHUNT_BIAS_AO`| shunt-path bias (~0.1 V)                 | 0     | `HEATER_CURRENT_AI`| heater current (V proxy; not a calibrated shunt) |
 | 1     | `HEATER_AO`    | **heater drive (DC + AC)**               | 1     | `UMOD_AI`         | Umod (high-resolution thermopile, gain 121) |
 | 2     | `GUARD_AO`     | guard heater / trigger                   | 3     | `AD595_AI`        | AD595 cold-junction (Taux)             |
 | 3     | `SPARE_AO`     | spare                                    | 4     | `UTPL_AI`         | Utpl (standard thermopile, gain 11)    |
@@ -183,9 +184,9 @@ seamless. See §3.7c.
 │   Umod_mV  = U_AI1 · 1000 / Gain_Umod                  [mV]       │
 │   temp-hr  = Ttpl_poly(Umod_mV + utpl0)               [°C]        │
 │                                                                   │
-│   Ihtr     = ihtr0 + ihtr1 · U_AI0                     [A]        │
-│   Rhtr     = (U_AI5 − U_AI0 + uhtr0) · uhtr1 / Ihtr   [Ω]         │
-│            (V/A; production ihtr1 = 1/R_shunt → ih in amperes)    │
+│   Ihtr     = ihtr0 + ihtr1 · U_AI0                  [V px]        │
+│   Rhtr     = (U_AI5 − U_AI0 + uhtr0) · uhtr1 / Ihtr  [V/V]        │
+│       (production ihtr0=0, ihtr1=1 -> Ihtr=U_AI0 in V; Rhtr V/V)  │
 │   Thtr     = Thtr_poly(Rhtr + thtrcorr)               [°C]        │
 │            (NaN where |Ihtr| < 1 nA — heater idle)                │
 │                                                                   │
@@ -350,20 +351,23 @@ Identifiers and unit conventions used by `apply_calibration`:
 |---------------|------------------|---------------------------------------------------------|
 | `Utpl.0`      | `utpl0`          | mV (added to the `gain`-corrected thermopile voltage)   |
 | `Ttpl.{0,1}`  | `ttpl0, ttpl1`   | °C/mV, °C/mV² (polynomial in `Utpl + utpl0`)            |
-| `Uhtr.{0,1}`  | `uhtr0, uhtr1`   | V, dimensionless (`(V_AO − V_shunt + uhtr0) · uhtr1`)   |
-| `Ihtr.{0,1}`  | `ihtr0, ihtr1`   | A, **siemens** (`ih = ihtr0 + ihtr1·V_shunt` → amperes); production sets `ihtr1 ≈ 1/R_shunt ≈ 5.88e-4 S` |
-| `Thtr.{0,1,2,corr}` | `thtr0..2, thtrcorr` | polynomial in **ohms** (R + thtrcorr); production `(-1069.7, 0.78336, -8.67e-5)` gives `T(R=1700 Ω) ≈ 11.5 °C` |
+| `Uhtr.{0,1}`  | `uhtr0, uhtr1`   | V, dimensionless (`(U_AI5 − U_AI0 + uhtr0) · uhtr1`)    |
+| `Ihtr.{0,1}`  | `ihtr0, ihtr1`   | `ih = ihtr0 + ihtr1·U_AI0`; production (and defaults) `ihtr0=0, ihtr1=1`, so `ih = U_AI0` in **V** — a current proxy, NOT amperes (AI ch0 is not a calibrated shunt; SI calibration is future, P2-21) |
+| `Thtr.{0,1,2,corr}` | `thtr0..2, thtrcorr` | polynomial in `Rhtr + thtrcorr`; `Rhtr` is **dimensionless** (V/V) under the production identity (ohms only under a future SI calibration). Production `(-1069.7, 0.78336, -8.67e-5)` |
 | `Theater.{0,1,2}`  | `theater0..2`   | °C/V, °C/V², °C/V³ (cubic in `V_heater_drive`); production `(-2.425, 8.04, -0.43)` |
 | `R heater`    | `rhtr`           | Ω (metadata, not used in formulas — informational)      |
 | `Heater safe voltage` | `safe_voltage` | V; clamps temp programs and AC modulation peak       |
 
 Default-constructed `Calibration` is the **identity** (`utpl0=0`,
-`ttpl0=ihtr1=uhtr1=theater0=...=1`), useful as a unit-test fallback. With
-identity, derived quantities are dimensionally meaningless — never use them
-to back out physical numbers. See `tests/test_apply_calibration.py
-::test_rhtr_units_are_ohms_with_production_calibration` for the regression
-that pins the V-domain numerator (`R = (V_AO - V_shunt + uhtr0)·uhtr1 / I`)
-in ohms.
+`ttpl0=ihtr1=uhtr1=theater0=...=1`), used as a unit-test fallback. The
+temperature polynomials need real production coefficients, but for `Ihtr` the
+identity (`ihtr0=0, ihtr1=1`) **is** the production value: `ih = U_AI0` is an
+intentional voltage proxy, so `Rhtr = (U_AI5 - U_AI0 + uhtr0)·uhtr1 / Ihtr` is
+dimensionless (V/V) and you cannot back out physical amperes/ohms (P0-3). The
+regression `tests/test_apply_calibration.py
+::test_rhtr_units_are_ohms_with_si_calibration` exercises a
+*hypothetical* SI calibration (`ihtr1 = 1/R_shunt`), not the production
+identity — see `TODO.md` P2-21.
 
 ### Temperature → voltage inversion
 
@@ -543,13 +547,15 @@ working end-to-end on mock or on real hardware.
 
 ### Physical fidelity
 
-4. **`ihtr1` value with the physicist** — production calibration must set
-   `ihtr1 ≈ 1/R_shunt ≈ 5.88e-4` (S) so `ih = ihtr0 + ihtr1·V_shunt` is in
-   amperes; the default identity `ihtr1 = 1.0` is dimensionally meaningless
-   (test fallback). The Rhtr formula has been corrected to V/A = Ω
-   (regression-tested by `test_rhtr_units_are_ohms_with_production_calibration`),
-   so once `ihtr1` is set in `calibration.json` everything downstream is in
-   physical units. Open as `TODO.md` P0-3.
+4. **`Ihtr` is a voltage proxy, not amperes** (settled with the physicist,
+   `TODO.md` P0-3). Production calibration (and the bundled defaults) use
+   `ihtr0 = 0, ihtr1 = 1`, so `ih = U_AI0` in **volts** — AI ch0 is the node
+   after the series sense resistor, not a calibrated shunt. `Rhtr = U/ih` is
+   therefore dimensionless (V/V) and the `Thtr` polynomial absorbs the scaling.
+   A proper SI calibration (`ihtr1 ~ 1/R_shunt`, `ih` in amperes, `Rhtr` in
+   ohms) is future work — `TODO.md` P2-21 (the `Rhtr`-units regression
+   `test_rhtr_units_are_ohms_with_si_calibration` exercises that
+   hypothetical SI path, not the production identity).
 5. **AD595 Taux is averaged over the whole scan** — replace `df[3].mean()`
    in `apply_calibration` by either a per-sample correction or a
    low-pass-filtered trace. Drift over long slow ramps (>30 s) is
@@ -633,7 +639,7 @@ working end-to-end on mock or on real hardware.
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input, **Rhtr units in Ω with production calibration** (regression for #1) |
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest tests/              # 112 tests, ~30 s
+PYTHONPATH=src .venv/bin/pytest tests/              # 122 tests, ~30 s
 PYTHONPATH=src .venv/bin/python -m pioner.back.debug   # smoke test all 3 modes
 ```
 
@@ -672,16 +678,16 @@ T          = ttpl0·(Utpl_mV + utpl0) + ttpl1·(Utpl_mV + utpl0)² + Taux   [°C
 Umod_mV    = U_AI1 · 1000 / Gain_Umod                                [mV]
 T_hr       = ttpl0·(Umod_mV + utpl0) + ttpl1·(Umod_mV + utpl0)²      [°C]
 
-Ihtr       = ihtr0 + ihtr1·U_AI0                                     [A]
-Rhtr       = (U_AI5 - U_AI0 + uhtr0)·uhtr1 / Ihtr                    [Ω]
+Ihtr       = ihtr0 + ihtr1·U_AI0    (production ihtr0=0, ihtr1=1)    [V proxy]
+Rhtr       = (U_AI5 - U_AI0 + uhtr0)·uhtr1 / Ihtr                    [V/V]
 Thtr       = thtr0 + thtr1·(Rhtr + thtrcorr) + thtr2·(Rhtr + thtrcorr)²  [°C]
               (NaN where |Ihtr| < 1 nA — heater idle)
 ```
 
 `U_AI{0,1,3,4,5}` are raw AI samples in **volts**. `Gain_Utpl=11`,
-`Gain_Umod=121` from the `Hardware` calibration block. `ihtr1` must be
-`1/R_shunt ≈ 5.88e-4 S` in production for `Ihtr` to be in amperes (see §8
-item 4).
+`Gain_Umod=121` from the `Hardware` calibration block. Production (and the
+bundled defaults) use `ihtr0=0, ihtr1=1`, so `Ihtr = U_AI0` is a voltage proxy
+(not amperes) and `Rhtr` is dimensionless — see §8 item 4 / `TODO.md` P2-21.
 
 ### Lock-in (time-domain, `lockin_demodulate`)
 

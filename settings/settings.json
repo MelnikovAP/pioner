@@ -41,7 +41,12 @@
             "Data path": "./data/"
         },
         "Scan": {
-            "Sample rate": 20000
+            "Sample rate": {
+                "default": 2000,
+                "fast": 20000,
+                "slow": 2000,
+                "iso": 2000
+            }
         },
         "Modulation": {
             "Frequency": 37.5,

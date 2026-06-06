@@ -401,7 +401,7 @@ except (ImportError, OSError) as exc:  # pragma: no cover - normal on dev hosts
         def _synthesise_sample(self, channel: int, t: float) -> float:
             """Cheap-but-plausible synthetic AI value derived from the AO state."""
             # Channel layout used by the experiment manager:
-            #   0 = current shunt, 1 = Umod (high-gain), 2 = unused,
+            #   0 = heater current (V proxy), 1 = Umod (high-gain), 2 = unused,
             #   3 = AD595 cold-junction, 4 = Utpl (thermopile),
             #   5 = Uhtr (heater voltage).
             base_voltage = self._shared.voltage_at(channel, t)

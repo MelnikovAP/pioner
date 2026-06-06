@@ -12,7 +12,7 @@ Channel layout matches ``docs/pipeline.md`` section 1:
     AO ch2  guard heater / trigger
     AO ch3  spare
 
-    AI ch0  heater current shunt
+    AI ch0  heater current (voltage proxy; not a calibrated shunt)
     AI ch1  Umod (high-gain thermopile)
     AI ch3  AD595 cold-junction
     AI ch4  Utpl (standard thermopile)

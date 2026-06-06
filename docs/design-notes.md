@@ -336,7 +336,7 @@ GUARD_AO        = "ch2"   # AO ch2 — guard heater / trigger line
 SHUNT_BIAS_AO   = "ch0"   # AO ch0 — shunt-path bias (~0.1 V)
 SPARE_AO        = "ch3"
 
-HEATER_CURRENT_AI = 0     # AI ch0 — heater current shunt
+HEATER_CURRENT_AI = 0     # AI ch0 — heater current (voltage proxy; not a calibrated shunt)
 UMOD_AI           = 1     # AI ch1 — Umod (high-gain thermopile)
 AD595_AI          = 3     # AI ch3 — AD595 cold-junction
 UTPL_AI           = 4     # AI ch4 — Utpl (standard thermopile)
