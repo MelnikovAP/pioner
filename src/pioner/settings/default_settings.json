@@ -57,10 +57,30 @@
             "Offset": 0.0
         },
         "Limits": {
-            "Min temperature": 0,
-            "Max temperature": 300,
-            "Max heat rate": null,
-            "Max cool rate": null
+            "fast": {
+                "Min temperature": 0,
+                "Max temperature": 300,
+                "Min heat rate": 100,
+                "Max heat rate": 100000,
+                "Min cool rate": 100,
+                "Max cool rate": 100000
+            },
+            "slow": {
+                "Min temperature": 0,
+                "Max temperature": 200,
+                "Min heat rate": 0.1,
+                "Max heat rate": 60,
+                "Min cool rate": 0.1,
+                "Max cool rate": 60
+            },
+            "iso": {
+                "Min temperature": 0,
+                "Max temperature": 200,
+                "Min heat rate": null,
+                "Max heat rate": null,
+                "Min cool rate": null,
+                "Max cool rate": null
+            }
         }
     }
 }

@@ -521,7 +521,8 @@ def test_slow_mode_injected_stop_interrupts(connected_daq, settings, calibration
 
 def test_arm_rejects_temperature_above_max(connected_daq, settings, calibration):
     from pioner.shared.settings import ExperimentLimits
-    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0)
+    # arm() reads this mode's per-mode limit set; override "slow" for isolation.
+    settings.limits_by_mode = {"slow": ExperimentLimits(min_temp=0.0, max_temp=300.0)}
     programs = {"ch1": {"time": [0, 1000], "temp": [20, 400]}}  # 400 C > 300
     mode = SlowMode(connected_daq, settings, calibration, programs)
     with pytest.raises(ValueError):
@@ -530,7 +531,7 @@ def test_arm_rejects_temperature_above_max(connected_daq, settings, calibration)
 
 def test_arm_accepts_heat_iso_cool_in_range(connected_daq, settings, calibration):
     from pioner.shared.settings import ExperimentLimits
-    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0)
+    settings.limits_by_mode = {"slow": ExperimentLimits(min_temp=0.0, max_temp=300.0)}
     settings.modulation = settings.modulation.with_amplitude(0.0)
     # heat (20->200) / iso (200) / cool (200->20), all within [0, 300] C.
     programs = {"ch1": {"time": [0, 100, 200, 300], "temp": [20, 200, 200, 20]}}
@@ -542,8 +543,22 @@ def test_arm_accepts_heat_iso_cool_in_range(connected_daq, settings, calibration
 def test_arm_rejects_cool_faster_than_max(connected_daq, settings, calibration):
     from pioner.shared.settings import ExperimentLimits
     # 10 K/s max passive cool; the cool segment 200->20 over 100 ms = 1800 K/s.
-    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0, max_cool_rate=10.0)
+    settings.limits_by_mode = {
+        "slow": ExperimentLimits(min_temp=0.0, max_temp=300.0, max_cool_rate=10.0)
+    }
     programs = {"ch1": {"time": [0, 100, 200], "temp": [20, 200, 20]}}
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    with pytest.raises(ValueError):
+        mode.arm()
+
+
+def test_arm_rejects_heat_slower_than_min(connected_daq, settings, calibration):
+    from pioner.shared.settings import ExperimentLimits
+    # 50 K/s min heat; the heat segment 20->40 over 1000 ms = 20 K/s is too slow.
+    settings.limits_by_mode = {
+        "slow": ExperimentLimits(min_temp=0.0, max_temp=300.0, min_heat_rate=50.0)
+    }
+    programs = {"ch1": {"time": [0, 1000], "temp": [20, 40]}}
     mode = SlowMode(connected_daq, settings, calibration, programs)
     with pytest.raises(ValueError):
         mode.arm()

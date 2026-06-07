@@ -74,27 +74,36 @@ def resolve_sample_rate_map(value) -> dict:
     raise TypeError(f"sample rate must be int or dict, got {type(value).__name__}")
 
 
+#: Per-mode keys recognised in the ``Limits`` block (besides a flat back-compat
+#: block that applies to every mode). Mirrors ``SAMPLE_RATE_MODE_KEYS``.
+LIMITS_MODE_KEYS = ("fast", "slow", "iso")
+
+
 @dataclass
 class ExperimentLimits:
     """Operator safety limits for experiment programs (TODO step 8 / P1-38).
 
     ``min_temp`` / ``max_temp`` (deg C) are the heating-only allowed range
-    (no cryostat). ``max_heat_rate`` / ``max_cool_rate`` (K/s, magnitude) cap
-    the per-segment ramp rates; ``None`` disables that check (the achievable
-    cool rate is hardware-dependent -- fill it in from the bench, P1-38).
+    (no cryostat). ``min_heat_rate`` / ``max_heat_rate`` and ``min_cool_rate`` /
+    ``max_cool_rate`` (K/s, magnitude) bound the per-segment ramp rates; ``None``
+    on any bound disables that single check (the achievable cool rate is
+    hardware-dependent -- fill it in from the bench, P1-38).
     """
 
     min_temp: float = 0.0
     max_temp: float = 300.0
+    min_heat_rate: float | None = None
     max_heat_rate: float | None = None
+    min_cool_rate: float | None = None
     max_cool_rate: float | None = None
 
 
 def parse_experiment_limits(value: dict | None) -> ExperimentLimits:
-    """Build :class:`ExperimentLimits` from the optional ``Limits`` block.
+    """Build :class:`ExperimentLimits` from a single (flat) ``Limits`` block.
 
     Missing block / keys fall back to the defaults (back-compat). Keys:
-    ``Min temperature``, ``Max temperature``, ``Max heat rate``, ``Max cool rate``.
+    ``Min temperature``, ``Max temperature``, ``Min heat rate``,
+    ``Max heat rate``, ``Min cool rate``, ``Max cool rate``.
     """
     d = value or {}
 
@@ -113,9 +122,43 @@ def parse_experiment_limits(value: dict | None) -> ExperimentLimits:
     return ExperimentLimits(
         min_temp=_req("Min temperature", 0.0),
         max_temp=_req("Max temperature", 300.0),
+        min_heat_rate=_opt("Min heat rate"),
         max_heat_rate=_opt("Max heat rate"),
+        min_cool_rate=_opt("Min cool rate"),
         max_cool_rate=_opt("Max cool rate"),
     )
+
+
+def parse_experiment_limits_by_mode(value: dict | None) -> dict:
+    """Build a ``{mode: ExperimentLimits}`` map from the optional ``Limits`` block.
+
+    Two accepted shapes (mirrors the ``Sample rate`` field, P1-31):
+
+    * **Per-mode map** -- a dict containing any of the mode keys
+      (``"fast"`` / ``"slow"`` / ``"iso"``). Each present mode's sub-block is
+      parsed with :func:`parse_experiment_limits`; a mode key that is absent
+      falls back to the built-in defaults.
+    * **Flat block** (back-compat) -- a dict with the limit keys directly
+      (``"Min temperature"`` ...). The same limits apply to every mode.
+    * **Absent** (``None`` / ``{}``) -> built-in defaults for every mode.
+
+    Returns ``{"fast", "slow", "iso"}`` -> :class:`ExperimentLimits`.
+    """
+    if value is None:
+        return {k: ExperimentLimits() for k in LIMITS_MODE_KEYS}
+    if not isinstance(value, dict):
+        raise TypeError(
+            f"Limits must be a map, got {type(value).__name__}"
+        )
+    if any(k in value for k in LIMITS_MODE_KEYS):
+        # Per-mode map: parse each present mode; absent modes get defaults.
+        return {
+            k: parse_experiment_limits(value[k]) if k in value else ExperimentLimits()
+            for k in LIMITS_MODE_KEYS
+        }
+    # Flat block (back-compat): one shared limit set for every mode.
+    shared = parse_experiment_limits(value)
+    return {k: shared for k in LIMITS_MODE_KEYS}
 
 
 class JsonReader:
@@ -227,10 +270,21 @@ class BackSettings:
     def parse_limits(self) -> None:
         """Pull operator safety limits from the optional ``Limits`` block.
 
-        Absent block -> defaults (min 0 / max 300 C, no rate cap); see
-        :func:`parse_experiment_limits` and TODO step 8 / P1-38.
+        Supports a per-mode map (``{"fast": {...}, "slow": {...}, "iso": {...}}``)
+        or a single flat block applied to every mode (back-compat). Absent block
+        -> defaults (min 0 / max 300 C, no rate cap). See
+        :func:`parse_experiment_limits_by_mode` and TODO step 8 / P1-38.
+
+        Exposes ``limits_by_mode`` (the per-mode map consumed at arm) and the
+        scalar ``limits`` (back-compat fallback for an unknown mode name: the
+        flat block when one was given, else built-in defaults).
         """
-        self.limits = parse_experiment_limits(self._exp_settings_dict.get(LIMITS_FIELD))
+        raw = self._exp_settings_dict.get(LIMITS_FIELD)
+        self.limits_by_mode = parse_experiment_limits_by_mode(raw)
+        is_flat = isinstance(raw, dict) and not any(
+            k in raw for k in LIMITS_MODE_KEYS
+        )
+        self.limits = parse_experiment_limits(raw) if is_flat else ExperimentLimits()
 
     def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""

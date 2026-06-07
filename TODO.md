@@ -825,15 +825,25 @@ jitter.
 **Mechanism DONE 2026-06-06** (`back/modes._validate_program_limits`, called from
 `BaseMode.arm`; config `Experiment settings.Limits` parsed into
 `settings.ExperimentLimits`). Temperature programs are rejected fail-loud when
-out of the heating-only range `[min_temp, max_temp]` (default 0..300 C) or when a
-per-segment dT/dt exceeds `max_heat_rate` / `max_cool_rate` (signed; cool =
-passive-limited). Tested in `test_back_settings.py` (parse) +
-`test_modes_e2e.py` (arm rejects over-temp / too-fast cool, accepts heat-iso-cool
-in range).
+out of the heating-only range `[min_temp, max_temp]` or when a per-segment dT/dt
+falls outside `[min_heat_rate, max_heat_rate]` (heating) / `[min_cool_rate,
+max_cool_rate]` (cooling, magnitude; cool = passive-limited). `null` on any
+single bound disables that one check. The `Limits` block is **per-mode**
+(`{"fast": {...}, "slow": {...}, "iso": {...}}`, parsed by
+`parse_experiment_limits_by_mode` into `BackSettings.limits_by_mode`; a flat
+block stays valid as back-compat and applies to every mode); `arm()` picks the
+set matching the mode name. Committed defaults: fast 0..300 C / 100..100000 K/s,
+slow 0..200 C / 0.1..60 K/s, iso 0..200 C / no rate bound. The GUI
+(`front/mainWindow.py`) catches the arm-time `ValueError` and blocks the launch
+with an `ErrorWindow` (fast/slow `fh_arm`, iso `set_temp_volt`). Tested in
+`test_back_settings.py` (per-mode + flat + min/max parse) + `test_modes_e2e.py`
+(arm rejects over-temp / too-fast cool / too-slow heat, accepts heat-iso-cool in
+range).
 
-**Remaining (pending physicist):** the rate caps default to `null` (disabled) --
-the achievable passive cool rate is hardware-dependent and must be measured on
-the bench (ties into P0-5 / the soak run), then committed to `settings.json`.
+**Remaining (pending physicist):** the committed slow/fast rate bounds are
+placeholders -- the achievable passive cool rate is hardware-dependent and must
+be measured on the bench (ties into P0-5 / the soak run), then the real numbers
+committed to `settings.json`.
 
 ### P1-39. GUI multi-segment program builder (heat / iso / cool)
 

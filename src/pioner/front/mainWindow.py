@@ -593,9 +593,19 @@ class mainWindow(mainWindowUi):
             t_item = self.experimentTable.item(i, 0)
             v_item = self.experimentTable.item(i, 1)
             assert t_item is not None and v_item is not None
+            # Block the launch with a warning rather than crash on a cell the
+            # user left blank or filled with non-numeric text.
+            try:
+                t_val = float(t_item.text())
+                v_val = float(v_item.text())
+            except ValueError:
+                ErrorWindow(
+                    f"Invalid value in program table row {i + 1}: "
+                    "time and value must be numbers."
+                )
+                return
             uncorrectedProfile = np.hstack((uncorrectedProfile,
-                                            [[float(t_item.text())],
-                                            [float(v_item.text())]]))
+                                            [[t_val], [v_val]]))
         # Trim trailing zero-padded rows: keep up to the row with max time.
         # If every cell is zero the resulting profile would have duration 0,
         # which the backend (rightly) rejects -- fail loudly here instead of
@@ -647,8 +657,14 @@ class mainWindow(mainWindowUi):
             ErrorWindow("Press Apply to confirm the sample rate before arming.")
             return
         # Fast and slow share this ramp program; the backend mode name picks
-        # whether AC modulation is layered on (slow) or not (fast).
-        self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
+        # whether AC modulation is layered on (slow) or not (fast). Arming runs
+        # the operator safety limits (per-mode temp range + ramp-rate bounds);
+        # block the launch with a warning if the program violates them instead
+        # of letting the ValueError escape unhandled (P1-38).
+        try:
+            self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
+        except ValueError as exc:
+            ErrorWindow(f"Cannot arm experiment: {exc}")
 
     def _fh_plot_df(self, df):
         """Plot the result DataFrame returned by ``controller.run_*``."""
@@ -767,7 +783,13 @@ class mainWindow(mainWindowUi):
             # auto-stops after D (P1-17 step 5/7). Off acts as the abort.
             program = {self.HEATER_CHANNEL_KEY: {
                 "time": [0, int(round(duration * 1000))], key: [value, value]}}
-            self.controller.arm_iso_mode(json.dumps(program))
+            # Block the launch with a warning if the iso setpoint is outside the
+            # operator safety limits (per-mode temp range); see P1-38.
+            try:
+                self.controller.arm_iso_mode(json.dumps(program))
+            except ValueError as exc:
+                ErrorWindow(f"Cannot set iso value: {exc}")
+                return
             self._heater_driven = True
             if not self._start_run_worker():
                 self._heater_driven = False  # a run was already in flight
@@ -777,7 +799,11 @@ class mainWindow(mainWindowUi):
             # is genuinely driven, so the live Thtr readout is meaningful.
             chan_temp_volt = {self.HEATER_CHANNEL_KEY: {key: value}}
             self.chan_temp_volt_str = json.dumps(chan_temp_volt)
-            self.controller.arm_iso_mode(self.chan_temp_volt_str)
+            try:
+                self.controller.arm_iso_mode(self.chan_temp_volt_str)
+            except ValueError as exc:
+                ErrorWindow(f"Cannot set iso value: {exc}")
+                return
             self.controller.start_iso_hold()
             self._heater_driven = True
 

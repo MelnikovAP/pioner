@@ -136,11 +136,12 @@ def _validate_program_limits(
     """Fail-loud safety check of **temperature** programs (step 8 / P1-38).
 
     Rejects temperature points outside the heating-only allowed range
-    ``[min_temp, max_temp]`` (no cryostat) and, when the rate caps are set,
-    per-segment ramp rates that exceed them (a cool segment faster than the
-    chip's passive relaxation can't be followed). Voltage programs are skipped
-    (raw V, not temperature). A no-op when limits are the defaults and no temp
-    program is out of range.
+    ``[min_temp, max_temp]`` (no cryostat) and, when the rate bounds are set,
+    per-segment ramp rates that fall outside ``[min_heat_rate, max_heat_rate]``
+    (heating) or ``[min_cool_rate, max_cool_rate]`` (cooling, magnitude; a cool
+    segment faster than the chip's passive relaxation can't be followed).
+    Voltage programs are skipped (raw V, not temperature). A no-op when limits
+    are the defaults and no temp program is out of range.
     """
     for ch, prog in programs.items():
         if not prog.is_temperature or prog.values.size == 0:
@@ -153,7 +154,8 @@ def _validate_program_limits(
                 f"the allowed [{limits.min_temp:.1f}, {limits.max_temp:.1f}] C "
                 "(heating-only; no cryostat)"
             )
-        if limits.max_heat_rate is None and limits.max_cool_rate is None:
+        if (limits.min_heat_rate is None and limits.max_heat_rate is None
+                and limits.min_cool_rate is None and limits.max_cool_rate is None):
             continue
         t, temp = prog.time_ms, prog.values
         for i in range(len(t) - 1):
@@ -161,18 +163,32 @@ def _validate_program_limits(
             if dt_s <= 0:
                 continue
             rate = (temp[i + 1] - temp[i]) / dt_s   # K/s, signed
-            if (rate > 0 and limits.max_heat_rate is not None
-                    and rate > limits.max_heat_rate + 1e-9):
-                raise ValueError(
-                    f"channel {ch} segment {i}: heat rate {rate:.3g} K/s exceeds "
-                    f"max {limits.max_heat_rate:.3g} K/s"
-                )
-            if (rate < 0 and limits.max_cool_rate is not None
-                    and -rate > limits.max_cool_rate + 1e-9):
-                raise ValueError(
-                    f"channel {ch} segment {i}: cool rate {-rate:.3g} K/s exceeds "
-                    f"max passive {limits.max_cool_rate:.3g} K/s (no cryostat)"
-                )
+            if rate > 0:
+                if (limits.max_heat_rate is not None
+                        and rate > limits.max_heat_rate + 1e-9):
+                    raise ValueError(
+                        f"channel {ch} segment {i}: heat rate {rate:.3g} K/s exceeds "
+                        f"max {limits.max_heat_rate:.3g} K/s"
+                    )
+                if (limits.min_heat_rate is not None
+                        and rate < limits.min_heat_rate - 1e-9):
+                    raise ValueError(
+                        f"channel {ch} segment {i}: heat rate {rate:.3g} K/s is below "
+                        f"min {limits.min_heat_rate:.3g} K/s"
+                    )
+            if rate < 0:
+                if (limits.max_cool_rate is not None
+                        and -rate > limits.max_cool_rate + 1e-9):
+                    raise ValueError(
+                        f"channel {ch} segment {i}: cool rate {-rate:.3g} K/s exceeds "
+                        f"max passive {limits.max_cool_rate:.3g} K/s (no cryostat)"
+                    )
+                if (limits.min_cool_rate is not None
+                        and -rate < limits.min_cool_rate - 1e-9):
+                    raise ValueError(
+                        f"channel {ch} segment {i}: cool rate {-rate:.3g} K/s is below "
+                        f"min {limits.min_cool_rate:.3g} K/s"
+                    )
 
 
 def segments_to_program(
@@ -464,7 +480,13 @@ class BaseMode(abc.ABC):
         )
         # Operator safety limits (heating-only temperature range + per-segment
         # ramp rates) -- fail loud before building the profile (step 8 / P1-38).
-        limits = getattr(self._settings, "limits", None)
+        # Prefer this mode's per-mode limit set (fast/slow/iso differ); fall back
+        # to the scalar ``limits`` for an unknown mode or a legacy settings object.
+        limits_by_mode = getattr(self._settings, "limits_by_mode", None)
+        if limits_by_mode is not None and self.name in limits_by_mode:
+            limits = limits_by_mode[self.name]
+        else:
+            limits = getattr(self._settings, "limits", None)
         if limits is not None:
             _validate_program_limits(self._programs, limits)
         seconds = self._duration_ms / 1000.0
