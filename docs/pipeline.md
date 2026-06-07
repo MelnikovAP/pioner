@@ -652,7 +652,7 @@ working end-to-end on mock or on real hardware.
 | `test_apply_calibration.py`  | `Uref` tiling for iso, `Thtr` NaN-when-idle, raw-column drop, empty-input, **Rhtr units in Ω with production calibration** (regression for #1) |
 
 ```bash
-PYTHONPATH=src .venv/bin/pytest tests/              # 144 tests, ~30 s
+PYTHONPATH=src .venv/bin/pytest tests/              # 154 tests, ~30 s
 PYTHONPATH=src .venv/bin/python -m pioner.back.debug   # smoke test all 3 modes
 ```
 

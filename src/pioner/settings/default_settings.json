@@ -55,6 +55,12 @@
             "Frequency": 37.5,
             "Amplitude": 0.1,
             "Offset": 0.0
+        },
+        "Limits": {
+            "Min temperature": 0,
+            "Max temperature": 300,
+            "Max heat rate": null,
+            "Max cool rate": null
         }
     }
 }

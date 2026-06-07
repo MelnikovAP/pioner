@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **144 passed** (mock backend, ~30 s).
+- `pytest tests/`: **154 passed** (mock backend, ~30 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -379,10 +379,11 @@ call `run()` off the main thread so Stop is clickable mid-run (step 7), a Stop
 button, and marking the partial save `aborted` (needs a flag + DiskRecorder
 wiring).
 
-*Temperature limits (config, no cryostat yet).* Add `min`/`max` experiment
-temperature to settings (decided: **min 0 C, max 300 C**, heating-only). Reject
-programs / iso targets outside `[min, max]` at validation; this is in addition
-to the existing `safe_voltage` clamp.
+*Temperature limits (config, no cryostat yet) -- DONE 2026-06-06.* `min`/`max`
+experiment temperature in `Experiment settings.Limits` (default **0 / 300 C**,
+heating-only) parsed into `settings.ExperimentLimits`; `_validate_program_limits`
+rejects out-of-range temperature programs (and per-segment rate caps, P1-38)
+fail-loud at `arm`, on top of the existing `safe_voltage` clamp.
 
 *Implementation order:* (1) per-mode rate + Apply gate -- **DONE 2026-06-05**
 (settings/controller/GUI; see README invariants); (2) DiskRecorder capture core
@@ -431,10 +432,16 @@ hold; "Off" aborts an in-flight finite run (`stop_run` -> zero + partial) else
 ends the hold; `_set_running` also gates the iso Set button; `disconnect` aborts
 an in-flight run first. So functionally every mode now has start (arm+Set/Start),
 stop (Stop/Off), and -- for iso -- the eternal hold; smoke-verified offscreen.
-**Remaining step 7:** **7b-cosmetic** -- collapse the iso Set/Off panel onto the
-literal arm/start/stop buttons (purely visual; the function is complete);
-**7c** the multi-segment program builder (P1-39) + per-segment rate validation
-(P1-38); temp limits (step 8); chip-detect gate (P1-36).
+**Temp limits (step 8) + per-segment rate validation (P1-38) -- DONE
+2026-06-06** (`Experiment settings.Limits` -> `ExperimentLimits`; fail-loud
+`_validate_program_limits` on arm: heating-only 0..300 C + optional rate caps).
+**P1-39 segment-compiler core -- DONE** (`segments_to_program`). **Functional
+step 7 is complete** (non-blocking lifecycle + Stop + finite-iso recording +
+abort + safety limits/validation + segment compiler), all on mock.
+**Remaining (GUI-test-gated / blocked):** the P1-39 segment-builder **widget** +
+**7b-cosmetic** iso Set/Off -> literal arm/start/stop buttons -- both pure GUI,
+deferred until the offscreen GUI test harness (P1-29); **chip-detect gate
+(P1-36)** -- blocked on the bench answers.
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -813,43 +820,33 @@ P0-5/P1-18):
 across repeated identical fast runs before/after; mock cannot reproduce the
 jitter.
 
-### P1-38. Per-segment rate validation for multi-segment programs (high)
+### P1-38. Per-segment rate validation for multi-segment programs
 
-**Priority: high.** **Where:** `back/modes._validate_programs` /
-`_program_to_voltage`, and the segment UI (P1-39).
+**Mechanism DONE 2026-06-06** (`back/modes._validate_program_limits`, called from
+`BaseMode.arm`; config `Experiment settings.Limits` parsed into
+`settings.ExperimentLimits`). Temperature programs are rejected fail-loud when
+out of the heating-only range `[min_temp, max_temp]` (default 0..300 C) or when a
+per-segment dT/dt exceeds `max_heat_rate` / `max_cool_rate` (signed; cool =
+passive-limited). Tested in `test_back_settings.py` (parse) +
+`test_modes_e2e.py` (arm rejects over-temp / too-fast cool, accepts heat-iso-cool
+in range).
 
-**What:** slow/iso programs are piecewise-linear over the `(time, temp)` points
-(heat / iso / cool segments already work via interpolation -- no code needed for
-the basic capability). But nothing validates that a commanded segment is
-**physically achievable**: with no cryostat, cooling is passive, so a
-cool-segment whose rate exceeds the chip's natural thermal relaxation cannot be
-followed -- the heater goes to 0 and T lags the command silently. Likewise a
-heat segment can exceed the safe slew.
+**Remaining (pending physicist):** the rate caps default to `null` (disabled) --
+the achievable passive cool rate is hardware-dependent and must be measured on
+the bench (ties into P0-5 / the soak run), then committed to `settings.json`.
 
-**Action:** compute each segment's dT/dt and warn (fail-loud, not silent) when a
-**cool** segment is faster than a configurable max passive cool rate, or a
-**heat** segment exceeds a max heat rate. Surface the offending segment index +
-the requested vs allowed rate. Make the limits config (`settings.json`,
-alongside the temp limits of step 8). Mock-testable (pure validation on the
-program table). The actual achievable cool rate must be measured on hardware
-(ties into P0-5 / the soak run); the validator just guards against obviously
-impossible commands.
+### P1-39. GUI multi-segment program builder (heat / iso / cool)
 
-### P1-39. GUI multi-segment program builder (heat / iso / cool) (high)
+**Core DONE 2026-06-06** (`back/modes.segments_to_program`): compiles a list of
+`{type: heat|iso|cool, target, duration_ms}` segments into the `(time, temp)`
+point program the backend already consumes (heat/iso/cool then validated by
+P1-38 + the temp limits on arm). Tested in `test_modes_e2e.py`.
 
-**Priority: high.** **Where:** `front/mainWindow.py` + `front/mainWindowUi.py`
-(the experiment table), part of the step-7 GUI work.
-
-**What:** today a multi-segment slow/iso program is entered as raw `(time, temp)`
-points in the experiment table (works, but unfriendly). Add a **segment-oriented
-builder**: rows of `{type: heat|iso|cool, target T, duration|rate}` that compile
-down to the existing `(time, temp)` point list. Heat = ramp to target; iso =
-hold at target for a duration; cool = ramp down (passive-limited, see P1-38).
-
-**Action:** a small segment table/editor in the GUI that produces the program
-JSON the backend already consumes; validate each segment via P1-38 before arm;
-keep the raw-points entry as an "advanced" fallback. Offscreen GUI regression
-test (P1-29). No backend change -- the program format is unchanged.
+**Remaining (GUI widget):** a segment table/editor in `front/mainWindowUi.py` +
+`mainWindow.py` that calls `segments_to_program` and feeds `fh_arm`, with the
+raw-points table kept as an "advanced" fallback. Deferred until the offscreen GUI
+test harness exists (P1-29) so it can be regression-tested; the capability is
+already available programmatically and via raw points.
 
 ---
 

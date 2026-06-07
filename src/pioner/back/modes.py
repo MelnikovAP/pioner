@@ -55,7 +55,7 @@ from pioner.shared.modulation import (
     fft_demodulate,
     lockin_demodulate,
 )
-from pioner.shared.settings import BackSettings
+from pioner.shared.settings import BackSettings, ExperimentLimits
 from pioner.shared.utils import temperature_to_voltage
 from pioner.back.daq_device import DaqDeviceHandler
 from pioner.back.experiment_manager import ExperimentManager, ScanResult
@@ -128,6 +128,96 @@ def _validate_programs(
             f"AO channel keys outside [{ao_low}, {ao_high}]: {sorted(bad_keys)}"
         )
     return float(total_ms)
+
+
+def _validate_program_limits(
+    programs: Dict[str, ChannelProgram], limits: ExperimentLimits
+) -> None:
+    """Fail-loud safety check of **temperature** programs (step 8 / P1-38).
+
+    Rejects temperature points outside the heating-only allowed range
+    ``[min_temp, max_temp]`` (no cryostat) and, when the rate caps are set,
+    per-segment ramp rates that exceed them (a cool segment faster than the
+    chip's passive relaxation can't be followed). Voltage programs are skipped
+    (raw V, not temperature). A no-op when limits are the defaults and no temp
+    program is out of range.
+    """
+    for ch, prog in programs.items():
+        if not prog.is_temperature or prog.values.size == 0:
+            continue
+        lo = float(np.min(prog.values))
+        hi = float(np.max(prog.values))
+        if lo < limits.min_temp - 1e-9 or hi > limits.max_temp + 1e-9:
+            raise ValueError(
+                f"channel {ch} temperature range [{lo:.1f}, {hi:.1f}] C is outside "
+                f"the allowed [{limits.min_temp:.1f}, {limits.max_temp:.1f}] C "
+                "(heating-only; no cryostat)"
+            )
+        if limits.max_heat_rate is None and limits.max_cool_rate is None:
+            continue
+        t, temp = prog.time_ms, prog.values
+        for i in range(len(t) - 1):
+            dt_s = (t[i + 1] - t[i]) / 1000.0
+            if dt_s <= 0:
+                continue
+            rate = (temp[i + 1] - temp[i]) / dt_s   # K/s, signed
+            if (rate > 0 and limits.max_heat_rate is not None
+                    and rate > limits.max_heat_rate + 1e-9):
+                raise ValueError(
+                    f"channel {ch} segment {i}: heat rate {rate:.3g} K/s exceeds "
+                    f"max {limits.max_heat_rate:.3g} K/s"
+                )
+            if (rate < 0 and limits.max_cool_rate is not None
+                    and -rate > limits.max_cool_rate + 1e-9):
+                raise ValueError(
+                    f"channel {ch} segment {i}: cool rate {-rate:.3g} K/s exceeds "
+                    f"max passive {limits.max_cool_rate:.3g} K/s (no cryostat)"
+                )
+
+
+def segments_to_program(
+    segments: Sequence[dict], start_temp: float = 0.0
+) -> Dict[str, list]:
+    """Compile heat / iso / cool segments into a ``(time, temp)`` program (P1-39).
+
+    The core of the multi-segment builder: a friendlier description than raw
+    points. Each segment is ``{"type": "heat"|"iso"|"cool", "duration_ms": D,
+    "target": T}`` (``target`` ignored for ``iso``, which holds the current
+    temperature). Returns ``{"time": [ms...], "temp": [degC...]}`` ready to drop
+    into a channel program (e.g. ``{"ch1": segments_to_program(...)}``); the
+    usual `_validate_programs` / `_validate_program_limits` then guard it.
+
+    ``heat`` must not target below the current temperature and ``cool`` must not
+    target above it (heating-only; cooling is passive).
+    """
+    times: list = [0.0]
+    temps: list = [float(start_temp)]
+    cur = float(start_temp)
+    for i, seg in enumerate(segments):
+        typ = seg.get("type")
+        duration = float(seg.get("duration_ms", 0.0))
+        if duration <= 0:
+            raise ValueError(f"segment {i}: duration_ms must be > 0")
+        if typ == "iso":
+            target = cur
+        elif typ == "heat":
+            target = float(seg["target"])
+            if target < cur:
+                raise ValueError(
+                    f"segment {i}: heat target {target} C is below the current {cur} C"
+                )
+        elif typ == "cool":
+            target = float(seg["target"])
+            if target > cur:
+                raise ValueError(
+                    f"segment {i}: cool target {target} C is above the current {cur} C"
+                )
+        else:
+            raise ValueError(f"segment {i}: unknown type {typ!r} (heat|iso|cool)")
+        times.append(times[-1] + duration)
+        temps.append(target)
+        cur = target
+    return {"time": times, "temp": temps}
 
 
 def _interpolate_program(
@@ -372,6 +462,11 @@ class BaseMode(abc.ABC):
         self._duration_ms = _validate_programs(
             self._programs, ao.low_channel, ao.high_channel
         )
+        # Operator safety limits (heating-only temperature range + per-segment
+        # ramp rates) -- fail loud before building the profile (step 8 / P1-38).
+        limits = getattr(self._settings, "limits", None)
+        if limits is not None:
+            _validate_program_limits(self._programs, limits)
         seconds = self._duration_ms / 1000.0
         self._samples_per_channel = int(round(ao.sample_rate * seconds))
         self._voltage_profiles = self._build_profiles()
@@ -1196,5 +1291,6 @@ __all__ = [
     "save_run_to_h5",
     "finalize_raw_to_h5",
     "read_calibrated_h5",
+    "segments_to_program",
     "ChannelProgram",
 ]

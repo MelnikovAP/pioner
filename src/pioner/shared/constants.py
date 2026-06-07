@@ -72,6 +72,9 @@ FREQUENCY_FIELD = "Frequency"
 AMPLITUDE_FIELD = "Amplitude"
 OFFSET_FIELD = "Offset"
 
+# Optional operator safety limits block (TODO step 8 / P1-38). Absent -> defaults.
+LIMITS_FIELD = "Limits"
+
 # Raw data constants
 # =================================================================================
 DATA_FOLDER = "data"

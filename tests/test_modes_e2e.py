@@ -515,3 +515,61 @@ def test_slow_mode_injected_stop_interrupts(connected_daq, settings, calibration
         t.join(timeout=2.0)        # 5 s ramp; only passes if stop interrupted it
         assert not t.is_alive(), "injected slow run did not stop"
     assert "df" in holder
+
+
+# --- experiment limits validation (step 8 / P1-38) -------------------------
+
+def test_arm_rejects_temperature_above_max(connected_daq, settings, calibration):
+    from pioner.shared.settings import ExperimentLimits
+    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0)
+    programs = {"ch1": {"time": [0, 1000], "temp": [20, 400]}}  # 400 C > 300
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    with pytest.raises(ValueError):
+        mode.arm()
+
+
+def test_arm_accepts_heat_iso_cool_in_range(connected_daq, settings, calibration):
+    from pioner.shared.settings import ExperimentLimits
+    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0)
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    # heat (20->200) / iso (200) / cool (200->20), all within [0, 300] C.
+    programs = {"ch1": {"time": [0, 100, 200, 300], "temp": [20, 200, 200, 20]}}
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    assert mode.is_armed()
+
+
+def test_arm_rejects_cool_faster_than_max(connected_daq, settings, calibration):
+    from pioner.shared.settings import ExperimentLimits
+    # 10 K/s max passive cool; the cool segment 200->20 over 100 ms = 1800 K/s.
+    settings.limits = ExperimentLimits(min_temp=0.0, max_temp=300.0, max_cool_rate=10.0)
+    programs = {"ch1": {"time": [0, 100, 200], "temp": [20, 200, 20]}}
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    with pytest.raises(ValueError):
+        mode.arm()
+
+
+# --- multi-segment program builder core (P1-39) ----------------------------
+
+def test_segments_to_program_heat_iso_cool():
+    from pioner.back.modes import segments_to_program
+    prog = segments_to_program([
+        {"type": "heat", "target": 200, "duration_ms": 100},
+        {"type": "iso", "duration_ms": 100},
+        {"type": "cool", "target": 20, "duration_ms": 100},
+    ], start_temp=20.0)
+    assert prog["time"] == [0.0, 100.0, 200.0, 300.0]
+    assert prog["temp"] == [20.0, 200.0, 200.0, 20.0]   # iso holds 200
+
+
+def test_segments_to_program_rejects_bad_segments():
+    from pioner.back.modes import segments_to_program
+    import pytest as _pytest
+    with _pytest.raises(ValueError):
+        segments_to_program([{"type": "heat", "target": 10, "duration_ms": 100}], start_temp=50.0)  # heat below current
+    with _pytest.raises(ValueError):
+        segments_to_program([{"type": "cool", "target": 90, "duration_ms": 100}], start_temp=50.0)  # cool above current
+    with _pytest.raises(ValueError):
+        segments_to_program([{"type": "bogus", "duration_ms": 100}])
+    with _pytest.raises(ValueError):
+        segments_to_program([{"type": "iso", "duration_ms": 0}])

@@ -13,6 +13,7 @@ schema:
 import json
 import logging
 import os
+from dataclasses import dataclass
 
 # DAQ parameter classes are needed only by ``BackSettings``. Importing them
 # requires (mock) ``uldaq``, so we tolerate failures silently and re-raise
@@ -71,6 +72,50 @@ def resolve_sample_rate_map(value) -> dict:
             out[key] = _as_int(value[key]) if key in value else default
         return out
     raise TypeError(f"sample rate must be int or dict, got {type(value).__name__}")
+
+
+@dataclass
+class ExperimentLimits:
+    """Operator safety limits for experiment programs (TODO step 8 / P1-38).
+
+    ``min_temp`` / ``max_temp`` (deg C) are the heating-only allowed range
+    (no cryostat). ``max_heat_rate`` / ``max_cool_rate`` (K/s, magnitude) cap
+    the per-segment ramp rates; ``None`` disables that check (the achievable
+    cool rate is hardware-dependent -- fill it in from the bench, P1-38).
+    """
+
+    min_temp: float = 0.0
+    max_temp: float = 300.0
+    max_heat_rate: float | None = None
+    max_cool_rate: float | None = None
+
+
+def parse_experiment_limits(value: dict | None) -> ExperimentLimits:
+    """Build :class:`ExperimentLimits` from the optional ``Limits`` block.
+
+    Missing block / keys fall back to the defaults (back-compat). Keys:
+    ``Min temperature``, ``Max temperature``, ``Max heat rate``, ``Max cool rate``.
+    """
+    d = value or {}
+
+    def _opt(key: str) -> float | None:
+        v = d.get(key)
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(f"Limits.{key} must be a number, got {v!r}")
+        return float(v)
+
+    def _req(key: str, default: float) -> float:
+        v = _opt(key)
+        return default if v is None else v
+
+    return ExperimentLimits(
+        min_temp=_req("Min temperature", 0.0),
+        max_temp=_req("Max temperature", 300.0),
+        max_heat_rate=_opt("Max heat rate"),
+        max_cool_rate=_opt("Max cool rate"),
+    )
 
 
 class JsonReader:
@@ -154,6 +199,7 @@ class BackSettings:
         self.parse_ao_params()
         self.parse_modulation()
         self.parse_acquisition_mode(json_dict)
+        self.parse_limits()
         self.check_invalid_fields()
 
     def parse_acquisition_mode(self, json_dict: dict) -> None:
@@ -177,6 +223,14 @@ class BackSettings:
             amplitude=float(mod.get(AMPLITUDE_FIELD, 0.0)),
             offset=float(mod.get(OFFSET_FIELD, 0.0)),
         )
+
+    def parse_limits(self) -> None:
+        """Pull operator safety limits from the optional ``Limits`` block.
+
+        Absent block -> defaults (min 0 / max 300 C, no rate cap); see
+        :func:`parse_experiment_limits` and TODO step 8 / P1-38.
+        """
+        self.limits = parse_experiment_limits(self._exp_settings_dict.get(LIMITS_FIELD))
 
     def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
@@ -433,9 +487,12 @@ class FrontSettings:
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]
             self.modulation_offset = self._exp_settings_dict[MODULATION_FIELD][OFFSET_FIELD]
+            # Carry the optional Limits block verbatim so a GUI save round-trips
+            # it (the front-end doesn't otherwise consume it). None if absent.
+            self.limits_raw = self._exp_settings_dict.get(LIMITS_FIELD)
 
     def get_exp_settings(self):
-        return {PATHS_FIELD: {
+        out = {PATHS_FIELD: {
                     CALIB_PATH_FIELD: self.calib_path,
                     DATA_PATH_FIELD: self.data_path
                     },
@@ -448,6 +505,11 @@ class FrontSettings:
                     OFFSET_FIELD: self.modulation_offset
                     },
                 }
+        # Preserve the optional Limits block on save (don't silently drop it).
+        limits_raw = getattr(self, "limits_raw", None)
+        if limits_raw is not None:
+            out[LIMITS_FIELD] = limits_raw
+        return out
 
     def check_invalid_fields(self):
         """Raises ValueError if at least one required field is missing in the settings."""
