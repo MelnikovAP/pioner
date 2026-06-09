@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **154 passed** (mock backend, ~30 s).
+- `pytest tests/`: **172 passed** (mock backend, ~45 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -423,8 +423,8 @@ harmonic scalars are needed (they were never persisted, only logged). Next:
 `finished` signal plots the result decimated on the main thread; Stop button
 wired to `stop_run`; arm/start/stop + mode-combo button-state gated by
 `_set_running`; the live plot keeps updating during slow/iso off-ring runs).
-Smoke-verified offscreen; an automated offscreen GUI test belongs to P1-29 (no
-Qt test harness yet). **7b finite-iso recording + abort -- DONE 2026-06-06**: the
+Smoke-verified offscreen; the run-lifecycle + iso Set/Off behaviour now also has
+automated offscreen tests (`tests/test_main_window.py`). **7b finite-iso recording + abort -- DONE 2026-06-06**: the
 GUI iso "Set" with a duration now arms a constant duration-D program and runs it
 on the worker thread (records raw U + calibrated T, auto-stops after D) instead
 of the old eternal-hold + auto-zero; "Set" with no duration is still the eternal
@@ -438,10 +438,10 @@ stop (Stop/Off), and -- for iso -- the eternal hold; smoke-verified offscreen.
 **P1-39 segment-compiler core -- DONE** (`segments_to_program`). **Functional
 step 7 is complete** (non-blocking lifecycle + Stop + finite-iso recording +
 abort + safety limits/validation + segment compiler), all on mock.
-**Remaining (GUI-test-gated / blocked):** the P1-39 segment-builder **widget** +
-**7b-cosmetic** iso Set/Off -> literal arm/start/stop buttons -- both pure GUI,
-deferred until the offscreen GUI test harness (P1-29); **chip-detect gate
-(P1-36)** -- blocked on the bench answers.
+**Remaining (blocked):** the P1-39 segment-builder **widget** + **7b-cosmetic**
+iso Set/Off -> literal arm/start/stop buttons -- both pure GUI; the offscreen
+test harness now exists (`tests/test_main_window.py`), so add their tests there.
+**Chip-detect gate (P1-36)** -- blocked on the bench answers.
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -651,22 +651,6 @@ guard, sample-count logging). The remaining work needs the physical board and is
    the `temp-hr_valid` mask), fast/slow
    live-stream-during-run (P1-17 Approach A, alignment > 1000 K/s).
 
-### P1-29. Front-end: offscreen GUI regression tests
-
-**(front-end).** **Where:** `src/pioner/front/mainWindow.py`,
-`src/pioner/front/mainWindowUi.py`, new `tests/test_main_window.py`.
-
-**What:** several GUI behaviours are only exercised by an ad-hoc offscreen
-smoke, not by the suite. Add `QT_QPA_PLATFORM=offscreen` regression tests so
-they cannot silently regress:
-- connect status readout (A1) MOCK vs REAL, connect diagnostics (A2), idle-Thtr
-  blanking (A3);
-- iso eternal hold vs timed program (the duration field): Set holds and the
-  live Thtr shows; Off / timer expiry drives 0 V and blanks Thtr.
-
-(The iso hold/timed UI itself has landed: `setDurationInput` + `start_iso_hold`
-+ the auto-Off `QTimer`; this item is now only about test coverage.)
-
 ### P1-30. Quantify / harden the mainline `finite_scan` OVERRUN margin
 
 **Where:** `src/pioner/back/experiment_manager.py` (`_collect_finite_ai`,
@@ -854,9 +838,40 @@ P1-38 + the temp limits on arm). Tested in `test_modes_e2e.py`.
 
 **Remaining (GUI widget):** a segment table/editor in `front/mainWindowUi.py` +
 `mainWindow.py` that calls `segments_to_program` and feeds `fh_arm`, with the
-raw-points table kept as an "advanced" fallback. Deferred until the offscreen GUI
-test harness exists (P1-29) so it can be regression-tested; the capability is
-already available programmatically and via raw points.
+raw-points table kept as an "advanced" fallback. The offscreen GUI test harness
+now exists (`tests/test_main_window.py`), so the widget can be regression-tested
+there; the capability is already available programmatically and via raw points.
+
+### P1-40. Per-session log file for the GUI + richer logging coverage
+
+**Priority: HIGH (operator-requested).** Builds on / elevates the GUI part of
+P2-4 (single logging entry point), which stays the generic plan.
+
+**Problem:** the GUI entry point (`runUI.py`) configures no logging at all --
+`front/mainWindow.py` only does `logging.getLogger(__name__)`, so with no root
+handler the module loggers emit nothing useful and a session leaves no trace on
+disk. Only the Tango server (`back/nanocontrol_tango.py`) and the mock smoke
+(`back/debug.py`) call `logging.basicConfig`. When something goes wrong in an
+attended bring-up there is no log to read back.
+
+**Action:**
+- Configure logging the moment the app opens (in `runUI.py` / `mainWindow`
+  construction, before the backend connects) so startup itself is captured.
+- Write each session to its **own** file: a fixed base name plus a start-time
+  postfix, using filesystem-safe characters only -- no `:` / spaces; use `_`
+  (and `-`) instead. Example: `pioner_session_2026-06-07_14_30_05.log`. Capture
+  the timestamp once at launch; do not reuse `Date.now()`-style values that
+  break determinism in tests. Put the log dir under the existing data/log
+  location (see `NANOCONTROL_LOG_FILE` in `constants.py` for the existing
+  convention) and add a `SESSION_LOG_*` constant rather than hardcoding.
+- Add **more log statements** across the hot paths so the file is actually
+  informative: backend connect/disconnect, arm/run/stop, per-mode sample-rate
+  switch (P1-31), calibration apply, iso hold start/abort + `zero_ao`, and the
+  operator-limit rejections (P1-38). Keep levels sane (INFO for lifecycle,
+  WARNING/ERROR for faults) so the file is readable.
+- Prefer routing this through the P2-4 `logging_setup.configure(level, file)`
+  helper if/when that lands, so CLI / Tango / GUI share one setup; this item is
+  the high-priority GUI-session slice of it.
 
 ---
 
