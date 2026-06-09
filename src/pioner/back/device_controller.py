@@ -225,6 +225,19 @@ class DeviceController(abc.ABC):
         """Human-readable backend label for the GUI status line."""
         return type(self).__name__
 
+    # ------------------------------------------------------------------
+    # Chip-presence detection (P1-36). Read-only, passive. Default: not
+    # supported -> ``None`` / unavailable, so callers never gate on it.
+    # ------------------------------------------------------------------
+    def chip_present(self) -> Optional[bool]:
+        """``True``/``False`` if presence detection is enabled and has data,
+        else ``None`` (disabled / unsupported / no stream) -- never gates."""
+        return None
+
+    def chip_presence_report(self) -> dict:
+        """Bench-comparison report of per-channel metrics + strategy verdicts."""
+        return {"available": False, "channel": None, "metrics": {}, "verdicts": {}}
+
 
 class LocalDeviceController(DeviceController):
     """In-process backend: DAQ + ExperimentManager + AIProvider + Calibration.
@@ -645,6 +658,35 @@ class LocalDeviceController(DeviceController):
     @property
     def backend_description(self) -> str:
         return "MOCK DAQ (no hardware)" if self.is_mock else "REAL DAQ (uldaq)"
+
+    # ------------------------------------------------------------------
+    # Chip-presence detection (P1-36): read-only inspection of the live AI
+    # window (thermopile channels), no AO. Strategy + threshold are config-
+    # driven (``ChipPresenceConfig``) and OFF by default until validated on the
+    # bench via ``chip_presence_report``.
+    # ------------------------------------------------------------------
+    def _chip_presence_window(self) -> np.ndarray:
+        """~0.2 s of the most recent raw AI samples (empty if not streaming)."""
+        n = max(1, int(0.2 * self.ai_sample_rate))
+        return self.peek_last(n)
+
+    def chip_present(self) -> Optional[bool]:
+        cfg = self._settings.chip_presence
+        if not cfg.enabled:
+            return None  # detection disabled -> unknown; never gates a launch
+        from pioner.back.chip_presence import detect, presence_metrics
+
+        metrics = presence_metrics(self._chip_presence_window(), self._ai_channels)
+        if not metrics:
+            return None  # no stream yet
+        return detect(metrics, cfg).present
+
+    def chip_presence_report(self) -> dict:
+        from pioner.back.chip_presence import presence_report
+
+        return presence_report(
+            self._chip_presence_window(), self._ai_channels, self._settings.chip_presence
+        )
 
     def calibrate_window(self, raw: np.ndarray) -> pd.DataFrame:
         """Convert a raw AI window into engineering units for live readout.

@@ -75,6 +75,9 @@ OFFSET_FIELD = "Offset"
 # Optional operator safety limits block (TODO step 8 / P1-38). Absent -> defaults.
 LIMITS_FIELD = "Limits"
 
+# Optional chip-presence detection block (P1-36). Absent -> disabled (no gating).
+CHIP_PRESENCE_FIELD = "ChipPresence"
+
 # Raw data constants
 # =================================================================================
 DATA_FOLDER = "data"

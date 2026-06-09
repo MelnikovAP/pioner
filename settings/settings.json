@@ -78,6 +78,15 @@
                 "Min cool rate": null,
                 "Max cool rate": null
             }
+        },
+        "ChipPresence": {
+            "Enabled": false,
+            "Strategy": "band",
+            "Channel": 4,
+            "Band low": -10.0,
+            "Band high": 10.0,
+            "Max abs": 9.5,
+            "Max std": 1.0
         }
     }
 }

@@ -63,6 +63,12 @@ class mainWindowUi(qt.QWidget):
         self.sysStatusLabel.setWordWrap(True)
         lout_0.addWidget(self.sysStatusLabel)
 
+        # Read-only chip-presence diagnostic (P1-36): shows per-channel metrics +
+        # each candidate strategy's verdict so the discriminator can be picked on
+        # the bench. Drives no AO; never gates the lifecycle yet.
+        self.checkChipButton = qt.QPushButton("Check chip")
+        lout_0.addWidget(self.checkChipButton)
+
         
         # ####### Experiment Group Box
         # ########################################

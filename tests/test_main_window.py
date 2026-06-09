@@ -114,6 +114,17 @@ class FakeController:
     def is_streaming(self):
         return False
 
+    def chip_presence_report(self):
+        return {
+            "available": True, "channel": 4, "configured_strategy": "band",
+            "metrics": {4: {"mean": 0.01, "std": 0.001, "min": 0.0, "max": 0.02, "p2p": 0.02}},
+            "verdicts": {
+                "band": {"present": True, "reason": "mean in band"},
+                "abs_level": {"present": True, "reason": "small"},
+                "variance": {"present": True, "reason": "quiet"},
+            },
+        }
+
     def disconnect(self):
         self.calls.append(("disconnect",))
 
@@ -374,6 +385,24 @@ def test_fh_arm_raw_mode_still_works(window):
     _, mode, program = arm_calls[0]
     assert program["ch1"]["time"] == [0.0, 1000.0]
     assert program["ch1"]["temp"] == [0.0, 50.0]
+
+
+def test_check_chip_without_backend_warns(window, recorded_errors):
+    window.controller = None
+    recorded_errors.clear()
+    window.check_chip()
+    assert recorded_errors
+
+
+def test_check_chip_shows_report(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: shown.append(a[0] if a else ""))
+    window.controller = FakeController()
+    window.check_chip()
+    assert shown
+    text = shown[0]
+    assert "Chip presence" in text
+    assert "band" in text and "abs_level" in text and "variance" in text
 
 
 def test_fh_arm_raw_empty_table_warns(window, recorded_errors):

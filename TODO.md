@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **186 passed** (mock backend, ~45 s).
+- `pytest tests/`: **201 passed** (mock backend, ~45 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -741,49 +741,31 @@ parser with clear errors on malformed files; UI combo lists `experiment-config/
 
 ### P1-36. Chip-presence detection -- gate arm/start/stop
 
-**Priority: medium.** (Gates the arm/start/stop lifecycle, but the
-`safe_voltage` clamp + heater-zero-on-abort already protect the chip, so it is
-not a release blocker.) **Where:** `back/experiment_manager.py` /
-`back/device_controller.py`, `front/` (button gating). **Related:** P2-24
-(heater broken/shorted thresholds) -- same primitive.
+**Priority: medium.** (The `safe_voltage` clamp + heater-zero-on-abort already
+protect the chip, so this is a convenience/safety-assist, not a release blocker;
+software can't guard a GUI crash anyway -- bring-up stays attended.) **Related:**
+P2-24 (heater broken/shorted thresholds).
 
-**What:** there is no point driving voltage if no chip is connected. Detect
-presence programmatically and **disable arm/start/stop when absent**.
+**Approach (DECIDED with physicist):** **passive, read-only** -- watch the
+thermopile signal in the live AI stream; the level/character changes when a chip
+is connected (open vs terminated input). **No AO is driven.** Physically an
+"open-input vs terminated-input" test on the high-gain thermopile channels
+(`Umod` ch1, `Utpl` ch4; `UHTR` ch5 as cross-check). The read-only detection +
+"Check chip" report already exist in code (`back/chip_presence.py`,
+`DeviceController.chip_presence_report` / `chip_present`, the `ChipPresence`
+config block, **disabled by default**); only the bench-tuning + gating below
+remain.
 
-**Approach (UNVERIFIED -- needs bench/physicist confirmation):** continuity
-probe -- drive a small safe voltage on the heater (AO ch1) and watch the
-**heater-current proxy on AI ch0**. NOTE: AI ch0 is a *voltage proxy* for heater
-current, **not a calibrated shunt** (`channels.py`; `modes.py:261` says
-explicitly "NOT a shunt voltage with a known R_shunt") -- the shunt-path *bias*
-is on AO ch0. So this can only be a **presence/continuity** test (does current
-flow at all when probed), not a precise resistance reading: open circuit
-(proxy ~ 0, no current) => no chip / broken heater; clear current response =>
-present. The heater-voltage feedback on AI ch5 (`UHTR_AI`) can cross-check.
-Same family as Bondar's broken/shorted-heater thresholds (P2-24). **Unknowns to
-confirm before coding:** whether a dedicated presence pin exists, the exact
-wiring, and the proxy threshold. Do not implement the threshold from a guess.
-
-**Questions for the physicists / hardware engineers (BLOCKS coding -- 2026-06-06):**
-1. Is there a **dedicated chip-presence signal** (a pin / DIO line), or must we
-   infer presence purely electrically?
-2. Probe method: drive a small voltage on AO ch1 (heater) and read the
-   current proxy on AI ch0. What proxy value (V) is expected **with a good chip**
-   vs an **open circuit** (no chip / broken heater)? -> gives the threshold.
-3. What is a **safe probe voltage** (and max dwell) that will not heat or damage
-   the chip during the presence check?
-4. Heater nominal R ~ 1700 Ohm -- what current / proxy reading does the probe
-   voltage imply, as a sanity cross-check?
-5. Can AI ch5 (`UHTR_AI`, heater-voltage feedback) cross-check open-vs-connected?
-6. Is the check valid only at room temperature / before any drive, or anytime?
-7. Do we need to distinguish "no chip" from "broken / shorted heater"
-   (the P2-24 thresholds), or is a single present/absent flag enough?
-8. Any settling time / filtering required before reading the proxy?
-
-Until these are answered the threshold cannot be set; do not implement it from a
-guess.
-
-**Action (after confirmation):** `DeviceController.chip_present() -> bool`
-(probe + threshold); poll it for the button-enable state; re-check at `arm`.
+**Remaining (needs bench):** with a chip in vs out, use the GUI "Check chip"
+report to **pick the discriminating channel + strategy + threshold**; put them in
+the `ChipPresence` block and set `Enabled: true`. Then **wire the arm/start/stop
+gating** (`chip_present()` is advisory only today -- nothing consumes it for
+button-enable yet) and re-check at `arm`. Open questions to confirm on the bench:
+does the "no chip" state rail/saturate (easy threshold) or only shift slightly
+(needs a wider window + careful threshold)? which channel is the cleanest
+discriminator? distinguish "no chip" from "broken/shorted heater" (P2-24) or is a
+single present/absent flag enough? **Do not enable gating from a guessed
+threshold.**
 
 ### P1-37. Minimise fast-heat start jitter (no trigger on rig)
 

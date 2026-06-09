@@ -50,6 +50,33 @@ def _wait_for_stream(controller: DeviceController, timeout: float = 2.0) -> np.n
     return controller.peek_last(1000)
 
 
+class TestChipPresence:
+    """Read-only chip-presence detection wiring (P1-36)."""
+
+    def test_report_available_on_live_stream(self, local_controller):
+        _wait_for_stream(local_controller)
+        report = local_controller.chip_presence_report()
+        assert report["available"] is True
+        # All scanned channels appear; the three candidate strategies are run.
+        assert set(report["verdicts"]) == {"band", "abs_level", "variance"}
+        assert report["metrics"]  # non-empty per-channel stats
+
+    def test_chip_present_none_when_disabled(self, local_controller):
+        _wait_for_stream(local_controller)
+        assert local_controller._settings.chip_presence.enabled is False
+        assert local_controller.chip_present() is None  # disabled -> never gates
+
+    def test_chip_present_when_enabled(self, local_controller):
+        _wait_for_stream(local_controller)
+        cfg = local_controller._settings.chip_presence
+        cfg.enabled = True
+        cfg.strategy = "band"
+        cfg.band_lo, cfg.band_hi = -1e9, 1e9      # any reading is "present"
+        assert local_controller.chip_present() is True
+        cfg.band_lo, cfg.band_hi = 1e8, 2e8       # impossible band -> "absent"
+        assert local_controller.chip_present() is False
+
+
 class TestConnection:
     def test_connects_and_streams(self, local_controller):
         assert local_controller.is_connected()

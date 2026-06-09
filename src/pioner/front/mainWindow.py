@@ -117,6 +117,7 @@ class mainWindow(mainWindowUi):
         self.sysOffButton.clicked.connect(self.disconnect)
         self.sysDataPathButton.clicked.connect(self.select_data_path)
         self.sysSetupButton.clicked.connect(self.show_help)
+        self.checkChipButton.clicked.connect(self.check_chip)
 
         self.calibPathButton.clicked.connect(self.select_calibration_file)
         self.calibViewButton.clicked.connect(self.view_calibraton_info)
@@ -407,6 +408,45 @@ class mainWindow(mainWindowUi):
     def show_help(self):
         self.configWindow = configWindow(parent=self)
         self.configWindow.show()
+
+    def check_chip(self):
+        """Show the read-only chip-presence report (P1-36).
+
+        Drives no AO -- it just inspects the live AI window. Used on the bench
+        (chip in vs out) to pick the discriminating channel / strategy / threshold
+        before presence detection is enabled to gate the lifecycle.
+        """
+        if self.controller is None:
+            ErrorWindow("No backend connection: connect first to read chip presence.")
+            return
+        MessageWindow(self._format_chip_presence_report(self.controller.chip_presence_report()))
+
+    def _format_chip_presence_report(self, report: dict) -> str:
+        """Render a chip-presence report dict into operator-readable text."""
+        if not report.get("available"):
+            return ("Chip presence: no live signal yet.\n"
+                    "Connect and let the stream run, then try again.")
+        labels = getattr(self, "_ui_settings", None)
+        labels = labels.channel_labels if labels is not None else {}
+        lines = [
+            "Chip presence (read-only -- no voltage applied)",
+            f"Configured: strategy={report.get('configured_strategy')}, "
+            f"channel={report.get('channel')}",
+            "",
+            "Candidate verdicts:",
+        ]
+        for name, v in report.get("verdicts", {}).items():
+            lines.append(f"  {name:10s}: {'PRESENT' if v['present'] else 'absent '}  ({v['reason']})")
+        lines.append("")
+        lines.append("Per-channel window stats (V):")
+        for ch in sorted(report.get("metrics", {})):
+            m = report["metrics"][ch]
+            name = labels.get(ch, f"ch{ch}")
+            lines.append(
+                f"  ch{ch} {name:5s}: mean={m['mean']:+.4g} std={m['std']:.4g} "
+                f"min={m['min']:+.4g} max={m['max']:+.4g} p2p={m['p2p']:.4g}"
+            )
+        return "\n".join(lines)
 
     def run_no_hardware(self):
         # Fallback when the Tango path is unavailable: switch to the

@@ -161,6 +161,71 @@ def parse_experiment_limits_by_mode(value: dict | None) -> dict:
     return {k: shared for k in LIMITS_MODE_KEYS}
 
 
+#: Candidate chip-presence detection strategies (P1-36). All are read-only and
+#: passive (they inspect the live AI window, never drive AO). The discriminating
+#: channel + threshold must be picked on the bench (chip in vs out); see
+#: ``back/chip_presence.py``.
+CHIP_PRESENCE_STRATEGIES = ("band", "abs_level", "variance")
+
+
+@dataclass
+class ChipPresenceConfig:
+    """Config for read-only chip-presence detection (P1-36).
+
+    ``enabled`` defaults to ``False`` so detection never gates the experiment
+    lifecycle until a strategy + threshold has been validated on real hardware
+    (an unvalidated threshold would falsely block valid runs). ``channel`` is an
+    AI channel index (default 4 = ``Utpl``); the thresholds belong to whichever
+    ``strategy`` is active. Defaults are deliberately permissive.
+    """
+
+    enabled: bool = False
+    strategy: str = "band"
+    channel: int = 4          # UTPL_AI (thermopile); see shared/channels.py
+    band_lo: float = -10.0
+    band_hi: float = 10.0
+    max_abs: float = 9.5
+    max_std: float = 1.0
+
+
+def parse_chip_presence_config(value: dict | None) -> ChipPresenceConfig:
+    """Build :class:`ChipPresenceConfig` from the optional ``ChipPresence`` block.
+
+    Missing block / keys fall back to the defaults (detection disabled). Keys:
+    ``Enabled``, ``Strategy``, ``Channel``, ``Band low``, ``Band high``,
+    ``Max abs``, ``Max std``.
+    """
+    d = value or {}
+    defaults = ChipPresenceConfig()
+
+    def _num(key: str, default: float) -> float:
+        v = d.get(key)
+        if v is None:
+            return default
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(f"ChipPresence.{key} must be a number, got {v!r}")
+        return float(v)
+
+    strategy = d.get("Strategy", defaults.strategy)
+    if strategy not in CHIP_PRESENCE_STRATEGIES:
+        raise ValueError(
+            f"ChipPresence.Strategy must be one of {CHIP_PRESENCE_STRATEGIES}, got {strategy!r}"
+        )
+    channel = d.get("Channel", defaults.channel)
+    if isinstance(channel, bool) or not isinstance(channel, int):
+        raise ValueError(f"ChipPresence.Channel must be an int, got {channel!r}")
+
+    return ChipPresenceConfig(
+        enabled=bool(d.get("Enabled", defaults.enabled)),
+        strategy=str(strategy),
+        channel=int(channel),
+        band_lo=_num("Band low", defaults.band_lo),
+        band_hi=_num("Band high", defaults.band_hi),
+        max_abs=_num("Max abs", defaults.max_abs),
+        max_std=_num("Max std", defaults.max_std),
+    )
+
+
 class JsonReader:
     """Reads a JSON configuration file."""
 
@@ -243,6 +308,7 @@ class BackSettings:
         self.parse_modulation()
         self.parse_acquisition_mode(json_dict)
         self.parse_limits()
+        self.parse_chip_presence()
         self.check_invalid_fields()
 
     def parse_acquisition_mode(self, json_dict: dict) -> None:
@@ -285,6 +351,12 @@ class BackSettings:
             k in raw for k in LIMITS_MODE_KEYS
         )
         self.limits = parse_experiment_limits(raw) if is_flat else ExperimentLimits()
+
+    def parse_chip_presence(self) -> None:
+        """Pull the optional chip-presence block (P1-36); absent -> disabled."""
+        self.chip_presence = parse_chip_presence_config(
+            self._exp_settings_dict.get(CHIP_PRESENCE_FIELD)
+        )
 
     def parse_daq_params(self):
         """Parses all necessary DAQ parameters and fills DaqParams instance."""
@@ -541,9 +613,11 @@ class FrontSettings:
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]
             self.modulation_offset = self._exp_settings_dict[MODULATION_FIELD][OFFSET_FIELD]
-            # Carry the optional Limits block verbatim so a GUI save round-trips
-            # it (the front-end doesn't otherwise consume it). None if absent.
+            # Carry the optional Limits / ChipPresence blocks verbatim so a GUI
+            # save round-trips them (the front-end doesn't otherwise consume
+            # them). None if absent.
             self.limits_raw = self._exp_settings_dict.get(LIMITS_FIELD)
+            self.chip_presence_raw = self._exp_settings_dict.get(CHIP_PRESENCE_FIELD)
 
     def get_exp_settings(self):
         out = {PATHS_FIELD: {
@@ -559,10 +633,13 @@ class FrontSettings:
                     OFFSET_FIELD: self.modulation_offset
                     },
                 }
-        # Preserve the optional Limits block on save (don't silently drop it).
+        # Preserve the optional Limits / ChipPresence blocks on save (don't drop).
         limits_raw = getattr(self, "limits_raw", None)
         if limits_raw is not None:
             out[LIMITS_FIELD] = limits_raw
+        chip_presence_raw = getattr(self, "chip_presence_raw", None)
+        if chip_presence_raw is not None:
+            out[CHIP_PRESENCE_FIELD] = chip_presence_raw
         return out
 
     def check_invalid_fields(self):
