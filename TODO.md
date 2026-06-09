@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **172 passed** (mock backend, ~45 s).
+- `pytest tests/`: **186 passed** (mock backend, ~45 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -435,12 +435,14 @@ stop (Stop/Off), and -- for iso -- the eternal hold; smoke-verified offscreen.
 **Temp limits (step 8) + per-segment rate validation (P1-38) -- DONE
 2026-06-06** (`Experiment settings.Limits` -> `ExperimentLimits`; fail-loud
 `_validate_program_limits` on arm: heating-only 0..300 C + optional rate caps).
-**P1-39 segment-compiler core -- DONE** (`segments_to_program`). **Functional
-step 7 is complete** (non-blocking lifecycle + Stop + finite-iso recording +
-abort + safety limits/validation + segment compiler), all on mock.
-**Remaining (blocked):** the P1-39 segment-builder **widget** + **7b-cosmetic**
-iso Set/Off -> literal arm/start/stop buttons -- both pure GUI; the offscreen
-test harness now exists (`tests/test_main_window.py`), so add their tests there.
+**P1-39 segment builder (compiler core + GUI widget) -- DONE** (`segments_to_program`;
+`front/mainWindow._build_tables_from_segments` + the segment editor in
+`mainWindowUi.py`: heat/cool by rate+target, iso by duration, raw points kept as
+a radio-selected "advanced" fallback; tested in `tests/test_main_window.py`).
+**Functional step 7 is complete** (non-blocking lifecycle + Stop + finite-iso
+recording + abort + safety limits/validation + segment builder), all on mock.
+**Remaining (blocked):** **7b-cosmetic** iso Set/Off -> literal arm/start/stop
+buttons -- pure GUI; add tests in `tests/test_main_window.py`.
 **Chip-detect gate (P1-36)** -- blocked on the bench answers.
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
@@ -828,19 +830,6 @@ range).
 placeholders -- the achievable passive cool rate is hardware-dependent and must
 be measured on the bench (ties into P0-5 / the soak run), then the real numbers
 committed to `settings.json`.
-
-### P1-39. GUI multi-segment program builder (heat / iso / cool)
-
-**Core DONE 2026-06-06** (`back/modes.segments_to_program`): compiles a list of
-`{type: heat|iso|cool, target, duration_ms}` segments into the `(time, temp)`
-point program the backend already consumes (heat/iso/cool then validated by
-P1-38 + the temp limits on arm). Tested in `test_modes_e2e.py`.
-
-**Remaining (GUI widget):** a segment table/editor in `front/mainWindowUi.py` +
-`mainWindow.py` that calls `segments_to_program` and feeds `fh_arm`, with the
-raw-points table kept as an "advanced" fallback. The offscreen GUI test harness
-now exists (`tests/test_main_window.py`), so the widget can be regression-tested
-there; the capability is already available programmatically and via raw points.
 
 ### P1-40. Per-session log file for the GUI + richer logging coverage
 

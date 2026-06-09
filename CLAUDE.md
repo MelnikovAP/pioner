@@ -8,7 +8,7 @@ against a mock uldaq backend.
 
 - Source: `src/pioner/{back,front,shared}`. Package name on PyPI is `ppioner`,
   import path is `pioner`.
-- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (172 passing on mock backend).
+- Tests: `PYTHONPATH=src .venv/bin/pytest -q` (186 passing on mock backend).
 - Manual mock smoke: `python -m pioner.back.debug` runs all three modes.
 - GUI (single window, all modes + live streaming): `python -m pioner.runUI
   --mock` (no DAQ / no Tango needed). The GUI talks to the instrument
@@ -160,7 +160,9 @@ Rules:
 ## Conventions
 
 - ASCII only — in code, comments, docstrings, identifiers, and string
-  literals.
+  literals. **Exception:** the degree sign `°` is allowed in user-facing GUI
+  string literals (e.g. `"Temp (°C)"`, `"Start T (°C):"`) so the operator sees
+  proper units; keep everything else ASCII.
 - English by default — all documentation files (`*.md` under `docs/`, repo
   root, etc.) and all code comments are written in English unless the user
   explicitly asks otherwise for a specific file. Chat replies follow the

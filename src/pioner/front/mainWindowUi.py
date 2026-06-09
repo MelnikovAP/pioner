@@ -275,6 +275,25 @@ class mainWindowUi(qt.QWidget):
         lout_mode.addWidget(self.modeComboBox, 1)
         lout_2.addSpacing(3)
 
+        # Program input mode (P1-39): the segment editor (heat/iso/cool by
+        # rate+target) is the default; the raw time/value point table is kept
+        # as an "advanced" fallback. The radio toggles which editor is shown.
+        lout_input = qt.QHBoxLayout()
+        lout_input.setSpacing(3)
+        lout_2.addLayout(lout_input)
+        self.inputModeLabel = qt.QLabel("Input:")
+        lout_input.addWidget(self.inputModeLabel)
+        self.segInputRadio = qt.QRadioButton("Segments")
+        self.rawInputRadio = qt.QRadioButton("Raw points")
+        self.segInputRadio.setChecked(True)
+        self._inputModeGroup = qt.QButtonGroup(self)
+        self._inputModeGroup.addButton(self.segInputRadio)
+        self._inputModeGroup.addButton(self.rawInputRadio)
+        lout_input.addWidget(self.segInputRadio)
+        lout_input.addWidget(self.rawInputRadio)
+        lout_input.addStretch()
+        lout_2.addSpacing(3)
+
         lout_3 = qt.QHBoxLayout()
         lout_3.setSpacing(0)
         lout_2.addLayout(lout_3)
@@ -322,6 +341,53 @@ class mainWindowUi(qt.QWidget):
         self.experimentTable.setEditTriggers(qt.QAbstractItemView.AllEditTriggers)
         self.experimentTable.resizeRowsToContents()
         lout_3.addWidget(self.experimentTable, 0)
+
+        # --- Segment editor (P1-39) -------------------------------------
+        # Start temperature for the first segment (deg C); subsequent segments
+        # start where the previous one ended.
+        lout_startt = qt.QHBoxLayout()
+        lout_startt.setSpacing(3)
+        lout_2.addLayout(lout_startt)
+        self.segStartTempLabel = qt.QLabel("Start T (°C):")
+        lout_startt.addWidget(self.segStartTempLabel)
+        self.segStartTempInput = qt.QLineEdit("0")
+        self.segStartTempInput.setFixedWidth(60)
+        lout_startt.addWidget(self.segStartTempInput)
+        lout_startt.addStretch()
+
+        # One row per segment: Type (heat/iso/cool) + Rate (K/s) + Target
+        # (deg C) for heat/cool; iso uses only Dur (s). Empty Type rows are
+        # skipped. Rate/Target/Dur are plain numeric cells; Type is a combo.
+        lout_seg = qt.QHBoxLayout()
+        lout_seg.setSpacing(0)
+        lout_2.addLayout(lout_seg)
+        self.segmentTable = qt.QTableWidget()
+        self.segmentTable.setColumnCount(4)
+        self.segmentTable.setRowCount(20)
+        self.segmentTable.setHorizontalHeaderLabels(["Type", "Rate", "Target", "Dur"])
+        self.segmentTable.setFrameStyle(qt.QFrame.NoFrame)
+        self.segmentTable.verticalHeader().setVisible(False)
+        self.segmentTable.verticalHeader().setDefaultSectionSize(20)
+        self.segmentTable.setColumnWidth(0, 60)
+        self.segmentTable.setColumnWidth(1, 45)
+        self.segmentTable.setColumnWidth(2, 50)
+        self.segmentTable.setColumnWidth(3, 40)
+        self.segmentTable.setFixedSize(207, 207)
+        self.segmentTable.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        self.segmentTable.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        for row in range(20):
+            combo = qt.QComboBox()
+            combo.addItems(["", "heat", "iso", "cool"])
+            self.segmentTable.setCellWidget(row, 0, combo)
+            for col in (1, 2, 3):
+                item = qt.QTableWidgetItem("")
+                item.setTextAlignment(qt.Qt.AlignCenter)
+                self.segmentTable.setItem(row, col, item)
+        lout_seg.addWidget(self.segmentTable, 0)
+
+        self.segHintLabel = qt.QLabel("heat/cool: Rate+Target;  iso: Dur")
+        self.segHintLabel.setStyleSheet("color: gray; font-size: 10px;")
+        lout_2.addWidget(self.segHintLabel)
 
         lout_2.addSpacing(5)
 

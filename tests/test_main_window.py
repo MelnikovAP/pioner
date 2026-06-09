@@ -90,6 +90,9 @@ class FakeController:
         self._gate = threading.Event()
         self.ai_sample_rate = 2000.0
 
+    def arm(self, mode_name, programs_json):
+        self.calls.append(("arm", mode_name, json.loads(programs_json)))
+
     def arm_iso_mode(self, programs_json):
         self.calls.append(("arm", json.loads(programs_json)))
 
@@ -259,3 +262,126 @@ def test_iso_set_without_rate_confirmed_warns(window, recorded_errors):
     assert recorded_errors
     assert fc.calls == []                        # nothing armed/driven
     assert window._heater_driven is False
+
+
+# --- P1-39: segment editor (heat/iso/cool by rate+target) -------------------
+
+def _set_seg_row(window, row, typ, rate="", target="", dur=""):
+    window.segmentTable.cellWidget(row, 0).setCurrentText(typ)
+    window.segmentTable.item(row, 1).setText(str(rate))
+    window.segmentTable.item(row, 2).setText(str(target))
+    window.segmentTable.item(row, 3).setText(str(dur))
+
+
+def test_segment_mode_default_and_toggle_visibility(window):
+    # Segments is the default editor; raw points is the hidden fallback.
+    assert window._segment_mode() is True
+    assert not window.segmentTable.isHidden()
+    assert window.experimentTable.isHidden()
+    window.rawInputRadio.setChecked(True)
+    assert window.segmentTable.isHidden()
+    assert not window.experimentTable.isHidden()
+
+
+def test_segment_widgets_hidden_for_iso(window):
+    window.modeComboBox.setCurrentText("Iso")
+    assert window.segmentTable.isHidden()
+    assert window.segInputRadio.isHidden()
+    window.modeComboBox.setCurrentText("Fast")
+    assert not window.segmentTable.isHidden()
+
+
+def test_segment_builder_converts_rate_to_duration(window):
+    # heat 0->200 @100 K/s = 2000 ms; iso 1 s; cool 200->0 @100 K/s = 2000 ms.
+    window.segStartTempInput.setText("0")
+    _set_seg_row(window, 0, "heat", rate=100, target=200)
+    _set_seg_row(window, 1, "iso", dur=1)
+    _set_seg_row(window, 2, "cool", rate=100, target=0)
+    time_table, temp_table = window._build_tables_from_segments()
+    assert time_table.tolist() == [0.0, 2000.0, 3000.0, 5000.0]
+    assert temp_table.tolist() == [0.0, 200.0, 200.0, 0.0]
+
+
+def test_segment_builder_nonzero_start(window):
+    # cool 50->20 @10 K/s = 3000 ms, starting from 50 C.
+    window.segStartTempInput.setText("50")
+    _set_seg_row(window, 0, "cool", rate=10, target=20)
+    time_table, temp_table = window._build_tables_from_segments()
+    assert time_table.tolist() == [0.0, 3000.0]
+    assert temp_table.tolist() == [50.0, 20.0]
+
+
+@pytest.mark.parametrize("setup", [
+    lambda w: _set_seg_row(w, 0, "heat", rate=0, target=100),      # rate <= 0
+    lambda w: _set_seg_row(w, 0, "heat", rate="x", target=100),    # non-numeric
+    lambda w: _set_seg_row(w, 0, "heat", rate=100, target=0),      # target == start (0)
+    lambda w: _set_seg_row(w, 0, "iso", dur="x"),                  # non-numeric dur
+    lambda w: None,                                                # no segments
+])
+def test_segment_builder_invalid_returns_none_with_warning(window, recorded_errors, setup):
+    window.segStartTempInput.setText("0")
+    setup(window)
+    recorded_errors.clear()
+    assert window._build_tables_from_segments() is None
+    assert recorded_errors
+
+
+def test_segment_builder_bad_start_temp_warns(window, recorded_errors):
+    window.segStartTempInput.setText("abc")
+    _set_seg_row(window, 0, "heat", rate=100, target=200)
+    recorded_errors.clear()
+    assert window._build_tables_from_segments() is None
+    assert recorded_errors
+
+
+def test_segment_builder_delegates_to_core_validation(window, recorded_errors):
+    # heat targeting below the current temp is rejected by segments_to_program.
+    window.segStartTempInput.setText("100")
+    _set_seg_row(window, 0, "heat", rate=10, target=20)   # heat must go up
+    recorded_errors.clear()
+    assert window._build_tables_from_segments() is None
+    assert recorded_errors
+
+
+def test_fh_arm_segment_mode_arms_converted_program(window):
+    fc = FakeController()
+    window.controller = fc
+    window._rate_confirmed = True            # default mode is Fast
+    window.segStartTempInput.setText("0")
+    _set_seg_row(window, 0, "heat", rate=100, target=200)
+    _set_seg_row(window, 1, "iso", dur=1)
+    _set_seg_row(window, 2, "cool", rate=100, target=0)
+    window.fh_arm()
+    arm_calls = [c for c in fc.calls if c[0] == "arm"]
+    assert len(arm_calls) == 1
+    _, mode, program = arm_calls[0]
+    assert mode == "fast"
+    assert program["ch1"]["time"] == [0.0, 2000.0, 3000.0, 5000.0]
+    assert program["ch1"]["temp"] == [0.0, 200.0, 200.0, 0.0]
+
+
+def test_fh_arm_raw_mode_still_works(window):
+    fc = FakeController()
+    window.controller = fc
+    window._rate_confirmed = True
+    window.rawInputRadio.setChecked(True)            # raw points fallback
+    window.experimentTimeComboBox.setCurrentIndex(1)  # Time (s) -> ms x1000
+    window.experimentTable.item(0, 0).setText("1")    # 1 s
+    window.experimentTable.item(0, 1).setText("50")   # 50 C
+    window.fh_arm()
+    arm_calls = [c for c in fc.calls if c[0] == "arm"]
+    assert len(arm_calls) == 1
+    _, mode, program = arm_calls[0]
+    assert program["ch1"]["time"] == [0.0, 1000.0]
+    assert program["ch1"]["temp"] == [0.0, 50.0]
+
+
+def test_fh_arm_raw_empty_table_warns(window, recorded_errors):
+    fc = FakeController()
+    window.controller = fc
+    window._rate_confirmed = True
+    window.rawInputRadio.setChecked(True)        # all raw cells default to "0"
+    recorded_errors.clear()
+    window.fh_arm()
+    assert recorded_errors                        # "Program table is empty"
+    assert [c for c in fc.calls if c[0] == "arm"] == []

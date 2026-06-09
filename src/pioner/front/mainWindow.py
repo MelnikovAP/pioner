@@ -29,7 +29,7 @@ from pioner.back.device_controller import (
     LocalDeviceController,
     TangoDeviceController,
 )
-from pioner.back.modes import read_calibrated_h5
+from pioner.back.modes import read_calibrated_h5, segments_to_program
 from pioner.front.calibWindow import *
 from pioner.front.configWindow import *
 from pioner.front.mainWindowUi import mainWindowUi
@@ -136,8 +136,9 @@ class mainWindow(mainWindowUi):
         self.setTempVoltButton.clicked.connect(self.set_temp_volt)
         self.unsetTempVoltButton.clicked.connect(self.unset_temp_volt)
 
+        self.segInputRadio.toggled.connect(self._on_program_input_mode_changed)
         self.modeComboBox.currentIndexChanged.connect(self._on_mode_changed)
-        self._on_mode_changed()  # apply initial visibility (Fast)
+        self._on_mode_changed()  # apply initial visibility (Fast + segment editor)
 
 # for debugging
         self.terror0Button.clicked.connect(self.print_debug)
@@ -542,6 +543,9 @@ class mainWindow(mainWindowUi):
         "experimentTimeComboBox", "experimentTempComboBox", "experimentTable",
         "loadTxtButton", "armButton", "stopButton", "startButton",
         "holdFinalValue",
+        # Segment editor (P1-39); hidden for iso like the rest of the ramp UI.
+        "inputModeLabel", "segInputRadio", "rawInputRadio",
+        "segStartTempLabel", "segStartTempInput", "segmentTable", "segHintLabel",
     )
     #: Set/Off widgets used by iso mode only.
     _ISO_WIDGET_NAMES = (
@@ -566,6 +570,9 @@ class mainWindow(mainWindowUi):
             getattr(self, name).setVisible(not is_iso)
         for name in self._ISO_WIDGET_NAMES:
             getattr(self, name).setVisible(is_iso)
+        # For fast/slow, only one of the two program editors is shown at a time.
+        if not is_iso:
+            self._on_program_input_mode_changed()
         # Switching modes changes the configured sample rate (P1-31). Show the
         # new mode's rate and require an explicit Apply before arming/setting.
         if self.controller is not None:
@@ -578,15 +585,52 @@ class mainWindow(mainWindowUi):
         self.armButton.setEnabled(confirmed)
         self.setTempVoltButton.setEnabled(confirmed)
 
+    def _segment_mode(self) -> bool:
+        """True when the segment editor (not the raw points table) is active."""
+        return self.segInputRadio.isChecked()
+
+    def _on_program_input_mode_changed(self, _checked: bool = False) -> None:
+        """Show the segment editor or the raw points table (P1-39).
+
+        Only meaningful for fast/slow; iso hides both via ``_on_mode_changed``.
+        """
+        seg = self._segment_mode()
+        for name in ("segStartTempLabel", "segStartTempInput", "segmentTable", "segHintLabel"):
+            getattr(self, name).setVisible(seg)
+        for name in ("experimentTimeComboBox", "experimentTempComboBox", "experimentTable"):
+            getattr(self, name).setVisible(not seg)
+
     # ===================================
     # Fast / slow heating (ramp editor)
 
     def fh_arm(self):
-        xOption = 1000 if self.experimentTimeComboBox.currentIndex()==1 else 1    # 0 - time in ms, 1 - time in s
-        # 0 - temp (°C), 1 - volt (V). Heater channel key depends on this.
+        """Build the ramp program (segment editor or raw points) and arm it."""
+        if self._segment_mode():
+            built = self._build_tables_from_segments()
+            if built is None:
+                return  # invalid input -- a warning was already shown
+            time_table, temp_table = built
+            heater_value_key = "temp"
+            x_label, y_label = "Time (ms)", "Temp (°C)"
+        else:
+            built = self._build_tables_from_raw()
+            if built is None:
+                return
+            time_table, temp_table, heater_value_key, x_label, y_label = built
+        self.time_table = time_table
+        self.temp_table = temp_table
+        self._arm_with_tables(heater_value_key, x_label, y_label)
+
+    def _build_tables_from_raw(self):
+        """Raw points table -> ``(time_ms, value, heater_key, x_label, y_label)``.
+
+        Returns ``None`` (after showing a warning) on empty / non-numeric input.
+        """
+        xOption = 1000 if self.experimentTimeComboBox.currentIndex() == 1 else 1  # s -> ms
+        # 0 - temp (deg C), 1 - volt (V). Heater channel key depends on this.
         is_voltage_program = self.experimentTempComboBox.currentIndex() == 1
         heater_value_key = "volt" if is_voltage_program else "temp"
-        uncorrectedProfile = np.array([[],[]], dtype=float)
+        uncorrectedProfile = np.array([[], []], dtype=float)
         for i in range(self.experimentTable.rowCount()):
             # Cells are populated with QTableWidgetItem('0') in mainWindowUi
             # __init__, so item(i, c) is never None here.
@@ -603,40 +647,113 @@ class mainWindow(mainWindowUi):
                     f"Invalid value in program table row {i + 1}: "
                     "time and value must be numbers."
                 )
-                return
-            uncorrectedProfile = np.hstack((uncorrectedProfile,
-                                            [[t_val], [v_val]]))
+                return None
+            uncorrectedProfile = np.hstack((uncorrectedProfile, [[t_val], [v_val]]))
         # Trim trailing zero-padded rows: keep up to the row with max time.
         # If every cell is zero the resulting profile would have duration 0,
         # which the backend (rightly) rejects -- fail loudly here instead of
         # sending a degenerate program over Tango.
         if not np.any(uncorrectedProfile[0] > 0):
             ErrorWindow("Program table is empty: enter at least one row with time > 0.")
-            return
-        correctedProfile = uncorrectedProfile[:, :(np.argmax(uncorrectedProfile[0])+1)]
+            return None
+        correctedProfile = uncorrectedProfile[:, :(np.argmax(uncorrectedProfile[0]) + 1)]
         correctedProfile = np.insert(correctedProfile, 0, 0, axis=1)
-        self.time_table = xOption*correctedProfile[0] # changing s to ms if needed
-        self.temp_table = correctedProfile[1]
-        
-        self.progressBar.setValue(0)  
-        self.controlTabsWidget.setCurrentIndex(1) 
+        time_table = xOption * correctedProfile[0]   # s -> ms if needed
+        temp_table = correctedProfile[1]
+        return (time_table, temp_table, heater_value_key,
+                self.experimentTimeComboBox.currentText(),
+                self.experimentTempComboBox.currentText())
+
+    def _build_tables_from_segments(self):
+        """Compile the segment editor into ``(time_ms, temp)`` arrays (P1-39).
+
+        heat/cool rows are entered as Rate (K/s) + Target (deg C); the duration
+        is derived (``|target - cur| / rate``). iso rows use Dur (s). The result
+        feeds the same ``segments_to_program`` core the backend tests use, then
+        the usual arm-time limit validation (P1-38). Returns ``None`` (after a
+        warning) on any invalid input. Blank-Type rows are skipped.
+        """
+        try:
+            start_temp = float(self.segStartTempInput.text())
+        except ValueError:
+            ErrorWindow("Start T must be a number (deg C).")
+            return None
+        segments = []
+        cur = start_temp
+        for row in range(self.segmentTable.rowCount()):
+            typ = self.segmentTable.cellWidget(row, 0).currentText().strip()
+            if not typ:
+                continue
+            target_txt = self.segmentTable.item(row, 2).text().strip()
+            if typ == "iso":
+                dur_txt = self.segmentTable.item(row, 3).text().strip()
+                try:
+                    dur_s = float(dur_txt)
+                except ValueError:
+                    ErrorWindow(f"Segment row {row + 1} (iso): Dur (s) must be a number.")
+                    return None
+                segments.append({"type": "iso", "duration_ms": dur_s * 1000.0})
+                continue
+            # heat / cool: rate + target; duration is derived.
+            rate_txt = self.segmentTable.item(row, 1).text().strip()
+            try:
+                rate = float(rate_txt)
+                target = float(target_txt)
+            except ValueError:
+                ErrorWindow(
+                    f"Segment row {row + 1} ({typ}): Rate (K/s) and Target (deg C) "
+                    "must be numbers."
+                )
+                return None
+            if rate <= 0:
+                ErrorWindow(f"Segment row {row + 1} ({typ}): Rate must be > 0 K/s.")
+                return None
+            if target == cur:
+                ErrorWindow(
+                    f"Segment row {row + 1} ({typ}): Target equals the current T "
+                    f"({cur:g} C); use an iso row to hold."
+                )
+                return None
+            segments.append({
+                "type": typ,
+                "target": target,
+                "duration_ms": abs(target - cur) / rate * 1000.0,
+            })
+            cur = target
+        if not segments:
+            ErrorWindow("No segments defined: add at least one heat / iso / cool row.")
+            return None
+        try:
+            prog = segments_to_program(segments, start_temp=start_temp)
+        except ValueError as exc:
+            ErrorWindow(f"Invalid segment program: {exc}")
+            return None
+        return np.asarray(prog["time"], dtype=float), np.asarray(prog["temp"], dtype=float)
+
+    def _arm_with_tables(self, heater_value_key, x_label, y_label):
+        """Plot ``self.time_table`` / ``self.temp_table`` and arm the backend.
+
+        Shared tail of the raw-points and segment paths: builds the ch0/ch1/ch2
+        AO program, plots the curve, and arms -- blocking the launch with a
+        warning if the safety limits reject the program (P1-38).
+        """
+        self.progressBar.setValue(0)
+        self.controlTabsWidget.setCurrentIndex(1)
         self.progPlot.resultPlot.clear()
-        
-        y_label = self.experimentTempComboBox.currentText()
-        x_label = self.experimentTimeComboBox.currentText()
-        self.progPlot.resultPlot.addCurve(x=self.time_table, y=self.temp_table, 
-                                            legend="temperature", 
-                                            color=self.progPlot.curveColors['red'])
+
+        self.progPlot.resultPlot.addCurve(x=self.time_table, y=self.temp_table,
+                                          legend="temperature",
+                                          color=self.progPlot.curveColors['red'])
         self.progPlot.resultPlot.getXAxis().setLabel(x_label)
         self.progPlot.resultPlot.getYAxis().setLabel(y_label)
 
-        # generating time_temp_volt_tables as dict, converting it to str
-        # to pass to controller.arm_fast_heat
-        self.time_temp_volt_tables = {'ch0':{}, 'ch1':{}, 'ch2':{}}
+        # generating time_temp_volt_tables as dict, converting it to str to pass
+        # to controller.arm
+        self.time_temp_volt_tables = {'ch0': {}, 'ch1': {}, 'ch2': {}}
 
-        # 0.1V on 0 channel
+        # 0.1V on channel 0
         self.time_temp_volt_tables['ch0']['time'] = self.time_table.tolist()
-        self.time_temp_volt_tables['ch0']['volt'] = [0.1]*len(self.time_table) 
+        self.time_temp_volt_tables['ch0']['volt'] = [0.1] * len(self.time_table)
 
         # Signal to heater - channel 1 (use the unit selected by the user;
         # silently sending ``temp`` while the user picked ``Voltage`` would
@@ -645,9 +762,9 @@ class mainWindow(mainWindowUi):
         self.time_temp_volt_tables['ch1'][heater_value_key] = self.temp_table.tolist()
 
         # 2.5V trigger signal like gate form
-        self.time_temp_volt_tables['ch2']['time'] =  self.time_table.tolist()
-        self.time_temp_volt_tables['ch2']['time'].insert(-1, self.time_temp_volt_tables['ch2']['time'][-1]-1)
-        self.time_temp_volt_tables['ch2']['volt'] = [2.5]*(len(self.time_table)+1)
+        self.time_temp_volt_tables['ch2']['time'] = self.time_table.tolist()
+        self.time_temp_volt_tables['ch2']['time'].insert(-1, self.time_temp_volt_tables['ch2']['time'][-1] - 1)
+        self.time_temp_volt_tables['ch2']['volt'] = [2.5] * (len(self.time_table) + 1)
         self.time_temp_volt_tables['ch2']['volt'][-1] = 0
 
         self.time_temp_volt_tables_str = json.dumps(self.time_temp_volt_tables)
