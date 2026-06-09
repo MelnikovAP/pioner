@@ -102,6 +102,12 @@ LOGS_FOLDER_REL_PATH = path.abspath(path.join("./", LOGS_FOLDER))
 NANOCONTROL_LOG_FILE = "nanocontrol.log"
 NANOCONTROL_LOG_FILE_REL_PATH = path.join(LOGS_FOLDER_REL_PATH, NANOCONTROL_LOG_FILE)
 
+# Per-session GUI log files (P1-40): "<prefix><start-timestamp>.log" under
+# LOGS_FOLDER. The timestamp is filesystem-safe (no ':'); see shared/logging_setup.
+# NOTE: logs currently live in the repo's logs/ folder as a stopgap -- the proper
+# location is still open (P1-40).
+SESSION_LOG_FILE_PREFIX = "pioner_session_"
+
 # Calibration constants
 # =================================================================================
 CALIBRATION_FILE = "calibration.json"

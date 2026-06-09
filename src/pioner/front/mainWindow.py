@@ -38,6 +38,8 @@ from pioner.front.scope_controls import ScopeControls, downsample_for_display
 from pioner.shared.channels import HEATER_AO
 from pioner.shared.constants import *
 from pioner.shared.modulation import fft_demodulate
+from pioner.shared import session_stats as stats
+from pioner.shared.session_stats import SessionStats
 from pioner.shared.settings import BackSettings, FrontSettings, UISettings
 from pioner.shared.utils import Dict2Class
 
@@ -111,6 +113,8 @@ class mainWindow(mainWindowUi):
         # whole duration instead of freezing inside a blocking run().
         self._run_thread: Optional[Any] = None
         self._run_worker: Optional[Any] = None
+        # Lightweight per-session action tally; summary logged on close (P1-40).
+        self._stats = SessionStats()
         self.preload_settings()
 
         self.sysOnButton.clicked.connect(self.sysOnButtonPressed)
@@ -185,6 +189,7 @@ class mainWindow(mainWindowUi):
         plot.getYAxis().setLimits(midpoint - y_span / 2.0, midpoint + y_span / 2.0)
 
     def _on_scope_changed(self):
+        logger.debug("Scope controls changed")
         # Drop curves for channels the operator just disabled.
         for ch_idx, label in self._ui_settings.channel_labels.items():
             if not self.scopeControls.channel_enabled(ch_idx):
@@ -281,6 +286,7 @@ class mainWindow(mainWindowUi):
         return f"{float(value):.2f}"
 
     def print_debug(self):
+        logger.debug("Debug button pressed")
         print(self.settings.sample_rate)
         calibration = getattr(self, "calibration", None)
         print(calibration.comment if calibration is not None else "no calibration loaded")
@@ -295,6 +301,8 @@ class mainWindow(mainWindowUi):
         # board when present and the pure-Python mock otherwise (see
         # ``mock_uldaq.DAQ_AVAILABLE``). Unchecked selects the legacy Tango
         # network path. Either way the GUI only sees a DeviceController.
+        logger.info("Connect pressed (run_without_hardware=%s)",
+                    self.sysNoHardware.isChecked())
         if self.sysNoHardware.isChecked():
             self._connect_local()
             return
@@ -373,8 +381,10 @@ class mainWindow(mainWindowUi):
                            type(self.controller).__name__)
             self.sysStatusLabel.setText(f"Connected: {desc}")
             logger.info("Connected backend: %s", desc)
+            self._stats.record(stats.CONNECT)
 
     def disconnect(self):
+        logger.info("Disconnect pressed")
         self.stop_live_stream()
         self._cancel_iso_timer()
         # Abort an in-flight run before tearing down the controller, so the
@@ -403,9 +413,11 @@ class mainWindow(mainWindowUi):
             # checkouts; fall back to absolute when the choice is outside cwd.
             self.settings.data_path = _relative_if_under_cwd(dpath)
             self.sysDataPathInput.setText(self.settings.data_path)
+            logger.info("Data path set: %s", self.settings.data_path)
         self.sysDataPathInput.setCursorPosition(0)
 
     def show_help(self):
+        logger.debug("Setup/help dialog opened")
         self.configWindow = configWindow(parent=self)
         self.configWindow.show()
 
@@ -416,6 +428,8 @@ class mainWindow(mainWindowUi):
         (chip in vs out) to pick the discriminating channel / strategy / threshold
         before presence detection is enabled to gate the lifecycle.
         """
+        logger.info("Check chip pressed")
+        self._stats.record(stats.CHIP_CHECK)
         if self.controller is None:
             ErrorWindow("No backend connection: connect first to read chip presence.")
             return
@@ -465,12 +479,14 @@ class mainWindow(mainWindowUi):
         if fname:
             self.settings.calib_path = _relative_if_under_cwd(fname)
             self.calibPathInput.setText(self.settings.calib_path)
+            logger.info("Calibration file selected: %s", self.settings.calib_path)
         self.calibPathInput.setCursorPosition(0)
 
     def apply_calib(self):
         if self.controller is None:
             return
         fpath = self.calibPathInput.text()
+        logger.info("Apply calibration: %s", fpath)
         if os.path.exists(os.path.abspath(fpath)):
             with open(self.calibPathInput.text(), 'r') as f:
                 raw_calib = json.load(f)
@@ -482,6 +498,7 @@ class mainWindow(mainWindowUi):
     def apply_default_calib(self):
         if self.controller is None:
             return
+        logger.info("Apply default calibration")
         self.controller.apply_default_calibration()
         self.get_calib_from_device()
         self.calibPathInput.setText(os.path.abspath(DEFAULT_CALIBRATION_FILE_REL_PATH))
@@ -494,6 +511,7 @@ class mainWindow(mainWindowUi):
         self.calibration = Dict2Class(calib_dict)
 
     def view_calibraton_info(self):
+        logger.debug("Calibration info dialog opened")
         self.calibWindow = calibWindow(parent=self)
         self.calibWindow.show()
     
@@ -547,6 +565,7 @@ class mainWindow(mainWindowUi):
         except ValueError as exc:
             ErrorWindow(f"Invalid sample rate:\n{exc}")
             return
+        logger.info("Apply sample rate: %d Hz (mode=%s)", rate, self._selected_mode())
         self._set_rate_confirmed(True)
 
     def reset_sample_rate(self):
@@ -554,6 +573,7 @@ class mainWindow(mainWindowUi):
             return
         self.controller.reset_sample_rate()
         self.scanSampleRateInput.setText(str(self.controller.rate_for_mode(self._selected_mode())))
+        logger.info("Reset sample rate (mode=%s)", self._selected_mode())
         self._set_rate_confirmed(True)
 
     def get_sample_rate_from_device(self):
@@ -568,11 +588,17 @@ class mainWindow(mainWindowUi):
             self.settings.modulation_offset = float(self.offsetInput.text())
         except ValueError:
             ErrorWindow("Modulation inputs must be numeric.")
+            return
+        logger.info("Apply modulation: f=%s Hz, amp=%s V, offset=%s V",
+                    self.settings.modulation_frequency,
+                    self.settings.modulation_amplitude,
+                    self.settings.modulation_offset)
 
     def reset_modulation_params(self):
         self.freqInput.setText(str(self.settings.modulation_frequency))
         self.amplitudeInput.setText(str(self.settings.modulation_amplitude))
         self.offsetInput.setText(str(self.settings.modulation_offset))
+        logger.info("Reset modulation params")
 
 
     # ===================================
@@ -605,6 +631,7 @@ class mainWindow(mainWindowUi):
         (slow adds AC modulation in the backend). Iso is a static
         set-and-hold, so it uses its own controls.
         """
+        logger.info("Mode changed -> %s", self._selected_mode())
         is_iso = self._selected_mode() == "iso"
         for name in self._RAMP_WIDGET_NAMES:
             getattr(self, name).setVisible(not is_iso)
@@ -635,6 +662,7 @@ class mainWindow(mainWindowUi):
         Only meaningful for fast/slow; iso hides both via ``_on_mode_changed``.
         """
         seg = self._segment_mode()
+        logger.debug("Program input mode -> %s", "segments" if seg else "raw points")
         for name in ("segStartTempLabel", "segStartTempInput", "segmentTable", "segHintLabel"):
             getattr(self, name).setVisible(seg)
         for name in ("experimentTimeComboBox", "experimentTempComboBox", "experimentTable"):
@@ -821,7 +849,14 @@ class mainWindow(mainWindowUi):
         try:
             self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
         except ValueError as exc:
+            logger.warning("Arm rejected (mode=%s): %s", self._selected_mode(), exc)
+            self._stats.record(stats.ARM_REJECTED)
             ErrorWindow(f"Cannot arm experiment: {exc}")
+            return
+        logger.info("Armed %s: %d program points (input=%s)",
+                    self._selected_mode(), len(self.time_table),
+                    "segments" if self._segment_mode() else "raw")
+        self._stats.record(stats.ARM)
 
     def _fh_plot_df(self, df):
         """Plot the result DataFrame returned by ``controller.run_*``."""
@@ -847,6 +882,7 @@ class mainWindow(mainWindowUi):
     _RESULT_PLOT_MAX_POINTS = 5000
 
     def fh_run(self):
+        logger.info("Start pressed (mode=%s)", self._selected_mode())
         if self.controller is None:
             ErrorWindow("No backend connection: cannot run experiment.")
             return
@@ -869,6 +905,7 @@ class mainWindow(mainWindowUi):
         self._run_worker = worker  # keep a reference so it is not GC'd
         self._run_thread = threading.Thread(target=worker.run, daemon=True)
         self._run_thread.start()
+        self._stats.record(stats.RUN_STARTED)
         return True
 
     def _on_run_finished(self, result):
@@ -877,16 +914,21 @@ class mainWindow(mainWindowUi):
         self._run_worker = None
         self._heater_driven = False  # the run finished -> heater no longer driven
         self._set_running(False)
+        self._stats.record(stats.RUN_FINISHED)
         if result is None or result.rows == 0:
             # No data (e.g. an aborted run wrote nothing); clear the result plot
             # rather than read a file that was never written.
+            logger.info("Run finished: no data (aborted or empty)")
             self._fh_plot_df(pd.DataFrame())
             return
+        logger.info("Run finished: %d rows -> %s", result.rows, result.cal_path)
         data = read_calibrated_h5(result.cal_path, max_points=self._RESULT_PLOT_MAX_POINTS)
         self._fh_plot_df(pd.DataFrame(data))
 
     def fh_stop(self):
         """Abort an in-flight run (zeroes the heater + finalises a partial)."""
+        logger.info("Stop pressed")
+        self._stats.record(stats.STOP)
         if self.controller is not None:
             self.controller.stop_run()
 
@@ -934,6 +976,8 @@ class mainWindow(mainWindowUi):
                 ErrorWindow("Iso duration must be numeric seconds, or empty for eternal hold.")
                 return
         key = "temp" if self.setComboBox.currentText() == "Temperature" else "volt"
+        logger.info("iso Set: %s=%s, duration=%s", key, value,
+                    f"{duration}s" if duration > 0 else "hold")
         if duration > 0:
             # Finite iso experiment: arm a constant program of duration D and run
             # it on the worker thread -- this RECORDS (raw U + calibrated T) and
@@ -948,6 +992,7 @@ class mainWindow(mainWindowUi):
                 ErrorWindow(f"Cannot set iso value: {exc}")
                 return
             self._heater_driven = True
+            self._stats.record(stats.ISO_SET)
             if not self._start_run_worker():
                 self._heater_driven = False  # a run was already in flight
         else:
@@ -963,10 +1008,13 @@ class mainWindow(mainWindowUi):
                 return
             self.controller.start_iso_hold()
             self._heater_driven = True
+            self._stats.record(stats.ISO_SET)
 
     def unset_temp_volt(self):
         if self.controller is None:
             return
+        logger.info("iso Off pressed")
+        self._stats.record(stats.ISO_OFF)
         # "Off": if a finite iso run is in flight it acts as Stop (abort ->
         # zero + finalise partial). Otherwise it ends an eternal hold by actively
         # driving 0 V (a bare AO stop would latch the last setpoint hot).
@@ -1003,6 +1051,7 @@ class mainWindow(mainWindowUi):
 
             with open(fpath, 'w') as f:
                 json.dump(file_settings, f, separators=(',', ': '), indent=4)
+            logger.info("Settings saved to %s", fpath)
 
     def load_settings_from_file(self, fpath=False):
         # function is used to load default settings or to load special config from file if specified
@@ -1012,18 +1061,23 @@ class mainWindow(mainWindowUi):
             fpath = qt.QFileDialog.getOpenFileName(self, "Choose file with settings:", None, "*.json")[0]
         try:
             self.settings = FrontSettings(fpath)
+            logger.info("Settings loaded from %s", fpath)
             self.disconnect()
         except Exception:
             error_text = "Settings file is missing or corrupted! Settings will be reset to default."
+            logger.warning("Settings load failed for %s; resetting to default", fpath)
             ErrorWindow(error_text)
             self.reset_settings()
 
     def reset_settings(self):
         # reset config params; used default attributes from Params class
+        logger.info("Settings reset to default")
         self.settings = FrontSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
 
     def closeEvent(self, event):
         # dumping current settings to ./settings/settings.json and closing all the windows
+        logger.info(self._stats.summary())
+        logger.info("PIONER GUI closing")
         self.save_settings_to_file()
         for window in qt.QApplication.topLevelWidgets():
             window.close()

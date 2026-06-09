@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **201 passed** (mock backend, ~45 s).
+- `pytest tests/`: **212 passed** (mock backend, ~45 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -813,36 +813,37 @@ placeholders -- the achievable passive cool rate is hardware-dependent and must
 be measured on the bench (ties into P0-5 / the soak run), then the real numbers
 committed to `settings.json`.
 
-### P1-40. Per-session log file for the GUI + richer logging coverage
+### P1-40. Choose the proper location for session log files
 
-**Priority: HIGH (operator-requested).** Builds on / elevates the GUI part of
-P2-4 (single logging entry point), which stays the generic plan.
+**Priority: medium.** Per-session GUI logging is implemented
+(`shared/logging_setup.configure_logging`, called from `runUI` before the window
+is built; per-session file `pioner_session_<start-ts>.log`, INFO lifecycle logs
+across connect/disconnect/arm/run/stop/sample-rate/iso/calibration).
 
-**Problem:** the GUI entry point (`runUI.py`) configures no logging at all --
-`front/mainWindow.py` only does `logging.getLogger(__name__)`, so with no root
-handler the module loggers emit nothing useful and a session leaves no trace on
-disk. Only the Tango server (`back/nanocontrol_tango.py`) and the mock smoke
-(`back/debug.py`) call `logging.basicConfig`. When something goes wrong in an
-attended bring-up there is no log to read back.
+**Stopgap:** the files currently go to the repo's `logs/` folder (git-ignored).
+This is fine for dev but wrong for an installed app. **Decide the proper
+location** and point `configure_logging(log_dir=...)` at it: a platform
+user-data/cache dir (e.g. `~/.local/share/pioner`, macOS `~/Library/Logs`,
+Windows `%LOCALAPPDATA%`), or a path configurable in settings. Also decide a
+**rotation / retention** policy (size or age cap) so the dir does not grow
+unbounded, and whether the Pi back-end and the GUI should log to different
+places. Until then `logs/` is the documented stopgap.
 
-**Action:**
-- Configure logging the moment the app opens (in `runUI.py` / `mainWindow`
-  construction, before the backend connects) so startup itself is captured.
-- Write each session to its **own** file: a fixed base name plus a start-time
-  postfix, using filesystem-safe characters only -- no `:` / spaces; use `_`
-  (and `-`) instead. Example: `pioner_session_2026-06-07_14_30_05.log`. Capture
-  the timestamp once at launch; do not reuse `Date.now()`-style values that
-  break determinism in tests. Put the log dir under the existing data/log
-  location (see `NANOCONTROL_LOG_FILE` in `constants.py` for the existing
-  convention) and add a `SESSION_LOG_*` constant rather than hardcoding.
-- Add **more log statements** across the hot paths so the file is actually
-  informative: backend connect/disconnect, arm/run/stop, per-mode sample-rate
-  switch (P1-31), calibration apply, iso hold start/abort + `zero_ao`, and the
-  operator-limit rejections (P1-38). Keep levels sane (INFO for lifecycle,
-  WARNING/ERROR for faults) so the file is readable.
-- Prefer routing this through the P2-4 `logging_setup.configure(level, file)`
-  helper if/when that lands, so CLI / Tango / GUI share one setup; this item is
-  the high-priority GUI-session slice of it.
+### P1-41. Serious session statistics / telemetry (beyond the MVP)
+
+**Priority: low.** An MVP exists (`shared/session_stats.SessionStats`): an
+in-memory `Counter` of discrete actions (connect, arm, arm_rejected,
+run_started/finished, stop, iso_set/off, chip_check), logged as a one-line
+summary at GUI close. Enough to eyeball "what happened this session".
+
+**What a real version would add:** per-run **timings + metadata** (mode,
+programmed duration vs actual, rows, completed-vs-aborted, which limits/rejection
+fired); **persistence** across sessions (a stats file or small sqlite under the
+log/data dir) so usage accrues instead of vanishing at close; **aggregates**
+(uptime, total runs, mean run duration, rejection/abort rate) and maybe a small
+GUI panel or an end-of-session report. Decide what is actually useful to the
+operator/maintainer before building -- keep it from becoming heavyweight
+telemetry. Ties into the log-location decision (P1-40).
 
 ---
 
@@ -856,10 +857,13 @@ attended bring-up there is no log to read back.
 
 **Action:** `pioner-tango = "pioner.back.nanocontrol_tango:NanoControl.run_server"`.
 
-### P2-4. Single logging configuration entry point
+### P2-4. Route all entry points through the single logging setup
 
-**Action:** `pioner/logging_setup.py` exposing `configure(level=INFO,
-file=None)`. Call it from CLI / Tango entry points.
+**Where:** `shared/logging_setup.configure_logging` exists (P1-40) and the GUI
+(`runUI`) uses it. **Remaining:** route the Tango server
+(`back/nanocontrol_tango.py`, currently its own `logging.basicConfig`) and the
+mock smoke (`back/debug.py`) through `configure_logging` too, so CLI / Tango /
+GUI share one setup and one log-file convention.
 
 ### P2-5. Inconsistent type-hint style
 

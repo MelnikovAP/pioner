@@ -14,11 +14,13 @@ operator still presses ON to connect (so they can review settings first).
 """
 
 import argparse
+import logging
 import sys
 
 from silx.gui import qt
 
 from pioner.front.mainWindow import mainWindow
+from pioner.shared.logging_setup import configure_logging
 
 
 def pioner_run_ui(argv=None):
@@ -29,6 +31,14 @@ def pioner_run_ui(argv=None):
     group.add_argument("--hardware", action="store_true",
                        help="force legacy Tango hardware backend")
     args = parser.parse_args(argv)
+
+    # Start the per-session log file before anything else, so window
+    # construction + connect are captured (P1-40). Files go to logs/ for now.
+    log_path = configure_logging(console=True)
+    logging.getLogger(__name__).info(
+        "PIONER GUI starting (mock=%s, hardware=%s); session log %s",
+        args.mock, args.hardware, log_path,
+    )
 
     app = qt.QApplication([])
     sys.excepthook = qt.exceptionHandler  # type: ignore[attr-defined]

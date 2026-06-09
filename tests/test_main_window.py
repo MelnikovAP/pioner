@@ -24,6 +24,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import json
+import logging
 import threading
 
 import numpy as np
@@ -403,6 +404,35 @@ def test_check_chip_shows_report(window, monkeypatch):
     text = shown[0]
     assert "Chip presence" in text
     assert "band" in text and "abs_level" in text and "variance" in text
+
+
+# --- logging pipeline + session stats (P1-40) -------------------------------
+
+def test_ui_action_logs_info_and_counts(window, caplog):
+    # Stop is logged at INFO and tallied regardless of backend state.
+    window.controller = None
+    with caplog.at_level(logging.INFO, logger="pioner.front.mainWindow"):
+        window.fh_stop()
+    assert window._stats.get("stop") == 1
+    assert any("Stop pressed" in r.message for r in caplog.records)
+
+
+def test_scope_change_logged_at_debug_not_info(window, caplog):
+    # High-frequency UI noise stays at DEBUG so the INFO file is readable.
+    with caplog.at_level(logging.INFO, logger="pioner.front.mainWindow"):
+        window._on_scope_changed()
+    assert not any("Scope controls changed" in r.message for r in caplog.records)
+    with caplog.at_level(logging.DEBUG, logger="pioner.front.mainWindow"):
+        window._on_scope_changed()
+    assert any("Scope controls changed" in r.message for r in caplog.records)
+
+
+def test_close_logs_session_stats_summary(window, caplog):
+    window.fh_stop()  # record one action
+    with caplog.at_level(logging.INFO, logger="pioner.front.mainWindow"):
+        window.closeEvent(None)
+    assert any("session stats:" in r.message and "stop=" in r.message
+               for r in caplog.records)
 
 
 def test_fh_arm_raw_empty_table_warns(window, recorded_errors):

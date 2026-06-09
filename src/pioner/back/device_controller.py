@@ -489,6 +489,7 @@ class LocalDeviceController(DeviceController):
             logger.warning("run() called with no armed mode")
             return None
         self._stop_requested = False
+        logger.info("Run start: mode=%s", self._mode_name)
         cal_path = EXP_DATA_FILE_REL_PATH
 
         streaming = self._provider is not None and self._provider.is_active()
@@ -613,6 +614,7 @@ class LocalDeviceController(DeviceController):
             self._iso_holding = False
             logger.info("iso hold stopped (AO driven to 0 V)")
             return
+        logger.info("Stop requested (mode=%s)", self._mode_name)
         self._stop_requested = True
         stop = getattr(self._mode, "stop", None) if self._mode is not None else None
         if stop is not None:
