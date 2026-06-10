@@ -36,18 +36,20 @@ from pioner.shared.utils import is_int_or_raise, list_bitwise_or
 from pioner.shared.constants import *  # noqa: F401,F403 - intentional re-export of field names
 
 
-#: Per-mode keys recognised in the ``Scan.Sample rate`` map (besides
+#: Per-mode keys recognised in the ``Scan.SampleRate`` map (besides
 #: ``default``, which is the idle-monitor rate and the fallback for any
 #: mode key that is absent). See P1-31.
 SAMPLE_RATE_MODE_KEYS = ("fast", "slow", "iso")
 
 
 def resolve_sample_rate_map(value) -> dict:
-    """Normalise the ``Scan.Sample rate`` field into a per-mode rate map.
+    """Normalise the ``Scan.SampleRate`` field into a per-mode rate map.
 
     Accepts either a bare int (back-compat: every mode uses the same rate) or
-    a dict ``{"default": int, "fast": int, "slow": int, "iso": int}`` where
-    ``default`` is required and any missing per-mode key falls back to it.
+    a dict ``{"Default": int, "Fast": int, "Slow": int, "Iso": int}`` where
+    ``Default`` is required and any missing per-mode key falls back to it.
+    Keys are matched **case-insensitively**, so the config may capitalize the
+    mode names while the returned map stays lowercase (the internal canonical).
 
     Returns ``{"default", "fast", "slow", "iso"}`` -> int. Raises ``ValueError``
     / ``TypeError`` on malformed input so the caller can flag the field.
@@ -64,12 +66,15 @@ def resolve_sample_rate_map(value) -> dict:
         rate = int(value)
         return {"default": rate, **{k: rate for k in SAMPLE_RATE_MODE_KEYS}}
     if isinstance(value, dict):
-        if "default" not in value:
-            raise ValueError("sample rate map needs a 'default' key")
-        default = _as_int(value["default"])
+        # Case-insensitive: accept Capitalized config keys (Default/Fast/...),
+        # return the lowercase internal map. Last value wins on case collisions.
+        lowered = {str(k).lower(): v for k, v in value.items()}
+        if "default" not in lowered:
+            raise ValueError("sample rate map needs a 'Default' key")
+        default = _as_int(lowered["default"])
         out = {"default": default}
         for key in SAMPLE_RATE_MODE_KEYS:
-            out[key] = _as_int(value[key]) if key in value else default
+            out[key] = _as_int(lowered[key]) if key in lowered else default
         return out
     raise TypeError(f"sample rate must be int or dict, got {type(value).__name__}")
 
@@ -102,8 +107,8 @@ def parse_experiment_limits(value: dict | None) -> ExperimentLimits:
     """Build :class:`ExperimentLimits` from a single (flat) ``Limits`` block.
 
     Missing block / keys fall back to the defaults (back-compat). Keys:
-    ``Min temperature``, ``Max temperature``, ``Min heat rate``,
-    ``Max heat rate``, ``Min cool rate``, ``Max cool rate``.
+    ``MinTemperature``, ``MaxTemperature``, ``MinHeatRate``,
+    ``MaxHeatRate``, ``MinCoolRate``, ``MaxCoolRate``.
     """
     d = value or {}
 
@@ -120,26 +125,26 @@ def parse_experiment_limits(value: dict | None) -> ExperimentLimits:
         return default if v is None else v
 
     return ExperimentLimits(
-        min_temp=_req("Min temperature", 0.0),
-        max_temp=_req("Max temperature", 300.0),
-        min_heat_rate=_opt("Min heat rate"),
-        max_heat_rate=_opt("Max heat rate"),
-        min_cool_rate=_opt("Min cool rate"),
-        max_cool_rate=_opt("Max cool rate"),
+        min_temp=_req("MinTemperature", 0.0),
+        max_temp=_req("MaxTemperature", 300.0),
+        min_heat_rate=_opt("MinHeatRate"),
+        max_heat_rate=_opt("MaxHeatRate"),
+        min_cool_rate=_opt("MinCoolRate"),
+        max_cool_rate=_opt("MaxCoolRate"),
     )
 
 
 def parse_experiment_limits_by_mode(value: dict | None) -> dict:
     """Build a ``{mode: ExperimentLimits}`` map from the optional ``Limits`` block.
 
-    Two accepted shapes (mirrors the ``Sample rate`` field, P1-31):
+    Two accepted shapes (mirrors the ``SampleRate`` field, P1-31):
 
     * **Per-mode map** -- a dict containing any of the mode keys
-      (``"fast"`` / ``"slow"`` / ``"iso"``). Each present mode's sub-block is
-      parsed with :func:`parse_experiment_limits`; a mode key that is absent
-      falls back to the built-in defaults.
+      (``"Fast"`` / ``"Slow"`` / ``"Iso"``, matched case-insensitively). Each
+      present mode's sub-block is parsed with :func:`parse_experiment_limits`;
+      a mode key that is absent falls back to the built-in defaults.
     * **Flat block** (back-compat) -- a dict with the limit keys directly
-      (``"Min temperature"`` ...). The same limits apply to every mode.
+      (``"MinTemperature"`` ...). The same limits apply to every mode.
     * **Absent** (``None`` / ``{}``) -> built-in defaults for every mode.
 
     Returns ``{"fast", "slow", "iso"}`` -> :class:`ExperimentLimits`.
@@ -150,10 +155,13 @@ def parse_experiment_limits_by_mode(value: dict | None) -> dict:
         raise TypeError(
             f"Limits must be a map, got {type(value).__name__}"
         )
-    if any(k in value for k in LIMITS_MODE_KEYS):
+    # Case-insensitive: accept Capitalized mode keys (Fast/Slow/Iso), return the
+    # lowercase internal map.
+    lowered = {str(k).lower(): v for k, v in value.items()}
+    if any(k in lowered for k in LIMITS_MODE_KEYS):
         # Per-mode map: parse each present mode; absent modes get defaults.
         return {
-            k: parse_experiment_limits(value[k]) if k in value else ExperimentLimits()
+            k: parse_experiment_limits(lowered[k]) if k in lowered else ExperimentLimits()
             for k in LIMITS_MODE_KEYS
         }
     # Flat block (back-compat): one shared limit set for every mode.
@@ -166,6 +174,42 @@ def parse_experiment_limits_by_mode(value: dict | None) -> dict:
 #: channel + threshold must be picked on the bench (chip in vs out); see
 #: ``back/chip_presence.py``.
 CHIP_PRESENCE_STRATEGIES = ("band", "abs_level", "variance")
+
+#: Map a config Strategy spelling (CamelCase ``Band`` / ``AbsLevel`` /
+#: ``Variance`` or the internal lowercase form) to the internal canonical. Keyed
+#: by the value lowercased with underscores stripped, so both spellings resolve.
+_CHIP_PRESENCE_STRATEGY_BY_NORM = {
+    "band": "band", "abslevel": "abs_level", "variance": "variance",
+}
+
+
+def _normalize_chip_presence_strategy(value) -> str:
+    """Normalise a config Strategy value to the internal lowercase canonical.
+
+    Accepts CamelCase (``Band`` / ``AbsLevel`` / ``Variance``) or the internal
+    form. Unknown values pass through unchanged so the caller rejects them.
+    """
+    norm = str(value).replace("_", "").lower()
+    return _CHIP_PRESENCE_STRATEGY_BY_NORM.get(norm, str(value))
+
+
+#: Map an AcquisitionMode spelling (CamelCase ``Persistent`` / ``PerExperiment``
+#: or the internal lowercase form) to the internal canonical.
+_ACQUISITION_MODE_BY_NORM = {
+    "persistent": "persistent", "perexperiment": "per_experiment",
+}
+
+
+def _normalize_acquisition_mode(value) -> str:
+    """Normalise the AcquisitionMode value to the internal lowercase canonical.
+
+    Accepts ``Persistent`` / ``PerExperiment`` (or the internal form). Unknown
+    values pass through; :meth:`AcquisitionMode.from_string` then falls back.
+    """
+    if value is None:
+        return ACQUISITION_MODE_DEFAULT
+    norm = str(value).replace("_", "").lower()
+    return _ACQUISITION_MODE_BY_NORM.get(norm, str(value))
 
 
 @dataclass
@@ -192,8 +236,8 @@ def parse_chip_presence_config(value: dict | None) -> ChipPresenceConfig:
     """Build :class:`ChipPresenceConfig` from the optional ``ChipPresence`` block.
 
     Missing block / keys fall back to the defaults (detection disabled). Keys:
-    ``Enabled``, ``Strategy``, ``Channel``, ``Band low``, ``Band high``,
-    ``Max abs``, ``Max std``.
+    ``Enabled``, ``Strategy``, ``Channel``, ``BandLow``, ``BandHigh``,
+    ``MaxAbs``, ``MaxStd``.
     """
     d = value or {}
     defaults = ChipPresenceConfig()
@@ -206,10 +250,11 @@ def parse_chip_presence_config(value: dict | None) -> ChipPresenceConfig:
             raise ValueError(f"ChipPresence.{key} must be a number, got {v!r}")
         return float(v)
 
-    strategy = d.get("Strategy", defaults.strategy)
+    strategy_raw = d.get("Strategy", defaults.strategy)
+    strategy = _normalize_chip_presence_strategy(strategy_raw)
     if strategy not in CHIP_PRESENCE_STRATEGIES:
         raise ValueError(
-            f"ChipPresence.Strategy must be one of {CHIP_PRESENCE_STRATEGIES}, got {strategy!r}"
+            f"ChipPresence.Strategy must be one of {CHIP_PRESENCE_STRATEGIES}, got {strategy_raw!r}"
         )
     channel = d.get("Channel", defaults.channel)
     if isinstance(channel, bool) or not isinstance(channel, int):
@@ -219,10 +264,10 @@ def parse_chip_presence_config(value: dict | None) -> ChipPresenceConfig:
         enabled=bool(d.get("Enabled", defaults.enabled)),
         strategy=str(strategy),
         channel=int(channel),
-        band_lo=_num("Band low", defaults.band_lo),
-        band_hi=_num("Band high", defaults.band_hi),
-        max_abs=_num("Max abs", defaults.max_abs),
-        max_std=_num("Max std", defaults.max_std),
+        band_lo=_num("BandLow", defaults.band_lo),
+        band_hi=_num("BandHigh", defaults.band_hi),
+        max_abs=_num("MaxAbs", defaults.max_abs),
+        max_std=_num("MaxStd", defaults.max_std),
     )
 
 
@@ -258,10 +303,10 @@ class JsonReader:
 class BackSettings:
     """Parses configuration file with all necessary acquisition parameters.
 
-    Note: only the ``DAQ settings`` block and ``Experiment settings.Scan`` /
-    ``Experiment settings.Modulation`` are consumed here. The
-    ``Experiment settings.Paths`` block (``Calibration path``, ``Data path``)
-    and the ``Server settings`` block are read by :class:`FrontSettings` only.
+    Note: only the ``DaqSettings`` block and ``ExperimentSettings.Scan`` /
+    ``ExperimentSettings.Modulation`` are consumed here. The
+    ``ExperimentSettings.Paths`` block (``CalibrationPath``, ``DataPath``)
+    and the ``ServerSettings`` block are read by :class:`FrontSettings` only.
     The Tango back-end uses the hardcoded ``CALIBRATION_FILE_REL_PATH`` /
     ``RAW_DATA_FOLDER_REL_PATH`` constants.
     """
@@ -320,7 +365,7 @@ class BackSettings:
         a string here.
         """
         value = json_dict.get(ACQUISITION_MODE_FIELD, ACQUISITION_MODE_DEFAULT)
-        self.acquisition_mode = str(value) if value is not None else ACQUISITION_MODE_DEFAULT
+        self.acquisition_mode = _normalize_acquisition_mode(value)
 
     def parse_modulation(self) -> None:
         """Pull AC modulation defaults (Hz, V) into ``self.modulation``."""
@@ -567,7 +612,7 @@ class FrontSettings:
                 not isinstance(self._exp_settings_dict[PATHS_FIELD][field], str):
                 self._invalid_fields.append(field)
 
-        # Sample rate is either a bare int (back-compat) or a per-mode map
+        # SampleRate is either a bare int (back-compat) or a per-mode map
         # (P1-31). ``resolve_sample_rate_map`` rejects bools and bad shapes.
         v = self._exp_settings_dict[SCAN_FIELD].get(SAMPLE_RATE_FIELD)
         try:

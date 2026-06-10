@@ -23,7 +23,7 @@ def _settings_with_trigger(tmp_path: Path, value) -> str:
     """
     with open(DEFAULT_SETTINGS_FILE_REL_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    daq = cfg["DAQ settings"]["DAQ"]
+    daq = cfg["DaqSettings"]["DAQ"]
     if value is None:
         daq.pop("HardwareTrigger", None)
     else:
@@ -58,10 +58,10 @@ def test_hardware_trigger_missing_defaults_off(tmp_path: Path):
 # --- per-mode sample rate (P1-31) ------------------------------------------
 
 def _settings_with_rate(tmp_path: Path, value) -> str:
-    """Clone the bundled defaults, set ``Scan.Sample rate`` to ``value``."""
+    """Clone the bundled defaults, set ``Scan.SampleRate`` to ``value``."""
     with open(DEFAULT_SETTINGS_FILE_REL_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["Experiment settings"]["Scan"]["Sample rate"] = value
+    cfg["ExperimentSettings"]["Scan"]["SampleRate"] = value
     out = tmp_path / "settings.json"
     out.write_text(json.dumps(cfg))
     return str(out)
@@ -129,7 +129,7 @@ def test_limits_missing_block_defaults(tmp_path: Path):
     """A settings file without a Limits block falls back to the defaults."""
     with open(DEFAULT_SETTINGS_FILE_REL_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["Experiment settings"].pop("Limits", None)
+    cfg["ExperimentSettings"].pop("Limits", None)
     out = tmp_path / "settings.json"
     out.write_text(json.dumps(cfg))
     s = BackSettings(str(out))
@@ -143,8 +143,8 @@ def test_limits_flat_block_applies_to_all_modes(tmp_path: Path):
     """A flat (non per-mode) Limits block (back-compat) applies to every mode."""
     with open(DEFAULT_SETTINGS_FILE_REL_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["Experiment settings"]["Limits"] = {
-        "Min temperature": 0, "Max temperature": 250, "Max heat rate": 5000,
+    cfg["ExperimentSettings"]["Limits"] = {
+        "MinTemperature": 0, "MaxTemperature": 250, "MaxHeatRate": 5000,
     }
     out = tmp_path / "settings.json"
     out.write_text(json.dumps(cfg))
@@ -158,9 +158,9 @@ def test_limits_flat_block_applies_to_all_modes(tmp_path: Path):
 
 def test_parse_experiment_limits_custom():
     lim = parse_experiment_limits({
-        "Min temperature": -10, "Max temperature": 250,
-        "Min heat rate": 1, "Max heat rate": 5000,
-        "Min cool rate": 2, "Max cool rate": 100,
+        "MinTemperature": -10, "MaxTemperature": 250,
+        "MinHeatRate": 1, "MaxHeatRate": 5000,
+        "MinCoolRate": 2, "MaxCoolRate": 100,
     })
     assert lim.min_temp == -10.0 and lim.max_temp == 250.0
     assert lim.min_heat_rate == 1.0 and lim.max_heat_rate == 5000.0
@@ -171,8 +171,8 @@ def test_parse_experiment_limits_by_mode_partial():
     """A per-mode map: present modes parsed, absent modes get defaults."""
     from pioner.shared.settings import parse_experiment_limits_by_mode
     by_mode = parse_experiment_limits_by_mode({
-        "fast": {"Max temperature": 300, "Min heat rate": 100},
-        "slow": {"Max temperature": 200, "Max cool rate": 60},
+        "fast": {"MaxTemperature": 300, "MinHeatRate": 100},
+        "slow": {"MaxTemperature": 200, "MaxCoolRate": 60},
     })
     assert by_mode["fast"].max_temp == 300.0 and by_mode["fast"].min_heat_rate == 100.0
     assert by_mode["slow"].max_temp == 200.0 and by_mode["slow"].max_cool_rate == 60.0
@@ -182,7 +182,7 @@ def test_parse_experiment_limits_by_mode_partial():
 
 def test_parse_experiment_limits_rejects_non_number():
     with pytest.raises(ValueError):
-        parse_experiment_limits({"Max temperature": "hot"})
+        parse_experiment_limits({"MaxTemperature": "hot"})
 
 
 def test_front_settings_round_trips_limits_block():
@@ -193,5 +193,46 @@ def test_front_settings_round_trips_limits_block():
     exp = f.get_exp_settings()
     assert LIMITS_FIELD in exp
     # Per-mode block is carried verbatim on save.
-    assert exp[LIMITS_FIELD]["fast"]["Max temperature"] == 300
-    assert exp[LIMITS_FIELD]["slow"]["Max cool rate"] == 60
+    assert exp[LIMITS_FIELD]["Fast"]["MaxTemperature"] == 300
+    assert exp[LIMITS_FIELD]["Slow"]["MaxCoolRate"] == 60
+
+
+# --- CamelCase config keys/values (capitalized in settings.json) -----------
+
+def test_rate_map_accepts_capitalized_keys(tmp_path: Path):
+    """Config may capitalize the mode keys; the internal map stays lowercase."""
+    s = BackSettings(_settings_with_rate(tmp_path, {"Default": 1000, "Fast": 4000}))
+    assert s.sample_rate_by_mode == {
+        "default": 1000, "fast": 4000, "slow": 1000, "iso": 1000,
+    }
+
+
+def test_limits_accepts_capitalized_mode_keys():
+    from pioner.shared.settings import parse_experiment_limits_by_mode
+    by_mode = parse_experiment_limits_by_mode({
+        "Fast": {"MaxTemperature": 300}, "Slow": {"MaxTemperature": 200},
+    })
+    assert by_mode["fast"].max_temp == 300.0
+    assert by_mode["slow"].max_temp == 200.0
+    assert by_mode["iso"].max_temp == 300.0  # absent -> defaults
+
+
+def test_chip_presence_strategy_camelcase():
+    from pioner.shared.settings import parse_chip_presence_config
+    assert parse_chip_presence_config({"Strategy": "Band"}).strategy == "band"
+    assert parse_chip_presence_config({"Strategy": "AbsLevel"}).strategy == "abs_level"
+    assert parse_chip_presence_config({"Strategy": "Variance"}).strategy == "variance"
+    with pytest.raises(ValueError):
+        parse_chip_presence_config({"Strategy": "Nope"})
+
+
+def test_acquisition_mode_camelcase(tmp_path: Path):
+    """``Persistent`` / ``PerExperiment`` normalise to the internal canonical."""
+    with open(DEFAULT_SETTINGS_FILE_REL_PATH, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    cfg["AcquisitionMode"] = "PerExperiment"
+    out = tmp_path / "settings.json"
+    out.write_text(json.dumps(cfg))
+    assert BackSettings(str(out)).acquisition_mode == "per_experiment"
+    # The committed default uses the capitalized "Persistent".
+    assert BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH).acquisition_mode == "persistent"

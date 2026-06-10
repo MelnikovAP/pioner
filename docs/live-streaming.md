@@ -953,7 +953,7 @@ implementation is active.
 #### Config flag
 
 ```json
-"Experiment settings": {
+"ExperimentSettings": {
     "Acquisition": {
         "Mode": "persistent",
         "_comment": "persistent | per_experiment; persistent is the recommended default; per_experiment kept for A/B testing during the trial period"

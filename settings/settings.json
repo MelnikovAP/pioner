@@ -1,6 +1,6 @@
 {
-    "AcquisitionMode": "persistent",
-    "DAQ settings": {
+    "AcquisitionMode": "Persistent",
+    "DaqSettings": {
         "DAQ": {
             "InterfaceType": [
                 1
@@ -26,26 +26,26 @@
             ]
         }
     },
-    "Server settings": {
+    "ServerSettings": {
         "Tango": {
-            "Tango host": "lid13ctrl1.esrf.fr:20000",
-            "Device proxy": "NanoControl/NanoControl/1"
+            "TangoHost": "lid13ctrl1.esrf.fr:20000",
+            "DeviceProxy": "NanoControl/NanoControl/1"
         },
         "HTTP": {
-            "HTTP host": "http://nanocal.esrf.fr:8000/"
+            "HttpHost": "http://nanocal.esrf.fr:8000/"
         }
     },
-    "Experiment settings": {
+    "ExperimentSettings": {
         "Paths": {
-            "Calibration path": "./settings/calibration.json",
-            "Data path": "./data/"
+            "CalibrationPath": "./settings/calibration.json",
+            "DataPath": "./data/"
         },
         "Scan": {
-            "Sample rate": {
-                "default": 2000,
-                "fast": 20000,
-                "slow": 2000,
-                "iso": 2000
+            "SampleRate": {
+                "Default": 2000,
+                "Fast": 20000,
+                "Slow": 2000,
+                "Iso": 2000
             }
         },
         "Modulation": {
@@ -54,39 +54,39 @@
             "Offset": 0.0
         },
         "Limits": {
-            "fast": {
-                "Min temperature": 0,
-                "Max temperature": 300,
-                "Min heat rate": 100,
-                "Max heat rate": 100000,
-                "Min cool rate": 100,
-                "Max cool rate": 100000
+            "Fast": {
+                "MinTemperature": 0,
+                "MaxTemperature": 300,
+                "MinHeatRate": 100,
+                "MaxHeatRate": 100000,
+                "MinCoolRate": 100,
+                "MaxCoolRate": 100000
             },
-            "slow": {
-                "Min temperature": 0,
-                "Max temperature": 200,
-                "Min heat rate": 0.1,
-                "Max heat rate": 60,
-                "Min cool rate": 0.1,
-                "Max cool rate": 60
+            "Slow": {
+                "MinTemperature": 0,
+                "MaxTemperature": 200,
+                "MinHeatRate": 0.1,
+                "MaxHeatRate": 60,
+                "MinCoolRate": 0.1,
+                "MaxCoolRate": 60
             },
-            "iso": {
-                "Min temperature": 0,
-                "Max temperature": 200,
-                "Min heat rate": null,
-                "Max heat rate": null,
-                "Min cool rate": null,
-                "Max cool rate": null
+            "Iso": {
+                "MinTemperature": 0,
+                "MaxTemperature": 200,
+                "MinHeatRate": null,
+                "MaxHeatRate": null,
+                "MinCoolRate": null,
+                "MaxCoolRate": null
             }
         },
         "ChipPresence": {
             "Enabled": false,
-            "Strategy": "band",
+            "Strategy": "Band",
             "Channel": 4,
-            "Band low": -10.0,
-            "Band high": 10.0,
-            "Max abs": 9.5,
-            "Max std": 1.0
+            "BandLow": -10.0,
+            "BandHigh": 10.0,
+            "MaxAbs": 9.5,
+            "MaxStd": 1.0
         }
     }
 }

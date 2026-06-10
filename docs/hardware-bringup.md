@@ -24,7 +24,7 @@ on the USB-2637 layout. Confirm before bring-up:
 
 | Field                         | Required value            | Notes |
 |-------------------------------|---------------------------|-------|
-| `AcquisitionMode`             | `persistent`              | live streaming path |
+| `AcquisitionMode`             | `Persistent`              | live streaming path |
 | `DAQ.InterfaceType`           | `[1]` (USB)               | bitwise-or list |
 | `DAQ.ConnectionCode`          | `0`                       | first device |
 | `DAQ.HardwareTrigger`         | `false` (until step 4)    | settings-driven (todo P0-5) |
@@ -33,7 +33,7 @@ on the USB-2637 layout. Confirm before bring-up:
 | `AI.RangeId`                  | `5` (+/-10 V)             | |
 | `AO.LowChannel` / `HighChannel` | `0` / `3`               | heater on ch1 |
 | `AO.RangeId`                  | `5` (+/-10 V)             | |
-| `Scan.Sample rate`            | `20000` (even)            | even rate required by the half-buffer flip |
+| `Scan.SampleRate`             | `20000` (even)            | even rate required by the half-buffer flip |
 
 ## Steps
 

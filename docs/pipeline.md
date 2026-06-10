@@ -17,7 +17,7 @@ modify the back-end or to interface with it.
 * **DAQ board**: Measurement Computing USB-DAQ (`uldaq` driver). Six AI
   channels (0..5) and four AO channels (0..3) at up to 1 MS/s. Default
   scan rate `fs = 20 kHz` (see `src/pioner/settings/default_settings.json`,
-  `Experiment settings.Scan.Sample rate`). The half-buffer flip protocol
+  `ExperimentSettings.Scan.SampleRate`). The half-buffer flip protocol
   (§3) requires `fs` to be **even**; non-even values are rejected at
   `_collect_finite_ai` and `start_ring_buffer`.
 * **Chip**: thin-film calorimeter with two heaters (sample + guard), a
@@ -71,7 +71,7 @@ heat capacity. We recover them in software via single-frequency lock-in
 via integer-cycle FFT for harmonic-resolved scalars.
 
 **Modulation defaults** (in `src/pioner/settings/default_settings.json`,
-`Experiment settings.Modulation`): `Frequency = 37.5 Hz`, `Amplitude = 0.1 V`,
+`ExperimentSettings.Modulation`): `Frequency = 37.5 Hz`, `Amplitude = 0.1 V`,
 `Offset = 0.0 V`. The 37.5 Hz default is **not seamless** in the 1-second
 AO buffer at `fs = 20 kHz` (37.5 cycles → π-rad jump per CONTINUOUS wrap);
 `IsoMode.arm` logs a `WARNING` quantifying the leakage. Pick `f_mod` from
@@ -526,8 +526,8 @@ What the GUI currently exposes:
 iso. Wiring slow mode requires a `select_mode("slow")` button and the
 existing profile editor (see §8 item 3). The Tango layer is ready.
 
-Settings paths (`Calibration path`, `Data path`, `Sample rate`,
-`Modulation`, `Tango/HTTP host`) are read by `FrontSettings` only — the
+Settings paths (`CalibrationPath`, `DataPath`, `SampleRate`,
+`Modulation`, `Tango/HttpHost`) are read by `FrontSettings` only — the
 back-end ignores them (see `BackSettings` docstring). On `closeEvent`
 the GUI writes everything back to `./settings/settings.json`.
 
@@ -633,7 +633,7 @@ working end-to-end on mock or on real hardware.
 * `set_temp_volt` / `unset_temp_volt` / `fh_run` guard `self.device is None`.
 * GUI no-hardware mode keeps the experiment widgets enabled so programs
   can still be edited and HDF5 results plotted offline.
-* GUI writes `Calibration path` / `Data path` as `./`-relative when they
+* GUI writes `CalibrationPath` / `DataPath` as `./`-relative when they
   sit under `cwd`, so `settings.json` stays portable.
 * `mainWindow.HEATER_CHANNEL_KEY` now reuses the named constant
   `pioner.shared.channels.HEATER_AO` instead of the literal `"ch1"`.

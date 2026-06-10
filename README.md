@@ -287,8 +287,8 @@ These hold across the back-end; breaking one usually produces numbers that
 * **Sample rate must be even** for the half-flip reshape (the persistent ring
   and slow/iso all use it); the fast single-shot path does not strictly need
   it, but the active rate also feeds the ring, so even is required throughout.
-* **Sample rate is per-mode.** `Scan.Sample rate` in `settings.json` is a map
-  `{default, fast, slow, iso}` (default 2 kHz monitor, fast 20 kHz, slow/iso
+* **Sample rate is per-mode.** `Scan.SampleRate` in `settings.json` is a map
+  `{Default, Fast, Slow, Iso}` (default 2 kHz monitor, fast 20 kHz, slow/iso
   2 kHz); a bare int still works (same rate for all). Arming a mode applies its
   rate; the GUI's single rate field shows the selected mode's rate and an
   **Apply** press confirms it (arming is blocked until then). Odd or
@@ -398,7 +398,7 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**212 tests, ~50 seconds** locally.
+**216 tests, ~50 seconds** locally.
 
 ---
 

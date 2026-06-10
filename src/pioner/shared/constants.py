@@ -28,7 +28,7 @@ DEFAULT_UI_SETTINGS_FILE = "default_ui_settings.json"
 DEFAULT_UI_SETTINGS_FILE_REL_PATH = path.join(DEFAULT_SETTINGS_FOLDER_REL_PATH, DEFAULT_UI_SETTINGS_FILE)
 
 # JSON fields backend
-DAQ_SETTINGS_FIELD = "DAQ settings"
+DAQ_SETTINGS_FIELD = "DaqSettings"
 
 DAQ_FIELD = "DAQ"
 AI_FIELD = "AI"
@@ -48,24 +48,24 @@ INPUT_MODE_FIELD = "InputMode"
 SCAN_FLAGS_FIELD = "ScanFlags"
 
 # JSON fields server
-SERVER_SETTINGS_FIELD = "Server settings"
+SERVER_SETTINGS_FIELD = "ServerSettings"
 
 TANGO_FIELD = "Tango"
-TANGO_HOST_FIELD = "Tango host"
-DEVICE_PROXY_FIELD = "Device proxy"
+TANGO_HOST_FIELD = "TangoHost"
+DEVICE_PROXY_FIELD = "DeviceProxy"
 
 HTTP_FIELD = "HTTP"
-HTTP_HOST = "HTTP host"
+HTTP_HOST = "HttpHost"
 
-# JSON fields experiment 
-EXPERIMENT_SETTINGS_FIELD = "Experiment settings"
+# JSON fields experiment
+EXPERIMENT_SETTINGS_FIELD = "ExperimentSettings"
 
 PATHS_FIELD = "Paths"
-CALIB_PATH_FIELD = "Calibration path"
-DATA_PATH_FIELD = "Data path"
+CALIB_PATH_FIELD = "CalibrationPath"
+DATA_PATH_FIELD = "DataPath"
 
 SCAN_FIELD = "Scan"
-SAMPLE_RATE_FIELD = "Sample rate"
+SAMPLE_RATE_FIELD = "SampleRate"
 
 MODULATION_FIELD = "Modulation"
 FREQUENCY_FIELD = "Frequency"
