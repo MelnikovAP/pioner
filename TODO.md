@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **216 passed** (mock backend, ~45 s).
+- `pytest tests/`: **244 passed** (mock backend, ~50 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -129,7 +129,8 @@ device to the fast rate (and pauses the live ring); **start** does AI-arm then
 AO back-to-back (AI-first, ms apart). If a trigger line is ever added, AI can
 prime-and-wait at **arm** and **start** just fires `fire_software_trigger`,
 restoring the natural arm=prime / start=fire model and removing the leading-edge
-latency window. See the P1-17 "Plan 2026-06-05" block for the arm/start design.
+latency window. See [docs/live-streaming.md](docs/live-streaming.md) for the
+arm/start workflow design.
 
 **Open:** if/when skew matters, implement the software offset-trim. (The
 `EXTTRIGGER` loopback validation only applies if a trigger line is ever added.)
@@ -239,211 +240,31 @@ finishes. Operator wants real-time UI updates plus chip-alive monitoring
 between experiments. Full design + decision log captured in
 [docs/live-streaming.md](docs/live-streaming.md).
 
-**Action:** Implement persistent AI scan (`Connect` -> `Disconnect`),
-ring buffer with `peek` / `read_new(consumer_id)`, dormant `DiskRecorder`
-(open at Arm, close at experiment end), `MonitorAO` helper for
-between-experiment AC drive. Sliding-window FFT demod for UI display.
-~3-4 days back-end, ~1 week UI, ~1 week hardware soak. Six open
-questions in §11 of the design doc need answers before code lands.
+**Status: software scope complete (close-out 2026-06-10).** The persistent
+AI ring, `DiskRecorder` (chunked capture + `finalize_raw_to_h5`), slow and
+finite-iso off-ring streaming, interruptible run + `Stop`, non-blocking GUI
+run, temperature limits, and the segment builder all landed (see `README.md`
+and the design + decision log in `docs/live-streaming.md`; per-step history is
+in git). The default device state is now a persistent live stream and every
+recorded mode returns a `RunResult` (paths on disk, not an in-RAM frame).
 
-**Status (partial, done):** Persistent + per-experiment `AIProvider`
-(`back/acquisition/`), ring buffer `peek_last`/`read_new`, `AcquisitionMode`
-config flag, `DeviceController` adapter (`back/device_controller.py`,
-`LocalDeviceController` runs experiments on mock/real DAQ without Tango),
-single-window live streaming inside `mainWindow` (Signals tab scope +
-Values readout via `calibrate_window`), CLI `runUI --mock/--hardware`.
-The standalone `streamWindow`/`runStream` dev window was folded into
-`mainWindow` and removed.
-
-**Status (iso live -- done, 2026-06-01):** `IsoMode.run()` takes an
-optional injected `ExperimentManager` + `snapshot` callable. The finite/timed
-iso path (`LocalDeviceController._run_iso_streaming`) drives only AO on the
-controller's manager and reads AI from the persistent ring (primed
-`read_new` cursor -> captures just the run window), stopping only AO
-afterwards. The default GUI "Set" now uses the non-blocking eternal hold
-(`start_iso_hold` -> `IsoMode.start_hold`, P1-5), same drive-only-AO principle.
-The live stream stays active for the whole iso run.
-Mode-selection UI (Fast/Slow/Iso combo) wired in `mainWindow`. Regression
-tests `test_iso_run_keeps_stream_live` / `test_iso_run_streams_during_run`.
-
-**Status (still open):** (a) **Fast / slow** modes still arm their own
-finite AI scan, so `LocalDeviceController.run()` **pauses** the live stream
-for the duration of a fast/slow run (resumes after). Lifting this needs
-FastHeat/SlowMode to read the shared ring like iso now does, plus
-real-hardware sample-alignment validation at >1000 K/s (mock cannot verify
-it). (b) `DiskRecorder` (record-from-Arm) not built. (c) `MonitorAO`
-between-experiment drive not built. (d) Tango path is incompatible with
-persistent AI and is currently
-disabled (`nanocontrol_tango.py` raises); `TangoDeviceController` exists
-but is unverified -- repair when Tango becomes relevant again.
-(e) Live `Thtr`/`Rhtr` show the ~-1071 sentinel at idle (no heater
-current) because the NaN-at-zero-current threshold (1e-9 A) is below mock
-noise; suppress R/T readout when no AO drive is active, or raise the
-threshold. See P0-3.
-
-**Plan (2026-06-05): unified arm/start/stop workflow + record-from-arm.**
-Design agreed with the operator. Reframes live streaming as the *default device
-state* (not a mode) and gives every experiment a three-button lifecycle.
-
-*Mental model.* A single persistent AI provider (the ring) runs from Connect to
-Disconnect. The "default state" is a room-temperature / zero isotherm: watch the
-modulated ch0 signal and optionally set the (infinite) hold temperature. There
-is exactly **one AI scan on the USB-2637 at a time** -- that hardware fact is
-why iso/slow read from the ring while fast must own a separate scan.
-
-*Three-button lifecycle (all modes).* `arm` = "signals OK, prepare / start
-recording baseline"; `start` = "launch the experiment"; `stop` = "abort, zero
-the heater, finalise the save". Button gating: `start` disabled until `arm`,
-`stop` disabled until `start`, `arm` disabled until `Apply` (the per-mode rate
-+ Apply gate landed 2026-06-05) and until a chip is detected (P1-36).
-
-*Per mode (rate from the per-mode map in settings; landed 2026-06-05):*
-- **fast** (20 kHz, own single-shot DEFAULTIO scan): `arm` = pause ring +
-  reconfigure AI to 20 kHz (configure only, NOT acquiring). **Live runs only
-  up to `arm`** -- the plot freezes AT `arm` (the ring is paused there), not at
-  `start`, and stays frozen through the arm->start wait and the run. **On `arm`
-  the GUI shows the full planned temperature program T(t)** in the plot (since
-  live is frozen, the operator sees what is about to run). `start` = AI-arm then
-  AO back-to-back (AI-first, P0-5) in a tight critical section -> read once ->
-  resume ring at the rate that was active **before** fast was armed (the last
-  monitor rate; the `default` if none), then the result frame replaces the
-  program plot. No
-  baseline (set by hand in the temperature program). AI-arm sits on `start`
-  (not `arm`) precisely because there is no trigger -- see P0-5 note. Jitter
-  minimisation: tight back-to-back issue + post-hoc leading-edge detection (the
-  rise is in the captured baseline). Fast `stop` is low value (sub-second) but
-  must still zero AO cleanly; **fast zeroing is optional for now (operator)**.
-- **slow** (2 kHz == monitor rate, reads from persistent ring, **no pause** --
-  this is the long-deferred "Approach A"): `arm` = start the DiskRecorder
-  (baseline begins from the live ring, plot uninterrupted). `start` = launch the
-  ramp + set the start-cursor (the ring read-index marking ramp t=0). Dataset =
-  `[baseline][ramp]`. `stop` must be available and zero the heater. AO/AI
-  alignment is by the software start-cursor (jitter is negligible for a slow
-  ramp; measure residual skew on HW, P0-5). Overrun: 2 kHz CONTINUOUS has ~10x
-  more drain margin than the 20 kHz that triggered the OVERRUN postmortem, but
-  **soak-test on real hardware for full slow-ramp durations** (mock cannot
-  prove it).
-
-  *Step-4 breakdown (decided 2026-06-06):*
-  - **4a finalize.** The DiskRecorder writes a **raw (U, ADC volts) file**;
-    finalize reads it back, runs `apply_calibration` (AO program offset by the
-    cursor), and writes a **separate calibrated (T, engineering units) file
-    under a different name** -- keep both (raw for re-calibration, calibrated as
-    the result). Do not overwrite the raw with the calibrated output.
-  - **4b** slow drives only the AO ramp and reads AI from the persistent ring
-    (no own finite scan, no live pause) -- the `_run_iso_streaming` pattern
-    (injected `em` + `snapshot`).
-  - **4c orchestration** (`arm`=baseline, `start`=cursor/`mark_start`,
-    end=finalize, early `stop`=`zero_ao`+partial) is **shared by slow and the
-    finite-iso path** -- wired for slow here, reused in step 5 for iso.
-  - **4d** is a **real-hardware bench procedure**, NOT a mock unit test:
-    a `docs/hardware-bringup.md` checklist (+ optional live-DAQ-only script)
-    that runs a long ramp, asserts no `OVERRUN`, and measures residual AO/AI
-    skew. Not in CI.
-- **iso -- two paths**, selected by whether the duration field is set:
-  - *Eternal hold* (duration empty, exists today): `start_iso_hold` drives AO
-    DC+AC, live from ring, **no recording**, `stop` -> `zero_ao`.
-  - *Finite iso experiment* (duration set, NEW): `arm` = start DiskRecorder
-    (baseline); `start` = mark cursor + drive AO to the target **T > room temp
-    (heating-only, no cryostat yet)** + AC; auto-stop after `total_ms`; finalise
-    -> save h5. `stop` aborts early -> `zero_ao` + save partial (marked
-    aborted).
-
-*DiskRecorder (P1-17 item b).* **Capture core DONE 2026-06-06**
-(`back/acquisition/disk_recorder.py`, `tests/test_disk_recorder.py`): a ring
-consumer that **streams raw AI straight to an extendable HDF5 dataset** -- host
-memory stays flat regardless of run length, so multi-hour / multi-day slow and
-finite-iso runs do not accumulate samples in RAM (the requirement that motivated
-streaming over an in-memory buffer; verified lossless/order-preserving).
-`start()` at arm opens the file + primes the cursor at head (`reset_ring_cursor`
-+ a discarded `read_new`); a background thread appends each drained chunk
-(`resize`+write); `mark_start()` records the baseline|run boundary row; `stop()`
-writes `mark_index`/`rows` attrs and returns the file path. Every HDF5 access is
-under one lock (h5py is not thread-safe) which also serializes drains so chunk
-order is preserved. Drains every `poll_interval` (< ring depth) so a long run
-does not overflow the ring. Fast does not use it (single-shot, no baseline).
-**Still to wire (steps 4/5):** call it from slow / finite-iso, and at finalise
-read the raw back to run `apply_calibration` (AO program offset by the cursor) +
-`save_run_to_h5`. (Finalise still calibrates a full frame in RAM; chunked
-finalise-calibration for truly huge files is a later refinement.)
-
-*Interruptible run + Stop.* **Backend DONE 2026-06-06.** `ExperimentManager`
-has `request_stop()` + a `_cancel` event the collect loops
-(`_collect_finite_ai`, `_collect_finite_ai_single_shot`) poll and break on;
-`finite_scan` clears it at start and `zero_ao()`s on abort (heater safety).
-`BaseMode.stop()` requests cancel on the in-flight `ExperimentManager`
-(Fast/Slow expose it via `_active_em`; IsoMode keeps its own `_stop_event`).
-Controller `stop_run()` already routes to `mode.stop()` for fast/slow. Verified
-threaded on the mock (`tests/test_modes_e2e.py`). **Still to do:** the GUI must
-call `run()` off the main thread so Stop is clickable mid-run (step 7), a Stop
-button, and marking the partial save `aborted` (needs a flag + DiskRecorder
-wiring).
-
-*Temperature limits (config, no cryostat yet) -- DONE 2026-06-06.* `min`/`max`
-experiment temperature in `Experiment settings.Limits` (default **0 / 300 C**,
-heating-only) parsed into `settings.ExperimentLimits`; `_validate_program_limits`
-rejects out-of-range temperature programs (and per-segment rate caps, P1-38)
-fail-loud at `arm`, on top of the existing `safe_voltage` clamp.
-
-*Implementation order:* (1) per-mode rate + Apply gate -- **DONE 2026-06-05**
-(settings/controller/GUI; see README invariants); (2) DiskRecorder capture core
--- **DONE 2026-06-06** (wiring pending); interruptible-run + Stop backend --
-**DONE 2026-06-06** (GUI threading + Stop button pending); (3) slow off-ring:
-**4a finalize** -- **DONE 2026-06-06** (`modes.finalize_raw_to_h5`: **chunked**
-streaming raw U file -> separate calibrated T file, never the full multi-channel
-scan in RAM; 2-pass AD595-mean + per-block calibrate, lock-in on the 1-D temp-hr
-column, `program_offset` aligns the ramp; returns a summary dict, not a frame).
-**4c-2 decimated reader** -- **DONE 2026-06-06** (`modes.read_calibrated_h5`,
-stride / `max_points` for the GUI result view). **4b SlowMode injected/off-ring
-path** -- **DONE 2026-06-06** (`SlowMode.run(em, snapshot)`). **Streaming data
-model (decided 2026-06-06):** `run()` returns **paths + summary, not a
-DataFrame**; the full record lives only on disk (recorder raw U -> finalize T);
-live view reads the ring (bounded) + the T file decimated. Only remaining
-non-bounded bit: the 1-D temp-hr column for the lock-in (block-wise zero-phase
-lock-in for multi-day = future refinement). **4c-3 controller orchestration**
--- **DONE 2026-06-06** (`LocalDeviceController._run_slow_streaming`: DiskRecorder
-+ cursor/mark + finalize; **`run()` now returns a `RunResult`** {mode, cal_path,
-raw_path, rows, mark_index, aborted} for ALL modes -- data on disk, never an
-in-RAM frame; GUI reads it back decimated via `read_calibrated_h5`; stop = zero
-AO + partial save marked aborted; Tango adapted). **4d HW soak** -- **doc DONE
-2026-06-06** (`docs/hardware-bringup.md` "Slow off-ring soak": overrun/skew/RAM
-checks); the bench run itself is pending hardware. **Step 4 (slow off-ring) is
-functionally complete on mock.** (4) **iso two paths -- DONE 2026-06-06**: the
-finite iso experiment (`run()` / `run_iso_mode`) now streams off-ring via the
-same `_run_streaming` as slow (DiskRecorder + chunked finalize) with
-`tile_profile=True` (the iso AO buffer is periodic/constant, so `finalize` tiles
-it -- `ref[idx % len]` -- giving a constant `Uref` over the hold instead of NaN
-past 1 s); the **eternal hold** stays the separate non-recording
-`start_iso_hold()`. `RunResult` carries both raw + cal paths. **Deferred:** the
-iso FFT harmonics (1f/2f/3f) the old in-memory iso path logged are not computed
-in the streaming path -- re-add at finalise on the `temp-hr` column if the
-harmonic scalars are needed (they were never persisted, only logged). Next:
-(5) GUI step 7: **7a non-blocking run + Stop -- DONE 2026-06-06**
-(`front/mainWindow.py`: `_RunWorker` runs `controller.run()` on a worker thread,
-`finished` signal plots the result decimated on the main thread; Stop button
-wired to `stop_run`; arm/start/stop + mode-combo button-state gated by
-`_set_running`; the live plot keeps updating during slow/iso off-ring runs).
-Smoke-verified offscreen; the run-lifecycle + iso Set/Off behaviour now also has
-automated offscreen tests (`tests/test_main_window.py`). **7b finite-iso recording + abort -- DONE 2026-06-06**: the
-GUI iso "Set" with a duration now arms a constant duration-D program and runs it
-on the worker thread (records raw U + calibrated T, auto-stops after D) instead
-of the old eternal-hold + auto-zero; "Set" with no duration is still the eternal
-hold; "Off" aborts an in-flight finite run (`stop_run` -> zero + partial) else
-ends the hold; `_set_running` also gates the iso Set button; `disconnect` aborts
-an in-flight run first. So functionally every mode now has start (arm+Set/Start),
-stop (Stop/Off), and -- for iso -- the eternal hold; smoke-verified offscreen.
-**Temp limits (step 8) + per-segment rate validation (P1-38) -- DONE
-2026-06-06** (`Experiment settings.Limits` -> `ExperimentLimits`; fail-loud
-`_validate_program_limits` on arm: heating-only 0..300 C + optional rate caps).
-**P1-39 segment builder (compiler core + GUI widget) -- DONE** (`segments_to_program`;
-`front/mainWindow._build_tables_from_segments` + the segment editor in
-`mainWindowUi.py`: heat/cool by rate+target, iso by duration, raw points kept as
-a radio-selected "advanced" fallback; tested in `tests/test_main_window.py`).
-**Functional step 7 is complete** (non-blocking lifecycle + Stop + finite-iso
-recording + abort + safety limits/validation + segment builder), all on mock.
-**Remaining (blocked):** **7b-cosmetic** iso Set/Off -> literal arm/start/stop
-buttons -- pure GUI; add tests in `tests/test_main_window.py`.
-**Chip-detect gate (P1-36)** -- blocked on the bench answers.
+**Remaining (blocked / deferred -- not doable on the mock):**
+- **Fast off-ring -- blocked on hardware (P1-28).** `FastHeat` still owns a
+  single-shot 20 kHz scan, so `run()` pauses the live stream for the
+  sub-second fast run. Lifting it needs real-hardware validation of AO/AI
+  sample alignment at >1000 K/s, which the mock cannot verify. Carry it as a
+  bench item under P1-28.
+- **`MonitorAO` -- closed (subsumed).** Between-experiment AC drive is already
+  provided by the eternal iso hold (`start_iso_hold()`, "Set" with no
+  duration: DC+AC on AO, live plot running). No separate helper planned.
+- **Tango path -- deferred.** Incompatible with the persistent AI scan and
+  currently disabled; `TangoDeviceController` is unverified. Repair when Tango
+  becomes relevant again.
+- **7b-cosmetic (optional GUI polish, deferred).** Unify iso "Set/Off" onto the
+  shared Arm/Start/Stop buttons. The working Set/Off UX is kept as-is; revisit
+  only if the unified lifecycle is wanted.
+- **Chip-detect arm/start/stop gate -- see P1-36** (blocked on the bench
+  threshold answers).
 
 ### P1-18. External trigger integration (synchrotron / Raman / diffractometer)
 
@@ -650,8 +471,9 @@ guard, sample-count logging). The remaining work needs the physical board and is
    AO/AI skew and, if it matters, implement the per-host software offset-trim.
 4. Then the live-chip accuracy items that cannot be pre-validated on the mock:
    P0-4 iso seamlessness at 37.5 Hz, lock-in edge transients (now flagged by
-   the `temp-hr_valid` mask), fast/slow
-   live-stream-during-run (P1-17 Approach A, alignment > 1000 K/s).
+   the `temp-hr_valid` mask), and **fast off-ring** -- validate AO/AI sample
+   alignment at >1000 K/s before letting fast read the shared ring (P1-17
+   Approach A; slow/iso already stream off-ring on mock).
 
 ### P1-30. Quantify / harden the mainline `finite_scan` OVERRUN margin
 
@@ -750,7 +572,7 @@ threshold.**
 
 **Priority: medium.** **Where:** `back/experiment_manager.py` (`finite_scan`
 single-shot path), `back/modes.py` (`FastHeat`). **Related:** P0-5 (skew),
-P1-17 plan.
+P1-17 (fast off-ring, blocked on P1-28).
 
 **What:** without a hardware trigger the AI-arm -> AO-start gap has variable
 latency (jitter), skewing the captured leading edge of the ballistic event.
@@ -1119,11 +941,11 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
    do not touch calibration coefficients without a new SI procedure (P2-21).
 2. **P1-26 (high)** — open-source / proprietary code-split proposal. Do the
    boundary mapping early; it constrains where later work lands.
-3. **Unified arm/start/stop workflow** (P1-17 "Plan 2026-06-05"). Step 1
-   (per-mode sample rate + Apply gate) is **DONE 2026-06-05** -- cut slow/iso
-   off 20 kHz, reducing the slow-path OVERRUN risk (P1-30). Continue with the
-   rest of that plan in order: DiskRecorder -> slow off-ring -> iso two paths
-   -> interruptible run + Stop + temp limits.
+3. **Unified arm/start/stop workflow (P1-17) -- software scope complete
+   (2026-06-10).** Persistent ring, DiskRecorder, slow + finite-iso off-ring,
+   interruptible run + Stop, temp limits and the segment builder all landed.
+   What is left is hardware-gated or deferred (fast off-ring -> P1-28; Tango
+   deferred; MonitorAO closed as subsumed; iso-button cosmetic optional).
    - **P1-36 (high, safety)** — chip-presence detection to gate arm/start/stop
      (needs bench confirmation of the probe threshold first); land alongside
      the workflow gating.

@@ -421,10 +421,11 @@ the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
   `run()`), not the legacy `arm_fast_heat` Tango command. **Iso "Set" holds
   the setpoint indefinitely** (non-blocking; `start_iso_hold`) until "Off",
   or — with a duration in the iso panel — runs a timed program that
-  auto-returns the heater to 0 V after N seconds. Iso streams live against the
-  persistent ring buffer; fast/slow still pause the live stream for the run's
-  duration (see `docs/live-streaming.md`). A dedicated
-  CalibrationMode is not yet a run mode (todo P1-22).
+  auto-returns the heater to 0 V after N seconds. Iso and slow stream live
+  against the persistent ring buffer (off-ring, no pause); only fast still
+  pauses the live stream for its sub-second run (off-ring for fast is blocked
+  on real-hardware sample-alignment validation, see `docs/live-streaming.md`).
+  A dedicated CalibrationMode is not yet a run mode (todo P1-22).
 * **Mock data is not a thermal model.** The synthetic AI signal mirrors the
   AO voltage scaled by hand-picked constants. It is sufficient for
   pipeline shape validation, not for closed-loop control development.

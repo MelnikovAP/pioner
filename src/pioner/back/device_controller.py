@@ -489,8 +489,10 @@ class LocalDeviceController(DeviceController):
         * **slow** -- off-ring streaming: drive only the ramp AO on our manager,
           stream raw AI from the persistent ring to disk (no live-stream pause),
           finalise to the calibrated file.
-        * **iso** -- streams live off the ring (Approach C); in-memory frame is
-          saved (the iso recorder/finalise wiring is step 5).
+        * **iso** (finite, duration set) -- same off-ring streaming as slow via
+          ``_run_streaming(tile_profile=True)`` (the AO buffer is periodic, so
+          it is tiled); no live-stream pause. The eternal hold is the separate
+          non-recording ``start_iso_hold()``.
         * **fast** -- own single-shot finite scan; pause the live ring around it
           (bounded, sub-second), save its frame.
         """

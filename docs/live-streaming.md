@@ -381,6 +381,42 @@ backend, but defers the mode refactor and the disk recorder.
   on mock (`test_device_controller.py`, incl. iso live-stream regression),
   UI settings (`test_ui_settings.py`).
 
+**Update (2026-06-10): the mode refactor, DiskRecorder and finite-iso
+streaming have since landed.** The "Not done" list below is kept for the
+record but is superseded by the following:
+
+- **Slow off-ring -- DONE.** `SlowMode.run(em, snapshot)` drives only the AO
+  ramp and reads AI from the persistent ring (the `_run_iso_streaming`
+  pattern); the live plot is no longer paused for slow runs.
+- **`DiskRecorder` -- DONE.** `back/acquisition/disk_recorder.py` streams raw
+  AI straight to an extendable HDF5 dataset (flat RAM for multi-hour runs);
+  wired into slow and finite-iso via `_run_streaming` with chunked
+  `finalize_raw_to_h5`. `run()` now returns a `RunResult` (paths + summary),
+  not an in-RAM frame.
+- **Finite-iso off-ring -- DONE.** A duration-set iso run records raw U +
+  calibrated T off the ring; the eternal hold stays the separate
+  non-recording `start_iso_hold()`.
+- **Interruptible run + Stop, temp limits, segment builder -- DONE.** See
+  README + `TODO.md` P1-17 for the closed scope.
+
+**Still open / deferred:**
+
+- **Fast off-ring -- blocked on hardware (P1-28).** `FastHeat` still owns a
+  single-shot 20 kHz scan, so `LocalDeviceController.run()` pauses the live
+  stream for the (sub-second) fast run. Lifting this needs real-hardware
+  validation of sample alignment at >1000 K/s, which the mock cannot verify.
+- **`MonitorAO` -- closed (subsumed).** The original "between-experiment AC
+  drive" is now provided by the eternal iso hold (`start_iso_hold()`, "Set"
+  with no duration): it drives DC+AC AO and keeps the live plot running. No
+  separate `MonitorAO` helper is planned.
+- **Tango path -- deferred.** Incompatible with the persistent AI scan and
+  currently disabled; repair when Tango becomes relevant (see "Tango
+  deferred" below).
+- **CalibrationMode** run mode (todo P1-22). Calibration today is the
+  separate `calibWindow` file-apply flow, not a combo run mode.
+
+For the record, the original pre-refactor status was:
+
 **Not done (deferred):**
 
 - **Fast / slow mode refactor (the crux of P1-17, Approach A).** `FastHeat`
