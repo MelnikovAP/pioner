@@ -301,6 +301,38 @@ def _clip_modulation_to_safe(
 # ---------------------------------------------------------------------------
 # Calibration application: raw AI counts -> engineering units
 # ---------------------------------------------------------------------------
+def heater_resistance(df: pd.DataFrame, calibration: Calibration) -> pd.Series:
+    """Proxy heater resistance ``Rhtr`` per sample (dimensionless V/V).
+
+    AI ch0 (``HEATER_CURRENT_AI``) is the node between the series resistor and
+    the amplifier loop -- a voltage proxy for heater current, NOT a shunt
+    voltage with a known R_shunt. Production calibration uses ``ihtr0=0,
+    ihtr1=1`` so ``ih = V_ch0`` in volts; ``Rhtr = (AI5 - AI0 + uhtr0) * uhtr1
+    / ih`` is therefore dimensionless (V/V) and the ``Thtr`` polynomial absorbs
+    the implicit scaling (todo P2-21 tracks proper SI calibration).
+
+    At idle (``|ih| < 1e-9``) the resistance is undefined; those samples are
+    NaN rather than a sentinel -- the legacy ``R=0`` sentinel produced a
+    physically meaningless ~ -1070 C through the production polynomial.
+
+    Single source of truth for both :func:`apply_calibration` (-> ``Thtr``) and
+    the in-situ R-correction auto-zero (P1-33). ``df`` must carry the raw
+    ``HEATER_CURRENT_AI`` and ``UHTR_AI`` columns.
+    """
+    ih = cast(
+        pd.Series,
+        calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1,
+    )
+    nz = ih.abs() > 1e-9
+    rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
+    rhtr.loc[nz] = (
+        (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI] + calibration.uhtr0)
+        * calibration.uhtr1
+        / ih.loc[nz]
+    )
+    return rhtr
+
+
 def apply_calibration(
     raw: pd.DataFrame,
     sample_rate: float,
@@ -393,23 +425,9 @@ def apply_calibration(
     # was fitted against proxy Rhtr (V/V), NOT physical ohms.
     # At idle (ih ~ 0) Rhtr is undefined; mark NaN (see nz guard below).
     if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
-        ih = cast(
-            pd.Series,
-            calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1,
-        )
-        # When the heater is idle (current ~ 0) R_heater is undefined. The
-        # historical implementation used 0 as a sentinel which then evaluated
-        # to ``thtr0 + thtr1*thtrcorr + ...`` and produced a physically
-        # meaningless number (~ -1070 C with the production polynomial).
-        # Mark those samples as NaN so downstream code / plots can skip them.
-        nz = ih.abs() > 1e-9
-        rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
-        rhtr.loc[nz] = (
-            (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI]
-             + calibration.uhtr0)
-            * calibration.uhtr1
-            / ih.loc[nz]
-        )
+        # Single source of truth for the proxy heater resistance (V/V), NaN at
+        # idle. Reused by the in-situ R-correction auto-zero (P1-33).
+        rhtr = heater_resistance(df, calibration)
         thtr = (
             calibration.thtr0
             + calibration.thtr1 * (rhtr + calibration.thtrcorr)
@@ -437,6 +455,43 @@ def apply_calibration(
     # public output.
     df = df.drop(columns=[c for c in ai_channels if c in df.columns])
     return df
+
+
+def _lockin_reference(raw_df: pd.DataFrame, params) -> Optional[np.ndarray]:
+    """Measured lock-in reference (AI ch0 heater-current proxy) or None (P1-34).
+
+    Returns the raw ``HEATER_CURRENT_AI`` column when the modulation params opt
+    into the measured reference and the channel is present; otherwise None, so
+    the lock-in falls back to its synthetic ``sin(omega*t)``.
+    """
+    if not getattr(params, "use_measured_reference", False):
+        return None
+    if HEATER_CURRENT_AI not in raw_df.columns:
+        return None
+    return raw_df[HEATER_CURRENT_AI].to_numpy()
+
+
+def _kamp_divide(
+    amplitude: np.ndarray, thtr: np.ndarray, calibration: Calibration
+) -> np.ndarray:
+    """Divide a lock-in amplitude by the temperature-dependent gain ``kamp(Thtr)``.
+
+    P1-32: Bondar uCal divides the demodulated AC amplitude by
+    ``kamp(T) = ac0 + ac1*T + ac2*T^2 + ac3*T^3`` (fitted against ``Thtr``) to
+    compensate the thermopile gain's temperature dependence. ``thtr`` is the
+    per-sample heater temperature in degrees Celsius.
+
+    Returns NaN where ``kamp`` is non-positive or non-finite, or where the input
+    amplitude / temperature is non-finite -- ``Thtr`` is NaN at idle (zero
+    heater current), so those samples cannot be corrected and are marked rather
+    than silently divided by a meaningless gain.
+    """
+    amplitude = np.asarray(amplitude, dtype=float)
+    k = np.asarray(calibration.kamp(np.asarray(thtr, dtype=float)), dtype=float)
+    out = np.full(amplitude.shape, np.nan, dtype=float)
+    good = np.isfinite(k) & (k > 0.0) & np.isfinite(amplitude)
+    out[good] = amplitude[good] / k[good]
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -708,12 +763,21 @@ class SlowMode(BaseMode):
                 sample_rate=sample_rate,
                 frequency=params.frequency,
                 return_valid=True,
+                reference=_lockin_reference(raw_df, params),  # P1-34 (opt-in)
             )
             df["temp-hr_amp"] = amp
             df["temp-hr_phase"] = phase
             # False over the lock-in settling transient at each edge (P1-9);
             # mask with this before averaging amp/phase.
             df["temp-hr_valid"] = valid
+            # P1-32: divide the reported amplitude by kamp(Thtr) when the
+            # operator has opted in. Per-sample because Thtr ramps in slow mode.
+            if self._calibration.amplitude_correction_enabled and "Thtr" in df.columns:
+                df["temp-hr_amp"] = _kamp_divide(
+                    df["temp-hr_amp"].to_numpy(),
+                    df["Thtr"].to_numpy(),
+                    self._calibration,
+                )
         return df
 
 
@@ -936,9 +1000,9 @@ class IsoMode(BaseMode):
         if samples.size == 0:
             return pd.DataFrame(columns=["time", "Taux", "Thtr", "temp", "temp-hr"])
 
-        df = pd.DataFrame(samples, columns=self._ai_channels)
+        raw_df = pd.DataFrame(samples, columns=self._ai_channels)
         df = apply_calibration(
-            df,
+            raw_df,
             sample_rate=self._settings.ai_params.sample_rate,
             calibration=self._calibration,
             voltage_profiles=self._voltage_profiles,
@@ -949,13 +1013,35 @@ class IsoMode(BaseMode):
             temp_hr = df["temp-hr"].to_numpy()
             # Time-domain lock-in: per-sample amp/phase trace. Useful for
             # visual diagnostics (settling, drift) even in iso mode.
+            # P1-34: optional measured-current reference (opt-in) re-references
+            # the time-domain phase; the FFT path below still uses the synthetic
+            # reference (its window-offset phase handling needs separate bench
+            # validation before adopting a measured reference there).
             amp, phase, valid = lockin_demodulate(
                 temp_hr, sample_rate=ai_rate, frequency=params.frequency,
+                reference=_lockin_reference(raw_df, params),
                 return_valid=True,
             )
             df["temp-hr_amp"] = amp
             df["temp-hr_phase"] = phase
             df["temp-hr_valid"] = valid  # False over the settling edges (P1-9)
+            # P1-32: amplitude correction divider, opt-in. Applied to the
+            # per-sample trace here and to the FFT scalars below.
+            amp_corr = self._calibration.amplitude_correction_enabled and "Thtr" in df.columns
+            if amp_corr:
+                df["temp-hr_amp"] = _kamp_divide(
+                    df["temp-hr_amp"].to_numpy(),
+                    df["Thtr"].to_numpy(),
+                    self._calibration,
+                )
+                # Representative operating-point gain for the scalar FFT
+                # amplitudes (Thtr is ~stationary in iso). NaN if undefined.
+                thtr_op = float(np.nanmean(df["Thtr"].to_numpy())) if len(df) else float("nan")
+                kamp_op = float(self._calibration.kamp(thtr_op))
+                if not (np.isfinite(kamp_op) and kamp_op > 0.0):
+                    kamp_op = float("nan")
+            else:
+                kamp_op = 1.0
             # FFT demodulation: scalar amp/phase per harmonic over the
             # whole capture. In iso mode the response is stationary so a
             # single global estimate is the natural physical observable;
@@ -979,8 +1065,10 @@ class IsoMode(BaseMode):
                 # not round-trip through HDF5; if persistence is needed,
                 # log them at INFO and revisit when the iso HDF5 export
                 # lands -- see TODO.md P2-9.)
+                # P1-32: divide each harmonic amplitude by kamp(Thtr_op) when
+                # opted in (kamp_op is 1.0 when disabled, so this is a no-op).
                 df.attrs["temp-hr_fft"] = {
-                    h.harmonic: {"amplitude": h.amplitude, "phase": h.phase}
+                    h.harmonic: {"amplitude": h.amplitude / kamp_op, "phase": h.phase}
                     for h in fft_result.harmonics
                 }
                 df.attrs["temp-hr_fft_leakage"] = fft_result.leakage_fraction
@@ -989,7 +1077,7 @@ class IsoMode(BaseMode):
                 logger.info(
                     "IsoMode FFT demod: 1f -> A=%.4g, phi=%+.4f rad; "
                     "leakage=%.2f%%, window=%d samples",
-                    fund.amplitude, fund.phase,
+                    fund.amplitude / kamp_op, fund.phase,
                     100.0 * fft_result.leakage_fraction,
                     fft_result.window_samples,
                 )

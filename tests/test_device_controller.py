@@ -50,6 +50,70 @@ def _wait_for_stream(controller: DeviceController, timeout: float = 2.0) -> np.n
     return controller.peek_last(1000)
 
 
+def _powered_window(controller, *, current=0.01, uhtr=0.41, utpl=0.55, n=1000):
+    """Synthesise a raw AI window where the heater is powered (Rhtr defined).
+
+    With the identity default calibration: ih = ch0 = ``current`` (V),
+    Rhtr = (ch5 - ch0)/ih, temp = ch4*1000/gain_utpl. The chosen defaults give
+    Rhtr = (0.41-0.01)/0.01 = 40 and temp = 0.55*1000/11 = 50.
+    """
+    channels = controller._ai_channels
+    window = np.zeros((n, len(channels)), dtype=float)
+    col = {ch: i for i, ch in enumerate(channels)}
+    window[:, col[0]] = current   # HEATER_CURRENT_AI
+    window[:, col[5]] = uhtr      # UHTR_AI
+    window[:, col[4]] = utpl      # UTPL_AI -> temp
+    return window
+
+
+class TestRhcorr:
+    """In-situ heater R-correction auto-zero wiring (P1-33)."""
+
+    def test_report_unavailable_when_heater_not_powered(self, local_controller, monkeypatch):
+        # All-zero window -> ih ~ 0 -> Rhtr NaN -> nothing to trim.
+        channels = local_controller._ai_channels
+        monkeypatch.setattr(
+            local_controller, "peek_last",
+            lambda n: np.zeros((100, len(channels)), dtype=float),
+        )
+        rep = local_controller.rhcorr_report()
+        assert rep["available"] is False
+        assert "powered" in rep["reason"]
+
+    def test_report_previews_correction_without_mutating(self, local_controller, monkeypatch):
+        monkeypatch.setattr(local_controller, "peek_last",
+                            lambda n: _powered_window(local_controller))
+        before = local_controller._calibration.thtrcorr
+        rep = local_controller.rhcorr_report()
+        assert rep["available"] is True
+        assert rep["converged"] is True
+        assert rep["r_op"] == pytest.approx(40.0, abs=1e-6)
+        assert rep["t_target"] == pytest.approx(50.0, abs=1e-3)
+        # Identity Thtr poly: corr = t_target - R = 10.
+        assert rep["corr"] == pytest.approx(10.0, abs=0.01)
+        # Destination is surfaced so the confirm dialog can name the overwrite.
+        assert rep["target_path"]
+        # Preview must NOT mutate the active calibration.
+        assert local_controller._calibration.thtrcorr == before
+
+    def test_apply_persists_and_mutates(self, local_controller, monkeypatch, tmp_path):
+        import pioner.back.device_controller as dc
+
+        out = tmp_path / "calibration.json"
+        monkeypatch.setattr(dc, "CALIBRATION_FILE_REL_PATH", str(out))
+        monkeypatch.setattr(local_controller, "peek_last",
+                            lambda n: _powered_window(local_controller))
+        rep = local_controller.apply_rhcorr()
+        assert rep["available"] is True and rep["converged"] is True
+        assert rep["written_to"] == str(out)
+        assert local_controller._calibration.thtrcorr == pytest.approx(10.0, abs=0.01)
+        # Round-trips through the written file.
+        from pioner.shared.calibration import Calibration
+        reloaded = Calibration()
+        reloaded.read(str(out))
+        assert reloaded.thtrcorr == pytest.approx(10.0, abs=0.01)
+
+
 class TestChipPresence:
     """Read-only chip-presence detection wiring (P1-36)."""
 

@@ -71,6 +71,9 @@ MODULATION_FIELD = "Modulation"
 FREQUENCY_FIELD = "Frequency"
 AMPLITUDE_FIELD = "Amplitude"
 OFFSET_FIELD = "Offset"
+# Opt-in: lock-in references the measured heater current (AI ch0) for its phase
+# zero instead of the commanded synthetic sine (P1-34). Default off.
+MEASURED_REFERENCE_FIELD = "MeasuredReference"
 
 # Optional operator safety limits block (TODO step 8 / P1-38). Absent -> defaults.
 LIMITS_FIELD = "Limits"
@@ -126,6 +129,10 @@ U_HTR_FIELD = "Uhtr"
 I_HTR_FIELD = "Ihtr"
 T_HEATER_FIELD = "Theater"
 AMPLITUDE_CORRECTION_FIELD = "Amplitude correction"
+# Opt-in switch (sibling of the "0".."3" coefficients) that enables dividing
+# the demodulated lock-in amplitude by kamp(T) at runtime (P1-32). Default off
+# so an unconfigured/identity calibration never corrupts the amplitude.
+AMPLITUDE_CORRECTION_ENABLED_FIELD = "enabled"
 R_HEATER_FIELD = "R heater"
 R_GUARD_FIELD = "R guard"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"

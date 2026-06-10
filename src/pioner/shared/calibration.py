@@ -43,6 +43,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from pioner.shared.constants import (
+    AMPLITUDE_CORRECTION_ENABLED_FIELD,
     AMPLITUDE_CORRECTION_FIELD,
     CALIBRATION_COEFFS_FIELD,
     CORR_FIELD,
@@ -146,10 +147,17 @@ class Calibration:
         self.theater1: float = 0.0
         self.theater2: float = 0.0
         # [Amplitude correction] (used by lock-in for AC experiments)
+        # kamp(T) = ac0 + ac1*T + ac2*T^2 + ac3*T^3; the demodulated lock-in
+        # amplitude is divided by it when ``amplitude_correction_enabled`` is
+        # set (P1-32). NOTE: these defaults give kamp(T) = T, which is a
+        # placeholder, NOT a no-op -- a true no-op is ac0=1 (kamp==1). The
+        # divider is therefore off by default so the placeholder cannot corrupt
+        # the amplitude; enable it only with a calibration whose ac* are fitted.
         self.ac0: float = 0.0
         self.ac1: float = 1.0
         self.ac2: float = 0.0
         self.ac3: float = 0.0
+        self.amplitude_correction_enabled: bool = False
         # Heater / guard reference resistances (Ohm).
         self.rhtr: float = 1700.0
         self.rghtr: float = 2300.0
@@ -214,6 +222,12 @@ class Calibration:
         self.ac1 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["1"])
         self.ac2 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["2"])
         self.ac3 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["3"])
+        # Optional opt-in switch; absent in legacy files -> stays off.
+        self.amplitude_correction_enabled = bool(
+            coeffs[AMPLITUDE_CORRECTION_FIELD].get(
+                AMPLITUDE_CORRECTION_ENABLED_FIELD, False
+            )
+        )
 
         self.rhtr = float(coeffs[R_HEATER_FIELD])
         self.rghtr = float(coeffs[R_GUARD_FIELD])
@@ -266,6 +280,7 @@ class Calibration:
                     "1": self.ac1,
                     "2": self.ac2,
                     "3": self.ac3,
+                    AMPLITUDE_CORRECTION_ENABLED_FIELD: self.amplitude_correction_enabled,
                 },
                 R_HEATER_FIELD: self.rhtr,
                 R_GUARD_FIELD: self.rghtr,
@@ -283,6 +298,123 @@ class Calibration:
     # ------------------------------------------------------------------
     # Derived helpers
     # ------------------------------------------------------------------
+    def kamp(self, temp):
+        """AC amplitude-correction gain ``kamp(T) = ac0 + ac1*T + ac2*T^2 + ac3*T^3``.
+
+        ``temp`` is in degrees Celsius (the heater temperature ``Thtr`` in the
+        runtime pipeline, matching how the ``ac*`` coefficients are fitted in
+        Bondar uCal). Accepts a scalar, numpy array, or pandas Series and
+        returns the same shape. The demodulated lock-in amplitude is *divided*
+        by this factor (P1-32); see ``back.modes`` for the runtime guard that
+        skips non-positive / non-finite ``kamp``.
+        """
+        t = temp
+        return self.ac0 + self.ac1 * t + self.ac2 * t**2 + self.ac3 * t**3
+
+    @staticmethod
+    def solve_rhcorr(
+        c0: float,
+        c1: float,
+        c2: float,
+        r_measured: float,
+        t_target: float,
+        *,
+        corr_start: float = 0.0,
+        gain: float = 0.1,
+        tol: float = 0.01,
+        max_iter: int = 1000,
+    ) -> dict:
+        """In-situ R-correction auto-zero (P1-33), faithful to Bondar uCal.
+
+        Damped fixed-point iteration (Unit1.cpp:1308-1342) that trims the
+        additive resistance correction ``corr`` so the heater-temperature
+        polynomial ``T(corr) = c0 + c1*(R+corr) + c2*(R+corr)^2`` agrees with the
+        independent operating-point temperature ``t_target`` (= ``Ttpl + Taux``)
+        at the measured resistance ``r_measured``:
+
+            err = t_target - T(corr);  corr += gain * err   (gain 0.1)
+
+        Stops when ``|err| < tol`` (0.01 C). If ``|err|`` ever exceeds 10000 C
+        the iteration is diverging and ``corr`` is reset to 0 (Bondar's guard).
+        Starts from ``corr_start`` (the current stored correction), matching
+        Bondar which refines the existing ``Rhcorr`` rather than resetting it.
+
+        Returns a report dict: ``corr`` (new correction), ``residual_c`` (final
+        ``err`` in C), ``iterations``, ``converged`` (bool), ``diverged``
+        (bool). ``r_measured`` must be finite and non-zero; otherwise the
+        correction is left at ``corr_start`` and ``converged`` is False.
+        """
+        import math
+
+        if not math.isfinite(r_measured) or r_measured == 0.0 or not math.isfinite(t_target):
+            return {
+                "corr": float(corr_start),
+                "residual_c": float("nan"),
+                "iterations": 0,
+                "converged": False,
+                "diverged": False,
+            }
+        corr = float(corr_start)
+        err = float("nan")
+        converged = False
+        diverged = False
+        iterations = 0
+        for iterations in range(1, max_iter + 1):
+            thtr = c0 + c1 * (r_measured + corr) + c2 * (r_measured + corr) ** 2
+            err = t_target - thtr
+            if abs(err) < tol:
+                converged = True
+                break
+            if abs(err) > 10000.0:
+                corr = 0.0
+                diverged = True
+                break
+            corr += err * gain
+        return {
+            "corr": float(corr),
+            "residual_c": float(err),
+            "iterations": int(iterations),
+            "converged": bool(converged),
+            "diverged": bool(diverged),
+        }
+
+    def compute_rhcorr(
+        self,
+        r_measured: float,
+        t_target: float,
+        *,
+        differential: bool = False,
+        gain: float = 0.1,
+        tol: float = 0.01,
+        max_iter: int = 1000,
+    ) -> dict:
+        """Run :meth:`solve_rhcorr` for the heater (or differential heater) and
+        store the result in ``self.thtrcorr`` (or ``self.thtrdcorr``).
+
+        ``r_measured`` is the operating-point proxy resistance (mean of
+        ``modes.heater_resistance`` over valid samples); ``t_target`` is the
+        operating-point ``Ttpl + Taux`` (mean ``temp``). Mutates this
+        Calibration; the caller persists it (e.g. via :meth:`write`). The
+        returned report adds ``corr_old`` and ``field`` for display.
+        """
+        if differential:
+            c0, c1, c2, corr_old = self.thtrd0, self.thtrd1, self.thtrd2, self.thtrdcorr
+            field = "thtrdcorr"
+        else:
+            c0, c1, c2, corr_old = self.thtr0, self.thtr1, self.thtr2, self.thtrcorr
+            field = "thtrcorr"
+        report = self.solve_rhcorr(
+            c0, c1, c2, r_measured, t_target,
+            corr_start=corr_old, gain=gain, tol=tol, max_iter=max_iter,
+        )
+        if differential:
+            self.thtrdcorr = report["corr"]
+        else:
+            self.thtrcorr = report["corr"]
+        report["corr_old"] = float(corr_old)
+        report["field"] = field
+        return report
+
     def _add_params(self) -> None:
         """Compute derived parameters (e.g. clamping range for T<->V conversion)."""
         v = self.safe_voltage

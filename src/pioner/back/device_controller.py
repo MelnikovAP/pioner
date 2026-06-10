@@ -47,6 +47,7 @@ from pioner.back.modes import (
     apply_calibration,
     create_mode,
     finalize_raw_to_h5,
+    heater_resistance,
     save_run_to_h5,
 )
 from pioner.shared.calibration import Calibration
@@ -237,6 +238,14 @@ class DeviceController(abc.ABC):
     def chip_presence_report(self) -> dict:
         """Bench-comparison report of per-channel metrics + strategy verdicts."""
         return {"available": False, "channel": None, "metrics": {}, "verdicts": {}}
+
+    def rhcorr_report(self, window_seconds: float = 1.0) -> dict:
+        """Preview the in-situ heater R-correction auto-zero (P1-33), no write."""
+        return {"available": False, "reason": "not supported by this backend"}
+
+    def apply_rhcorr(self, window_seconds: float = 1.0) -> dict:
+        """Compute and persist the heater R-correction auto-zero (P1-33)."""
+        return {"available": False, "reason": "not supported by this backend"}
 
 
 class LocalDeviceController(DeviceController):
@@ -689,6 +698,103 @@ class LocalDeviceController(DeviceController):
         return presence_report(
             self._chip_presence_window(), self._ai_channels, self._settings.chip_presence
         )
+
+    # ------------------------------------------------------------------
+    # In-situ heater R-correction auto-zero (P1-33): trim ``thtrcorr`` so the
+    # heater-resistance temperature ``Thtr`` agrees with the thermopile
+    # ``Ttpl + Taux`` at the current operating point. PIONER only measures the
+    # main-heater resistance (no Rhtrd channel), so only ``thtrcorr`` is
+    # auto-zeroed (the differential ``thtrdcorr`` path exists in Calibration but
+    # has no measured input here). Requires the heater to be powered (e.g.
+    # during an iso hold) so ``Rhtr`` is defined.
+    # ------------------------------------------------------------------
+    def _rhcorr_operating_point(self, window_seconds: float):
+        """Mean proxy resistance and target temperature over a recent AI window.
+
+        Returns ``(r_op, t_target, n_valid)`` or ``None`` if no stream / no
+        powered sample. ``r_op`` is the mean ``heater_resistance`` over samples
+        where the heater current is non-zero; ``t_target`` is the mean ``temp``
+        (``Ttpl + Taux``) over those same samples.
+        """
+        n = max(1, int(window_seconds * self.ai_sample_rate))
+        raw = self.peek_last(n)
+        if raw.size == 0:
+            return None
+        channels = self._ai_channels or list(range(raw.shape[1]))
+        raw_df = pd.DataFrame(raw, columns=channels)
+        rhtr = heater_resistance(raw_df, self._calibration)
+        valid = rhtr.notna().to_numpy()
+        n_valid = int(valid.sum())
+        if n_valid == 0:
+            return None
+        cal_df = apply_calibration(
+            raw_df, self.ai_sample_rate, self._calibration, {}, ai_channels=channels
+        )
+        # Target temperature on the same powered samples (Ttpl + Taux).
+        temp = cal_df["temp"].to_numpy() if "temp" in cal_df.columns else None
+        if temp is None:
+            return None
+        r_op = float(np.nanmean(rhtr.to_numpy()[valid]))
+        t_target = float(np.nanmean(temp[valid]))
+        return r_op, t_target, n_valid
+
+    def rhcorr_report(self, window_seconds: float = 1.0) -> dict:
+        """Preview the heater R-correction auto-zero without mutating or writing.
+
+        Solves for the new ``thtrcorr`` at the current operating point and
+        returns the old/new value, final residual and convergence flags so the
+        operator can review before committing via :meth:`apply_rhcorr`.
+        """
+        op = self._rhcorr_operating_point(window_seconds)
+        if op is None:
+            return {"available": False,
+                    "reason": "heater not powered (Rhtr undefined) -- run an iso hold first"}
+        r_op, t_target, n_valid = op
+        rep = Calibration.solve_rhcorr(
+            self._calibration.thtr0, self._calibration.thtr1, self._calibration.thtr2,
+            r_op, t_target, corr_start=self._calibration.thtrcorr,
+        )
+        rep.update({
+            "available": True,
+            "r_op": r_op,
+            "t_target": t_target,
+            "n_valid": n_valid,
+            "corr_old": float(self._calibration.thtrcorr),
+            "field": "thtrcorr",
+            # Destination apply_rhcorr would overwrite (the active working
+            # calibration file), surfaced so the confirm dialog can name it.
+            "target_path": CALIBRATION_FILE_REL_PATH,
+        })
+        return rep
+
+    def apply_rhcorr(self, window_seconds: float = 1.0) -> dict:
+        """Compute the heater R-correction at the current operating point, store
+        it in the active calibration, and persist to the user calibration file.
+
+        Writes to ``CALIBRATION_FILE_REL_PATH`` (never the bundled default), so
+        an auto-zero always yields a user calibration snapshot. The active
+        calibration is then re-pointed at that file.
+        """
+        op = self._rhcorr_operating_point(window_seconds)
+        if op is None:
+            return {"available": False,
+                    "reason": "heater not powered (Rhtr undefined) -- run an iso hold first"}
+        r_op, t_target, n_valid = op
+        rep = self._calibration.compute_rhcorr(r_op, t_target)
+        rep.update({"available": True, "r_op": r_op, "t_target": t_target, "n_valid": n_valid})
+        calib_dir = os.path.dirname(CALIBRATION_FILE_REL_PATH)
+        if calib_dir:
+            os.makedirs(calib_dir, exist_ok=True)
+        self._calibration.write(CALIBRATION_FILE_REL_PATH)
+        self._calibration_path = CALIBRATION_FILE_REL_PATH
+        rep["written_to"] = CALIBRATION_FILE_REL_PATH
+        logger.info(
+            "R-correction auto-zero: thtrcorr %.6g -> %.6g (residual %.4g C, "
+            "n_valid=%d) written to %s",
+            rep["corr_old"], rep["corr"], rep["residual_c"], n_valid,
+            CALIBRATION_FILE_REL_PATH,
+        )
+        return rep
 
     def calibrate_window(self, raw: np.ndarray) -> pd.DataFrame:
         """Convert a raw AI window into engineering units for live readout.

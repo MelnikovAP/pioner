@@ -122,6 +122,7 @@ class mainWindow(mainWindowUi):
         self.sysDataPathButton.clicked.connect(self.select_data_path)
         self.sysSetupButton.clicked.connect(self.show_help)
         self.checkChipButton.clicked.connect(self.check_chip)
+        self.rhcorrButton.clicked.connect(self.rhcorr_autozero)
 
         self.calibPathButton.clicked.connect(self.select_calibration_file)
         self.calibViewButton.clicked.connect(self.view_calibraton_info)
@@ -461,6 +462,64 @@ class mainWindow(mainWindowUi):
                 f"min={m['min']:+.4g} max={m['max']:+.4g} p2p={m['p2p']:.4g}"
             )
         return "\n".join(lines)
+
+    def rhcorr_autozero(self):
+        """In-situ heater R-correction auto-zero (P1-33).
+
+        Previews the trim to ``thtrcorr`` at the current operating point, then
+        -- only on explicit confirmation -- writes the updated calibration to
+        the user calibration file. Needs the heater powered (e.g. during an iso
+        hold) so ``Rhtr`` is defined.
+        """
+        logger.info("R-corr auto-zero pressed")
+        self._stats.record(stats.RHCORR)
+        if self.controller is None:
+            ErrorWindow("No backend connection: connect first to auto-zero R-correction.")
+            return
+        rep = self.controller.rhcorr_report()
+        if not rep.get("available"):
+            MessageWindow(
+                "R-correction auto-zero unavailable:\n"
+                f"{rep.get('reason', 'no data')}"
+            )
+            return
+        if rep.get("diverged"):
+            MessageWindow(
+                "R-correction iteration diverged at this operating point; "
+                "thtrcorr would reset to 0. Check the heater drive and retry."
+            )
+            return
+        preview = (
+            "Heater R-correction auto-zero (P1-33)\n"
+            f"  operating point: R = {rep['r_op']:.4g} (V/V), "
+            f"T_target = Ttpl+Taux = {rep['t_target']:.3f} C\n"
+            f"  samples used: {rep['n_valid']}\n"
+            f"  residual: {rep['residual_c']:.4g} C "
+            f"({'converged' if rep['converged'] else 'NOT converged'})\n\n"
+            f"  thtrcorr: {rep['corr_old']:.6g}  ->  {rep['corr']:.6g}\n\n"
+            f"Overwrite the active calibration file?\n  {rep.get('target_path', '(active calibration)')}"
+        )
+        if YesCancelWindow(preview).exec() != qt.QMessageBox.Yes:
+            logger.info("R-corr auto-zero cancelled by operator")
+            return
+        result = self.controller.apply_rhcorr()
+        if not result.get("available"):
+            MessageWindow(
+                "R-correction auto-zero failed:\n"
+                f"{result.get('reason', 'no data')}"
+            )
+            return
+        written = result.get("written_to", "")
+        if written:
+            self.calibPathInput.setText(_relative_if_under_cwd(written))
+            self.calibPathInput.setCursorPosition(0)
+            self.settings.calib_path = _relative_if_under_cwd(written)
+        MessageWindow(
+            "R-correction auto-zero applied:\n"
+            f"  thtrcorr: {result['corr_old']:.6g}  ->  {result['corr']:.6g}\n"
+            f"  residual: {result['residual_c']:.4g} C\n"
+            f"  written to: {written}"
+        )
 
     def run_no_hardware(self):
         # Fallback when the Tango path is unavailable: switch to the

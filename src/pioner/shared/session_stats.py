@@ -25,6 +25,7 @@ STOP = "stop"
 ISO_SET = "iso_set"
 ISO_OFF = "iso_off"
 CHIP_CHECK = "chip_check"
+RHCORR = "rhcorr"
 SETTINGS_SAVED = "settings_saved"
 
 

@@ -376,6 +376,7 @@ class BackSettings:
             frequency=float(mod.get(FREQUENCY_FIELD, 0.0)),
             amplitude=float(mod.get(AMPLITUDE_FIELD, 0.0)),
             offset=float(mod.get(OFFSET_FIELD, 0.0)),
+            use_measured_reference=bool(mod.get(MEASURED_REFERENCE_FIELD, False)),
         )
 
     def parse_limits(self) -> None:
@@ -658,6 +659,12 @@ class FrontSettings:
             self.modulation_frequency = self._exp_settings_dict[MODULATION_FIELD][FREQUENCY_FIELD]
             self.modulation_amplitude = self._exp_settings_dict[MODULATION_FIELD][AMPLITUDE_FIELD]
             self.modulation_offset = self._exp_settings_dict[MODULATION_FIELD][OFFSET_FIELD]
+            # Optional P1-34 opt-in (lock-in measured reference); the front-end
+            # does not consume it, but carry it verbatim so a GUI save does not
+            # silently strip it from the file the backend reads. None if absent.
+            self.modulation_measured_reference = self._exp_settings_dict[MODULATION_FIELD].get(
+                MEASURED_REFERENCE_FIELD
+            )
             # Carry the optional Limits / ChipPresence blocks verbatim so a GUI
             # save round-trips them (the front-end doesn't otherwise consume
             # them). None if absent.
@@ -678,6 +685,10 @@ class FrontSettings:
                     OFFSET_FIELD: self.modulation_offset
                     },
                 }
+        # Preserve the optional P1-34 opt-in on save (omit if it was absent).
+        measured_ref = getattr(self, "modulation_measured_reference", None)
+        if measured_ref is not None:
+            out[MODULATION_FIELD][MEASURED_REFERENCE_FIELD] = measured_ref
         # Preserve the optional Limits / ChipPresence blocks on save (don't drop).
         limits_raw = getattr(self, "limits_raw", None)
         if limits_raw is not None:

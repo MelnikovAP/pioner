@@ -11,6 +11,7 @@ from pioner.shared.modulation import (
     check_ao_period_integrity,
     fft_demodulate,
     lockin_demodulate,
+    reference_phase,
 )
 
 
@@ -53,6 +54,57 @@ def test_lockin_rejects_invalid_inputs():
     with pytest.raises(ValueError):
         lockin_demodulate(np.zeros(100), sample_rate=1000.0, frequency=600.0,
                           bandwidth=600.0)
+
+
+# --- P1-34: measured-current reference ---------------------------------------
+
+def test_reference_phase_recovers_reference_lag():
+    """reference_phase returns the fundamental lag of a measured reference."""
+    fs, f = 10_000.0, 100.0
+    t = np.arange(int(fs)) / fs
+    for phi_ref in (0.0, 0.3, -0.7, 1.2):
+        ref = 0.8 * np.sin(2 * np.pi * f * t - phi_ref)
+        assert reference_phase(ref, fs, f) == pytest.approx(phi_ref, abs=1e-6)
+
+
+def test_reference_phase_zero_for_dc_reference():
+    """A DC / tone-free reference has no fundamental -> phase 0 (no rotation)."""
+    fs, f = 10_000.0, 100.0
+    assert reference_phase(np.full(1000, 2.5), fs, f) == 0.0
+
+
+def test_lockin_with_measured_reference_subtracts_reference_phase():
+    """The reported phase is the signal lag *relative to the measured reference*;
+    the amplitude is unchanged from the synthetic-reference result (P1-34)."""
+    fs, f = 10_000.0, 50.0
+    t = np.arange(int(fs)) / fs
+    phi_sig, phi_ref, amp = 0.6, 0.25, 0.4
+    signal = amp * np.sin(2 * np.pi * f * t - phi_sig) + 0.1
+    ref = 3.0 * np.sin(2 * np.pi * f * t - phi_ref)  # arbitrary amplitude
+
+    a_syn, p_syn = lockin_demodulate(signal, sample_rate=fs, frequency=f)
+    a_meas, p_meas = lockin_demodulate(signal, sample_rate=fs, frequency=f, reference=ref)
+
+    settled = slice(2000, -2000)
+    # Synthetic reference recovers the absolute lag; measured reference removes
+    # the reference's own lag.
+    np.testing.assert_allclose(p_syn[settled], phi_sig, atol=0.005)
+    np.testing.assert_allclose(p_meas[settled], phi_sig - phi_ref, atol=0.005)
+    # Amplitude is untouched by the reference (reference contributes phase only).
+    np.testing.assert_allclose(a_meas[settled], a_syn[settled], atol=1e-9)
+
+
+def test_lockin_reference_shape_must_match():
+    with pytest.raises(ValueError):
+        lockin_demodulate(np.zeros(100), sample_rate=1000.0, frequency=10.0,
+                          reference=np.zeros(50))
+
+
+def test_modulation_params_measured_reference_flag():
+    """Default off; with_amplitude preserves the opt-in flag."""
+    assert ModulationParams().use_measured_reference is False
+    p = ModulationParams(frequency=50.0, amplitude=0.1, use_measured_reference=True)
+    assert p.with_amplitude(0.2).use_measured_reference is True
 
 
 # ---------------------------------------------------------------------------

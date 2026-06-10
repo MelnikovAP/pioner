@@ -677,46 +677,25 @@ mock for whole + fractional seconds.
 - Investigate whether `DEFAULTIO` issues larger DMA transfers than `CONTINUOUS`
   (would further raise the effective drain rate). Not yet verified.
 
-### P1-32. Apply AC amplitude correction (`ac0..ac3`) -- from Bondar uCal
-
-**Priority: high.** **Where:** `shared/calibration.py` (`ac0..ac3` exist),
-`back/modes.py` (lock-in amplitude in `SlowMode`/`IsoMode.run`).
-
-**What:** the amplitude-correction polynomial `kamp(T) = ac0 + ac1*T + ac2*T^2
-+ ac3*T^3` is loaded, saved and shown in the GUI, but **never applied at
-runtime** -- the demodulated lock-in amplitude is not divided by it. Bondar
-divides the AC amplitude by this temperature-dependent factor before reporting
-(Bondar-uCal.md §10.3 / Unit4.cpp:3414-3644). If the thermopile gain varies
-with T, our C_p is biased. Apply `amplitude /= kamp(temp)` after demod.
-
-**Verification:** unit test that a non-identity `ac*` scales the reported
-amplitude as expected; identity (`ac1=1`, others 0) leaves it unchanged.
-
-### P1-33. In-situ R-correction auto-zero (`Rhcorr` / `Rhdcorr`) -- from Bondar uCal
-
-**Priority: high.** **Where:** `shared/calibration.py` (`thtrcorr` /
-`thtrdcorr` fields exist), new operator action.
-
-**What:** Bondar runs a damped Newton iteration (gain 0.1, tol 0.01 C, up to
-1000 steps) that trims the heater-resistance correction so `Thtr` agrees with
-`Ttpl + Taux` at the current operating point (Bondar-uCal.md §4.3 /
-Unit1.cpp:1308-1342). PIONER has the `thtrcorr`/`thtrdcorr` fields but no way
-to compute/update them in the field. Port as `Calibration.compute_rhcorr(...)`
-so daily drift is corrected without re-fitting the whole Thtr polynomial.
-
-### P1-34. Lock-in reference = measured heater current (AI ch0) -- from Bondar uCal
+### P1-34. Lock-in reference = measured heater current (AI ch0) -- bench validation
 
 **Priority: high (needs bench confirmation).** **Where:**
-`shared/modulation.py` (`lockin_demodulate` uses a synthetic `sin(omega*t)`),
-`back/modes.py` (never passes AI ch0 to the lock-in).
+`shared/modulation.py`, `back/modes.py`.
 
-**What:** Bondar correlates the signal against the **measured** shunt/current
-reference (AI ch0), not the commanded sine (Bondar-uCal.md §6 / Unit1.cpp:
-721-963). At higher `f_mod` the real heater current lags the AO command, so the
-measured reference puts the phase zero on the actual driving force. Add an
-optional `reference: np.ndarray | None` to `lockin_demodulate`; when given, use
-it instead of the synthetic sine. Confirm the phase-lag magnitude on the bench
-before making it the default.
+**Landed:** `lockin_demodulate` takes an optional `reference` (plus
+`reference_phase`); when given it re-references the phase zero to the measured
+heater current instead of the synthetic `sin(omega*t)` (amplitude unchanged,
+matching Bondar's unit-amplitude reference). Wired into slow/iso via the opt-in
+`ModulationParams.use_measured_reference` (settings `Modulation.MeasuredReference`,
+off by default), passing AI ch0.
+
+**Remaining (HARD STOP -- real DAQ):**
+- Confirm the actual current-vs-AO phase lag magnitude on the bench at the
+  production `f_mod` (37.5 Hz) and higher; decide whether to make the measured
+  reference the default.
+- Extend the measured reference to the **iso FFT path** (`fft_demodulate` still
+  uses the synthetic reference; its window-offset phase handling needs its own
+  validation before adopting a measured reference there).
 
 ### P1-35. Experiment presets (`experiment-config/` TOML)
 

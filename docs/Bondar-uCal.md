@@ -411,6 +411,16 @@ agree with the chip thermopile at the current operating point —
 useful but easily mis-clicked because the result depends on the
 *instantaneous* `Ttpl + Taux` reading.
 
+**Done (P1-33):** `Calibration.solve_rhcorr` / `compute_rhcorr` port the exact
+damped fixed-point (gain 0.1, tol 0.01 C, <=1000 steps, `|err|>10000`->reset-0)
+faithfully. `LocalDeviceController.rhcorr_report` previews the trim at the
+current operating point (mean `modes.heater_resistance` and mean `temp` over
+powered samples) and `apply_rhcorr` commits it to the *user* calibration file
+(never the bundled default); the GUI "R-corr auto-zero" button previews then
+writes only on explicit confirmation. PIONER measures only the main heater
+resistance (no `Rhtrd` channel), so only `thtrcorr` is auto-zeroed -- the
+differential `thtrdcorr` path exists in `Calibration` but has no measured input.
+
 ### 4.4 AD595 cold-junction
 `Uaux * 100 °C/V` ([uCal/Unit1.cpp:1209]) followed by
 `if (Taux < -12) Taux = 2.6843 + 1.2709*T + 0.0042867*T² +
@@ -576,7 +586,7 @@ Steps (verified by re-reading):
 | Harmonics | x2 mode only, by squaring the ref | n/a | configurable (default 1f/2f/3f) + leakage diagnostic |
 | Phase convention | degrees, wrapped ±180° | radians, wrapped ±π | radians, lock-in lag |
 | Integer-cycle handling | drops `iskip = period` samples then integrates `fullperiods` | none (LPF smooths) | exact via `_integer_cycle_length` |
-| Use of reference channel | yes (bufref = Ihtr) | **no** — assumes pure sin reference | **no** — same |
+| Use of reference channel | yes (bufref = Ihtr) | optional (P1-34): `reference=` AI ch0 re-references the phase; synthetic sin by default | **no** — synthetic only |
 | Cost | O(N * xperiod) (often dominates) | O(N log N) Butterworth + O(N) products | O(N log N) once |
 
 **Important physics observation**: the C++ lock-in uses the *measured*
@@ -585,8 +595,12 @@ For an ideal heater they are equivalent, but at high frequency the
 real heater current is shifted in phase relative to the AO command
 (LR/RC). Bondar's choice puts the phase reference on the actual
 driving force, which is closer to what the AC calorimetry literature
-calls the "instrumental phase zero". Worth verifying if the Python
-side should do the same.
+calls the "instrumental phase zero". **Done (P1-34):** `lockin_demodulate`
+accepts an optional `reference` (AI ch0) and `reference_phase` extracts its
+fundamental lag; the slow/iso time-domain lock-in uses it when the opt-in
+`ModulationParams.use_measured_reference` is set. The phase-lag magnitude
+still needs bench confirmation before this becomes the default, and the iso
+`fft_demodulate` path is not yet covered (see TODO P1-34).
 
 ---
 
@@ -633,7 +647,7 @@ mode — same struct field, different semantics. **Caveat for porting.**
 | **`heatersafeV` default** | 5.61 V (calibration.ini) | 9.0 V (`Calibration.safe_voltage`) — **looks like a chip/era mismatch worth verifying** |
 | **Heater R formula** | `(Uhtr_mV − Ihtr_mV)/Ihtr_mA` — both numerator terms in **mV**, divided by mA → kΩ (off by 1000× vs current code) | `(V_AO − V_shunt + uhtr0) * uhtr1 / ih` in **V/A = Ω** |
 | **Lock-in** | time-domain x-correlation + iterative fit, ref = measured Ihtr, x2 mode by squaring | sin/cos + Butterworth (`lockin_demodulate`) or rFFT (`fft_demodulate`) with proper integer-cycle window and explicit harmonics |
-| **Phase reference** | measured Ihtr (shunt) | commanded AO sine |
+| **Phase reference** | measured Ihtr (shunt) | commanded AO sine by default; optional measured AI ch0 via `use_measured_reference` (P1-34, time-domain lock-in) |
 | **AO0 vs AO1 split** | AO0 = continuous AC (predefined wave, infinite), AO1 = DC heater or NShot pulse, AO2 = hardware switch | AO1 = single buffer combining DC + AC (via `apply_modulation`), no separate "switch" channel |
 | **Slow / iso buffer wrap** | n/a — modes don't replay AO; sweep stops the AO each step | `IsoMode` plays AO buffer indefinitely; `check_ao_period_integrity` verifies seamless wrap |
 | **Fast-heat profile build** | `BitBtn10` interpolates StringGrid → AWbuf | JSON program → `_program_to_voltage` → AO buffer |
@@ -644,7 +658,7 @@ mode — same struct field, different semantics. **Caveat for porting.**
 | **Live UI** | scope window with `DoSnapshot`, full mod-amp-offset-rate input, 7-LED `disperror` deviation bar | PyQt main window + plot widgets, no equivalent of `disperror` LED bar |
 | **Median + symm-MA post-filter** | `filter_it` with explicit median (Edit1) + smoothing (Edit2) | absent — relies on downstream pandas/scipy |
 | **Exp-fit deconvolution** | `removexep`, `fitfallexp`, `fitriseexp` for thermal time-constant removal | absent |
-| **AC amplitude correction** | per-T polynomial `kamp(T)`, applied by Form4::BitBtn10 | `Calibration.ac0..ac3` present, but no visible runtime divider |
+| **AC amplitude correction** | per-T polynomial `kamp(T)`, applied by Form4::BitBtn10 | `Calibration.kamp(Thtr)` divides the amplitude in slow/iso, opt-in via `amplitude_correction_enabled` (P1-32) |
 | **Phase zeroing** | `addphase` global, Button9 sets, Button13 resets | absent in `lockin_demodulate` / `fft_demodulate` |
 | **Remote control** | Telnet (Unit12, port + login + plaintext password) | Tango / HTTP server (`nanocontrol_tango.py`) |
 | **Hardware license** | `CheckS` + `Registr` form | absent |
@@ -858,17 +872,23 @@ of the run metadata. See §9.7.
 
 ### 10.2 In-situ R-correction ("T-error zero")
 The C++ `DoRhcorr` workflow ([uCal/Unit1.cpp:1308-1342]) is a damped
-Newton iteration that finds the `Rhcorr` value bringing the heater R
+fixed-point iteration that finds the `Rhcorr` value bringing the heater R
 into agreement with the thermopile at the current operating point.
-Useful for daily calibration drift correction — easy to port as a
-helper on the `Calibration` object that takes a fresh `Thtr / Ttpl /
-Taux` triple and updates `thtrcorr`.
+**Done (P1-33):** ported as `Calibration.solve_rhcorr`/`compute_rhcorr`
+plus `LocalDeviceController.rhcorr_report`/`apply_rhcorr` and a GUI button;
+see §4.3 for the full description.
 
 ### 10.3 AC amplitude correction `acr0..acr3`
-The fields are *already* in `Calibration` but no Python code path
-divides the demodulated amplitude by `kamp(T)`. The C++ does so via
-Form4::BitBtn10. **Action**: add a `kamp(T)` helper and apply it in the
-slow/iso post-processing.
+The fields are *already* in `Calibration`. **Done (P1-32):**
+`Calibration.kamp(T) = ac0 + ac1*T + ac2*T^2 + ac3*T^3` and
+`back.modes._kamp_divide` divide the demodulated amplitude by `kamp(Thtr)`
+in the slow/iso post-processing (per-sample trace + iso FFT scalars). It is
+opt-in via `amplitude_correction_enabled` (off by default): the bundled
+identity calibration uses the placeholder `ac={0,1,0,0}` which gives
+`kamp(T)=T` (not 1), so applying it unconditionally would divide the
+amplitude by the temperature. `Thtr` is used as `T` (Bondar fits `acr`
+against `Thtr`, cAThtr); samples where `kamp<=0` or `Thtr` is NaN are
+marked NaN rather than silently mis-divided.
 
 ### 10.4 X2-mode / harmonic detection
 The C++ ad-hoc x2 mode (square the reference) is inferior to the

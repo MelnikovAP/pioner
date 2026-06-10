@@ -129,6 +129,20 @@ class FakeController:
     def disconnect(self):
         self.calls.append(("disconnect",))
 
+    # -- R-correction auto-zero (P1-33) --------------------------------
+    _rhcorr_rep = {
+        "available": True, "converged": True, "diverged": False,
+        "r_op": 40.0, "t_target": 50.0, "n_valid": 1000,
+        "corr_old": 0.0, "corr": 10.0, "residual_c": 0.001, "field": "thtrcorr",
+    }
+
+    def rhcorr_report(self, window_seconds=1.0):
+        return dict(self._rhcorr_rep)
+
+    def apply_rhcorr(self, window_seconds=1.0):
+        self.calls.append(("apply_rhcorr",))
+        return {**self._rhcorr_rep, "written_to": "settings/calibration.json"}
+
 
 # --- A2: connect-failure diagnostics (pure static mapping) -----------------
 
@@ -404,6 +418,64 @@ def test_check_chip_shows_report(window, monkeypatch):
     text = shown[0]
     assert "Chip presence" in text
     assert "band" in text and "abs_level" in text and "variance" in text
+
+
+def test_rhcorr_without_backend_warns(window, recorded_errors):
+    window.controller = None
+    recorded_errors.clear()
+    window.rhcorr_autozero()
+    assert recorded_errors
+
+
+def test_rhcorr_unavailable_shows_reason(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: shown.append(a[0] if a else ""))
+    fc = FakeController()
+    fc._rhcorr_rep = {"available": False, "reason": "heater not powered (Rhtr undefined)"}
+    window.controller = fc
+    window.rhcorr_autozero()
+    assert shown and "not powered" in shown[0]
+    assert ("apply_rhcorr",) not in fc.calls  # never writes when unavailable
+
+
+def test_rhcorr_preview_confirm_applies(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: shown.append(a[0] if a else ""))
+    # Operator confirms the write.
+    monkeypatch.setattr(
+        mw, "YesCancelWindow",
+        lambda *a, **k: type("Y", (), {"exec": lambda self: mw.qt.QMessageBox.Yes})(),
+    )
+    fc = FakeController()
+    window.controller = fc
+    window.rhcorr_autozero()
+    assert ("apply_rhcorr",) in fc.calls
+    assert shown and "applied" in shown[-1]
+    assert "0" in shown[-1] and "10" in shown[-1]  # corr_old -> corr
+
+
+def test_rhcorr_preview_cancel_does_not_apply(window, monkeypatch):
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: None)
+    # Operator cancels: exec() returns something other than Yes.
+    monkeypatch.setattr(
+        mw, "YesCancelWindow",
+        lambda *a, **k: type("Y", (), {"exec": lambda self: mw.qt.QMessageBox.Cancel})(),
+    )
+    fc = FakeController()
+    window.controller = fc
+    window.rhcorr_autozero()
+    assert ("apply_rhcorr",) not in fc.calls
+
+
+def test_rhcorr_diverged_warns_and_does_not_apply(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: shown.append(a[0] if a else ""))
+    fc = FakeController()
+    fc._rhcorr_rep = {**FakeController._rhcorr_rep, "diverged": True, "converged": False}
+    window.controller = fc
+    window.rhcorr_autozero()
+    assert shown and "diverged" in shown[0]
+    assert ("apply_rhcorr",) not in fc.calls
 
 
 # --- logging pipeline + session stats (P1-40) -------------------------------

@@ -142,3 +142,101 @@ def test_default_calibration_pins_identity_constants():
     # Theater (T = f(U)) and the lock-in amplitude correction: identity.
     assert (cal.theater0, cal.theater1, cal.theater2) == (0.0, 1.0, 0.0)
     assert (cal.ac0, cal.ac1, cal.ac2, cal.ac3) == (0.0, 1.0, 0.0, 0.0)
+    # The amplitude-correction divider must be OFF in the bundled default: the
+    # placeholder ac* give kamp(T)=T (not 1), so applying it would divide the
+    # amplitude by the temperature. P1-32 keeps it opt-in.
+    assert cal.amplitude_correction_enabled is False
+
+
+def test_kamp_polynomial_scalar_and_array():
+    """kamp(T) = ac0 + ac1*T + ac2*T^2 + ac3*T^3 for scalars and arrays."""
+    cal = Calibration()
+    cal.ac0, cal.ac1, cal.ac2, cal.ac3 = 0.961, 0.00131, 3.12e-07, 0.0
+    # Scalar.
+    assert cal.kamp(0.0) == pytest.approx(0.961)
+    assert cal.kamp(100.0) == pytest.approx(0.961 + 0.00131 * 100 + 3.12e-07 * 1e4)
+    # Array preserves shape.
+    out = cal.kamp(np.array([0.0, 100.0]))
+    np.testing.assert_allclose(out, [0.961, 0.961 + 0.131 + 3.12e-07 * 1e4])
+
+
+def test_amplitude_correction_enabled_round_trips(tmp_path: Path):
+    """The opt-in flag persists through write/read; absent -> defaults off."""
+    cal = Calibration()
+    assert cal.amplitude_correction_enabled is False  # default-constructed
+    cal.amplitude_correction_enabled = True
+    out = tmp_path / "calib.json"
+    cal.write(str(out))
+    other = Calibration()
+    other.read(str(out))
+    assert other.amplitude_correction_enabled is True
+
+    # A legacy file with no "enabled" key reads back as off.
+    data = json.loads(out.read_text())
+    del data["Calibration coeff"]["Amplitude correction"]["enabled"]
+    legacy = tmp_path / "legacy.json"
+    legacy.write_text(json.dumps(data))
+    legacy_cal = Calibration()
+    legacy_cal.read(str(legacy))
+    assert legacy_cal.amplitude_correction_enabled is False
+
+
+# --- P1-33: in-situ R-correction auto-zero -----------------------------------
+
+def test_solve_rhcorr_converges_identity_polynomial():
+    """Identity Thtr poly: T(corr) = R + corr; trimming to t_target gives a
+    correction of exactly (t_target - R)."""
+    r, target = 100.0, 105.0
+    rep = Calibration.solve_rhcorr(0.0, 1.0, 0.0, r, target)
+    assert rep["converged"] is True
+    assert rep["diverged"] is False
+    assert rep["corr"] == pytest.approx(5.0, abs=0.01)
+    assert abs(rep["residual_c"]) < 0.01
+
+
+def test_solve_rhcorr_converges_production_polynomial():
+    """A realistic quadratic Thtr poly converges so Thtr(corr) hits the target."""
+    c0, c1, c2 = -1069.7, 0.78336, -8.67e-5
+    r, target = 1450.0, 40.0
+    rep = Calibration.solve_rhcorr(c0, c1, c2, r, target)
+    assert rep["converged"] is True
+    thtr = c0 + c1 * (r + rep["corr"]) + c2 * (r + rep["corr"]) ** 2
+    assert thtr == pytest.approx(target, abs=0.01)
+
+
+def test_solve_rhcorr_refines_from_corr_start():
+    """The iteration refines an existing correction rather than resetting it."""
+    rep = Calibration.solve_rhcorr(0.0, 1.0, 0.0, 100.0, 105.0, corr_start=4.0)
+    assert rep["corr"] == pytest.approx(5.0, abs=0.01)
+
+
+def test_solve_rhcorr_diverges_resets_to_zero():
+    """A polynomial whose fixed-point diverges resets corr to 0 (Bondar guard)."""
+    rep = Calibration.solve_rhcorr(0.0, -50.0, 0.0, 1.0, 1000.0)
+    assert rep["diverged"] is True
+    assert rep["converged"] is False
+    assert rep["corr"] == 0.0
+
+
+def test_solve_rhcorr_rejects_zero_or_nonfinite_resistance():
+    """No correction is attempted when the heater current (R) is undefined."""
+    rep = Calibration.solve_rhcorr(0.0, 1.0, 0.0, 0.0, 105.0, corr_start=3.0)
+    assert rep["converged"] is False
+    assert rep["corr"] == 3.0  # left at corr_start
+    rep_nan = Calibration.solve_rhcorr(0.0, 1.0, 0.0, float("nan"), 105.0)
+    assert rep_nan["converged"] is False
+
+
+def test_compute_rhcorr_mutates_the_right_field():
+    """compute_rhcorr stores into thtrcorr (heater) or thtrdcorr (differential)."""
+    cal = Calibration()  # identity Thtr / Thtrd polynomials
+    rep = cal.compute_rhcorr(100.0, 105.0)
+    assert rep["field"] == "thtrcorr"
+    assert rep["corr_old"] == 0.0
+    assert cal.thtrcorr == pytest.approx(5.0, abs=0.01)
+    assert cal.thtrdcorr == 0.0  # untouched
+
+    rep_d = cal.compute_rhcorr(100.0, 92.0, differential=True)
+    assert rep_d["field"] == "thtrdcorr"
+    assert cal.thtrdcorr == pytest.approx(-8.0, abs=0.01)
+    assert cal.thtrcorr == pytest.approx(5.0, abs=0.01)  # heater still as before

@@ -69,6 +69,12 @@ class mainWindowUi(qt.QWidget):
         self.checkChipButton = qt.QPushButton("Check chip")
         lout_0.addWidget(self.checkChipButton)
 
+        # In-situ heater R-correction auto-zero (P1-33): trims thtrcorr so Thtr
+        # agrees with Ttpl+Taux at the current operating point. Previews first,
+        # then writes the calibration file only on explicit confirmation.
+        self.rhcorrButton = qt.QPushButton("R-corr auto-zero")
+        lout_0.addWidget(self.rhcorrButton)
+
         
         # ####### Experiment Group Box
         # ########################################

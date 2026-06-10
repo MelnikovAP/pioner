@@ -20,8 +20,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pioner.back.modes import apply_calibration
+from pioner.back.modes import _kamp_divide, _lockin_reference, apply_calibration
 from pioner.shared.calibration import Calibration
+from pioner.shared.modulation import ModulationParams
 
 
 def _make_raw_frame(samples: int, n_channels: int = 6) -> pd.DataFrame:
@@ -191,3 +192,40 @@ def test_apply_calibration_scales_channels_once_and_leaves_input_untouched():
 
     # Raw integer-named channel columns must not survive in the output.
     assert not any(isinstance(c, int) for c in out.columns)
+
+
+def test_kamp_divide_applies_and_guards():
+    """_kamp_divide divides amplitude by kamp(Thtr) and NaNs uncorrectable points (P1-32)."""
+    cal = Calibration()
+    # kamp(T) = 2 (constant) so the divider is an exact halving.
+    cal.ac0, cal.ac1, cal.ac2, cal.ac3 = 2.0, 0.0, 0.0, 0.0
+    amp = np.array([4.0, 6.0, 8.0, 10.0])
+    thtr = np.array([10.0, 20.0, np.nan, 40.0])  # one NaN Thtr (idle sample)
+    out = _kamp_divide(amp, thtr, cal)
+    np.testing.assert_allclose(out[[0, 1, 3]], [2.0, 3.0, 5.0])
+    assert np.isnan(out[2])  # NaN Thtr -> uncorrectable -> NaN
+
+
+def test_kamp_divide_nans_nonpositive_gain():
+    """A non-positive kamp(Thtr) cannot be a divisor; mark those samples NaN."""
+    cal = Calibration()
+    # kamp(T) = T  ->  zero at T=0, negative below zero.
+    cal.ac0, cal.ac1, cal.ac2, cal.ac3 = 0.0, 1.0, 0.0, 0.0
+    amp = np.array([5.0, 5.0, 5.0])
+    thtr = np.array([-10.0, 0.0, 10.0])
+    out = _kamp_divide(amp, thtr, cal)
+    assert np.isnan(out[0])  # kamp = -10 < 0
+    assert np.isnan(out[1])  # kamp = 0
+    assert out[2] == pytest.approx(0.5)  # kamp = 10
+
+
+def test_lockin_reference_selects_ch0_only_when_opted_in():
+    """_lockin_reference returns AI ch0 only when the measured-reference flag is
+    set and the channel is present; otherwise None (synthetic sine)."""
+    raw = pd.DataFrame({0: np.arange(5.0), 5: np.zeros(5)})
+    off = ModulationParams(frequency=50.0, amplitude=0.1, use_measured_reference=False)
+    on = ModulationParams(frequency=50.0, amplitude=0.1, use_measured_reference=True)
+    assert _lockin_reference(raw, off) is None
+    np.testing.assert_array_equal(_lockin_reference(raw, on), np.arange(5.0))
+    # Opted in but ch0 absent -> None (falls back to synthetic).
+    assert _lockin_reference(pd.DataFrame({5: np.zeros(3)}), on) is None

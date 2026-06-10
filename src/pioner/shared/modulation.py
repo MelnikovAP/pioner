@@ -64,6 +64,12 @@ class ModulationParams:
     frequency: float = 0.0  # Hz
     amplitude: float = 0.0  # V (peak)
     offset: float = 0.0     # V (DC bias added on top of the base profile)
+    # P1-34: when True, the time-domain lock-in references the *measured* heater
+    # current (AI ch0) instead of the commanded synthetic sine, so the phase
+    # zero sits on the actual driving force (the real current lags the AO
+    # command at higher f_mod). Off by default -- needs bench confirmation of
+    # the phase-lag magnitude before becoming the default.
+    use_measured_reference: bool = False
 
     @property
     def enabled(self) -> bool:
@@ -76,7 +82,9 @@ class ModulationParams:
         return self.amplitude > 0.0 and self.frequency > 0.0
 
     def with_amplitude(self, amplitude: float) -> "ModulationParams":
-        return ModulationParams(self.frequency, amplitude, self.offset)
+        return ModulationParams(
+            self.frequency, amplitude, self.offset, self.use_measured_reference
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +126,29 @@ def apply_modulation(
 # ---------------------------------------------------------------------------
 # Lock-in detection
 # ---------------------------------------------------------------------------
+def reference_phase(
+    reference: np.ndarray, sample_rate: float, frequency: float
+) -> float:
+    """Fundamental phase ``phi_ref`` of a measured reference at ``frequency``.
+
+    Same lock-in convention as :func:`lockin_demodulate`: the reference is
+    modelled as ``A_ref * sin(omega*t - phi_ref)`` and ``phi_ref`` is the lag
+    relative to a synthetic ``sin(omega*t)``. Used to put the lock-in phase
+    zero on the *measured* heater current (AI ch0) rather than the commanded
+    sine (P1-34). A DC or tone-free reference (``I=Q=0``) yields ``0.0``.
+    """
+    reference = np.asarray(reference, dtype=float)
+    n = reference.size
+    t = np.arange(n) / sample_rate
+    omega = 2.0 * np.pi * frequency
+    ref_c = reference - reference.mean()
+    i_ref = float(np.sum(ref_c * np.sin(omega * t)))
+    q_ref = float(np.sum(ref_c * np.cos(omega * t)))
+    if i_ref == 0.0 and q_ref == 0.0:
+        return 0.0
+    return float(-np.arctan2(q_ref, i_ref))
+
+
 def lockin_demodulate(
     signal: np.ndarray,
     sample_rate: float,
@@ -125,6 +156,7 @@ def lockin_demodulate(
     bandwidth: float | None = None,
     return_valid: bool = False,
     settle_periods: float = 10.0,
+    reference: np.ndarray | None = None,
 ) -> Tuple[np.ndarray, ...]:
     """Single-frequency software lock-in.
 
@@ -156,6 +188,14 @@ def lockin_demodulate(
         Width of each masked edge, in modulation periods (default 10). If the
         two edges overlap (signal shorter than ``2 * settle_periods``), the
         whole mask is ``False`` -- i.e. no sample is trustworthy.
+    reference
+        Optional measured reference (e.g. AI ch0, the heater-current proxy),
+        same length as ``signal``. When given, the reported phase is referenced
+        to this signal's fundamental instead of the synthetic ``sin(omega*t)``
+        (P1-34): ``phase -> phase - reference_phase(reference)``. The amplitude
+        is unchanged (the reference contributes phase only, matching Bondar's
+        unit-amplitude reference normalisation). ``None`` keeps the synthetic
+        reference.
 
     Returns
     -------
@@ -177,6 +217,10 @@ def lockin_demodulate(
         raise ValueError("bandwidth must be positive")
     if bandwidth >= sample_rate / 2.0:
         raise ValueError("bandwidth must be below Nyquist")
+    if reference is not None:
+        reference = np.asarray(reference, dtype=float)
+        if reference.shape != signal.shape:
+            raise ValueError("reference must have the same shape as signal")
 
     n = signal.size
     t = np.arange(n) / sample_rate
@@ -207,6 +251,13 @@ def lockin_demodulate(
     # reference (which is what physicists expect).
     amplitude = 2.0 * np.sqrt(in_phase_lp**2 + quadrature_lp**2)
     phase = -np.arctan2(quadrature_lp, in_phase_lp)
+    if reference is not None:
+        # P1-34: re-reference the phase zero to the measured driving current.
+        # Rotating the reference by phi_ref rotates (I, Q) by a constant angle
+        # before the (linear) low-pass, so it is exactly a constant phase shift
+        # of the output and leaves the amplitude untouched.
+        phi_ref = reference_phase(reference, sample_rate, frequency)
+        phase = (phase - phi_ref + np.pi) % (2.0 * np.pi) - np.pi
     if not return_valid:
         return amplitude, phase
 
@@ -543,6 +594,7 @@ __all__ = [
     "ModulationParams",
     "apply_modulation",
     "lockin_demodulate",
+    "reference_phase",
     "fft_demodulate",
     "check_ao_period_integrity",
     "FFTDemodResult",

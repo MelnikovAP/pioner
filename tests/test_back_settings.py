@@ -197,6 +197,33 @@ def test_front_settings_round_trips_limits_block():
     assert exp[LIMITS_FIELD]["Slow"]["MaxCoolRate"] == 60
 
 
+def test_front_settings_omits_measured_reference_when_absent():
+    """Default settings have no MeasuredReference -> GUI save must not inject it."""
+    from pioner.shared.constants import MEASURED_REFERENCE_FIELD, MODULATION_FIELD
+    from pioner.shared.settings import FrontSettings
+    f = FrontSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+    exp = f.get_exp_settings()
+    assert MEASURED_REFERENCE_FIELD not in exp[MODULATION_FIELD]
+
+
+def test_front_settings_round_trips_measured_reference(tmp_path: Path):
+    """P1-34 regression: a GUI save must NOT strip Modulation.MeasuredReference
+    (the backend reads the same file; dropping it silently disables the opt-in)."""
+    from pioner.shared.constants import MEASURED_REFERENCE_FIELD, MODULATION_FIELD
+    from pioner.shared.settings import BackSettings, FrontSettings
+
+    data = json.loads(Path(DEFAULT_SETTINGS_FILE_REL_PATH).read_text())
+    data["ExperimentSettings"][MODULATION_FIELD][MEASURED_REFERENCE_FIELD] = True
+    p = tmp_path / "settings.json"
+    p.write_text(json.dumps(data))
+
+    # GUI save preserves the flag verbatim.
+    exp = FrontSettings(str(p)).get_exp_settings()
+    assert exp[MODULATION_FIELD][MEASURED_REFERENCE_FIELD] is True
+    # Backend actually consumes it.
+    assert BackSettings(str(p)).modulation.use_measured_reference is True
+
+
 # --- CamelCase config keys/values (capitalized in settings.json) -----------
 
 def test_rate_map_accepts_capitalized_keys(tmp_path: Path):

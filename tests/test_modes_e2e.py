@@ -16,6 +16,7 @@ from pioner.back.modes import (
     SlowMode,
     create_mode,
 )
+from pioner.shared.modulation import ModulationParams
 
 
 @pytest.fixture
@@ -56,6 +57,62 @@ def test_slow_mode_produces_lockin_columns(
     assert len(df) == expected_samples
     assert "temp-hr_amp" in df.columns
     assert "temp-hr_phase" in df.columns
+
+
+def test_slow_mode_amplitude_correction_divides_reported_amplitude(
+    connected_daq, settings, calibration, fast_programs
+):
+    """P1-32: with amplitude correction enabled, the reported temp-hr_amp is
+    divided by kamp(Thtr). Single run (mock AI is not bit-identical across
+    runs): the unchanged temp-hr column lets us recompute the *uncorrected*
+    amplitude with the same lock-in and confirm the divider on every
+    finite-Thtr sample. Constant kamp=2 makes it an exact halving."""
+    from pioner.shared.modulation import lockin_demodulate
+
+    programs = {
+        "ch0": {"time": [0, 2000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 2000], "volt": [0, 1]},
+    }
+    settings.modulation = settings.modulation.with_amplitude(0.1)
+    # Constant kamp(T) = 2, opted in.
+    calibration.ac0, calibration.ac1, calibration.ac2, calibration.ac3 = 2.0, 0.0, 0.0, 0.0
+    calibration.amplitude_correction_enabled = True
+
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    df = mode.run()
+
+    # Recompute the uncorrected amplitude from the (untouched) temp-hr column.
+    raw_amp, _ = lockin_demodulate(
+        df["temp-hr"].to_numpy(),
+        sample_rate=settings.ai_params.sample_rate,
+        frequency=settings.modulation.frequency,
+    )
+    reported = df["temp-hr_amp"].to_numpy()
+    finite = np.isfinite(reported) & np.isfinite(df["Thtr"].to_numpy())
+    assert finite.sum() > 0, "no finite-Thtr samples to compare"
+    np.testing.assert_allclose(reported[finite], raw_amp[finite] / 2.0, rtol=1e-9)
+
+
+def test_slow_mode_measured_reference_runs_and_produces_phase(
+    connected_daq, settings, calibration, fast_programs
+):
+    """P1-34 wiring smoke: a slow run with the measured-reference flag on
+    completes and still produces the lock-in phase column (the reference is
+    AI ch0; the phase math itself is unit-tested in test_modulation)."""
+    programs = {
+        "ch0": {"time": [0, 2000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 2000], "volt": [0, 1]},
+    }
+    settings.modulation = ModulationParams(
+        frequency=settings.modulation.frequency, amplitude=0.1, offset=0.0,
+        use_measured_reference=True,
+    )
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    df = mode.run()
+    assert "temp-hr_phase" in df.columns
+    assert "temp-hr_amp" in df.columns
 
 
 def test_iso_mode_streams_into_dataframe(
