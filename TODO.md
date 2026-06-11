@@ -646,6 +646,55 @@ GUI panel or an end-of-session report. Decide what is actually useful to the
 operator/maintainer before building -- keep it from becoming heavyweight
 telemetry. Ties into the log-location decision (P1-40).
 
+### P1-42. Chip-specific config profiles (select a chip in the UI)
+
+**Priority: medium.** **Where:** `shared/` (profile schema + loader),
+`front/` (chip selector + apply), `back/modes` + `shared/calibration` +
+`settings.ExperimentLimits` (consumers, mostly already in place).
+
+**What:** different chip types have different physical and safety parameters.
+Today those are scattered: the calibration JSON holds the polynomials +
+`safe_voltage`, the `Limits` block holds the temperature/rate caps, modulation
+defaults live in `settings.json`, and the operator wires the right calibration
+file by hand. Bundle them into named **chip profiles** -- one file per chip
+type -- and let the operator pick the chip from a UI dropdown so every
+downstream setting is substituted consistently (no hand-matching files).
+
+**A chip profile holds (at least):**
+- safety: `safe_voltage` (per chip -- this is the authoritative source, not a
+  global default), heater broken/shorted R thresholds (P2-24);
+- calibration: the full coefficient set (`ttpl*`, `thtr*`/`thtrd*`, `theater*`,
+  `ihtr*`, `uhtr*`, `ac*`, `rhtr`, `rghtr`) + the `Hardware` block (gains,
+  AD595) -- i.e. what `Calibration` already reads;
+- experiment limits: `min`/`max` temperature and per-segment rate caps (today's
+  `Limits` block, feeds `ExperimentLimits` / `_validate_program_limits`);
+- sensible defaults: e.g. modulation `f_mod` / amplitude for this chip;
+- metadata: chip name/model, free-text note, calibration provenance/date.
+
+**Action / open design questions (decide before building):**
+- **Schema + location.** New `chip-config/` folder, one file per chip
+  (TOML for human-editable comments, or reuse the calibration JSON shape with
+  an added safety/limits/defaults block?). Decide whether a profile *embeds*
+  the calibration or *references* a calibration file by path.
+- **Selection + substitution.** A `front/` combo lists `chip-config/*` by name;
+  selecting one loads it into the active `Calibration` + `ExperimentLimits` +
+  modulation defaults, repopulates the calib/limits/modulation UI fields, and
+  updates the live readout. Re-uses the existing `apply_calibration` /
+  `parse_limits` / `parse_modulation` consumers; the new part is the bundling +
+  one apply path. **Default selection empty** (nothing auto-applied) so a
+  connect still falls back to the bundled default.
+- **Relation to existing items.** Generalises the current single-calibration
+  flow; `safe_voltage` provenance for P2-24 lives here; distinct from **P1-35**
+  (experiment presets = temperature *programs*, not chip parameters -- the two
+  compose: pick a chip, then pick a program). Persist the selected chip with
+  the session (so a re-connect restores it).
+
+**Why medium:** real bring-up has multiple chip types; hand-matching
+calibration + safe_voltage + limits per chip is error-prone and a wrong
+`safe_voltage` can damage the chip. Not a release blocker (the manual
+calibration-file flow works), but high operator value once more than one chip
+is in use.
+
 ---
 
 ## P2 — code quality / DX
@@ -813,16 +862,19 @@ feedback, by subtracting the shunt IR drop: `Uhtr_eff = AI5 - AI0`
 both raw channels in `apply_calibration` but never derives this. Add a
 per-sample derived column `Uhtr_eff`. Cosmetic/diagnostic, not physics.
 
-### P2-24. Configurable heater broken/shorted thresholds + verify safe_voltage -- from Bondar uCal
+### P2-24. Configurable heater broken/shorted thresholds -- from Bondar uCal
 
 **What:** Bondar flags `R > 9000 Ohm` -> "broken", `R < 50 Ohm` -> "shorted"
-(hardcoded, Bondar-uCal.md §9.12) and ships `heatersafeV = 5.61 V` vs PIONER's
-`safe_voltage = 9.0 V` (Bondar-uCal.md §4.1). Two actions: (1) add optional
-`r_heater_broken_ohms` / `r_heater_shorted_ohms` to `Calibration` for a
-fail-loud diagnostic; (2) **verify the 5.61 V vs 9.0 V discrepancy with the
-physicist/EE** before the first real run (chip/era difference, or a stale
-value). Diagnostic only -- low urgency for code, but the safe_voltage check is
-a bring-up prerequisite.
+(hardcoded, Bondar-uCal.md §9.12). Add optional `r_heater_broken_ohms` /
+`r_heater_shorted_ohms` to `Calibration` for a fail-loud diagnostic that
+catches a dead chip / bad contact before mains is applied. Diagnostic only --
+low urgency for code.
+
+**Note:** the per-chip `safe_voltage` itself is **not** a fixed number to
+"verify" -- it is chip-specific and belongs in the chip config (see **P1-42**).
+The bundled default is now a conservative **8 V**; the real ceiling for a given
+chip must come from its config / the physicist-EE, confirmed before the first
+powered run (bring-up prerequisite, P1-28).
 
 ### P2-25. Median + symmetric moving-average post-filter helpers -- from Bondar uCal
 

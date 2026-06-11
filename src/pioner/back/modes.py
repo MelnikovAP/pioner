@@ -281,7 +281,7 @@ def _clip_modulation_to_safe(
 
     A silent clip turns the AC drive into a trapezoid (the sine peaks are flat-
     topped) and biases the recovered lock-in amplitude with no trace in the
-    logs -- e.g. ``DC=8.5 V, A=2 V, safe=9 V`` clips half of every period. Warn
+    logs -- e.g. ``DC=7 V, A=2 V, safe=8 V`` clips the top of every period. Warn
     so the operator can drop the DC offset or amplitude (P1-4).
     """
     if arr.size == 0:

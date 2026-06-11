@@ -32,7 +32,7 @@ modify the back-end or to interface with it.
   (see `mock_uldaq.Range`). `AoDeviceHandler.set_voltage` and `.scan` reject
   any value or buffer peak outside the range with a `ValueError`
   (`_RANGE_MAX_VOLTAGE` table in `back/ao_device.py`). This is a hardware-
-  layer guard; the chip-specific `safe_voltage` (default 9 V) is enforced
+  layer guard; the chip-specific `safe_voltage` (default 8 V) is enforced
   upstream by `modes._program_to_voltage`.
 
 Channel layout (named in `pioner.shared.channels`):
@@ -587,7 +587,7 @@ working end-to-end on mock or on real hardware.
 8. **Modulation clipping on slow/iso** — the AC profile is clipped to
    `[0, safe_voltage]`. This is no longer silent: `_clip_modulation_to_safe`
    logs a WARNING with the out-of-range sample count when e.g.
-   `DC=8.5 V, A=2 V, safe=9 V` flat-tops the sine (which would bias the
+   `DC=7 V, A=2 V, safe=8 V` flat-tops the sine (which would bias the
    lock-in amplitude). Reduce the DC offset or amplitude when you see it.
 9. **AO buffer seamlessness at f_mod = 37.5 Hz** — `IsoMode.arm` logs a
    warning quantifying the defect, but the production fix (drop to a

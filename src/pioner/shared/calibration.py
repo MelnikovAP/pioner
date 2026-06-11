@@ -162,7 +162,7 @@ class Calibration:
         self.rhtr: float = 1700.0
         self.rghtr: float = 2300.0
         # Maximum DC voltage allowed on the heater AO channel (V).
-        self.safe_voltage: float = 9.0
+        self.safe_voltage: float = 8.0
 
         # Hardware-side conditioning calibration (electronics, not chip).
         self.hardware: HardwareCalibration = HardwareCalibration()

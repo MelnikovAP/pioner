@@ -96,7 +96,7 @@ Critical Unit1.cpp constants and globals (all module-scope, lines
 | `mult[MULTSIZE]` | lock-in correlator output |
 | `resultdata[MAXDATABUFF]` | logged `ND_DATA` records (1e5 max) |
 | `gainlist[7]` | `{1,2,5,10,20,50,100}` AI PGA gains |
-| `heatersafeV` | 5.61 V | clamp applied in `SetHeater` |
+| `heatersafeV` | (loaded from calibration.ini at runtime) | clamp applied in `SetHeater` |
 | `Kadapt` | 1.0 | adaptation gain for fast-heat profile |
 | `ADclck` | 10000 Hz initial | AI sample rate |
 | `GenMode` | 0/1/2/3/4 | off/cont/freqsweep/amplsweep/offsetsweep |
@@ -377,7 +377,7 @@ define the schema. Each Form10 `EditN` is bound to one variable:
 | `U2T/k3` | `itk3` | Edit20 | |
 | `Correction/k1..k4` | `acr0..acr3` | Edit1/Edit21/Edit22/Edit2 | amplitude AC correction polynomial `kamp(T) = acr0 + acr1*T + acr2*T² + acr3*T³`, used as a divisor on the lock-in amplitude |
 | `Resistance/R` | `resistance` | Edit23 | fallback heater R if Uabs unavailable |
-| `Resistance/SafeV` | `heatersafeV` | Edit25 | clamp ceiling for SetHeater (5.61 V default) |
+| `Resistance/SafeV` | `heatersafeV` | Edit25 | clamp ceiling for SetHeater (value loaded from calibration.ini) |
 | `Info/Comment` | (text) | Edit26 | free-form note |
 
 ### 4.2 Calibration-fit workflow (Form4 calibration mode)
@@ -644,7 +644,7 @@ mode — same struct field, different semantics. **Caveat for porting.**
 | **Gain on Umod** | hardcoded `/121` in UnpackData | configurable `HardwareCalibration.gain_umod = 121.0` default |
 | **Gain on Utpl** | hardcoded `/11` | configurable `gain_utpl = 11.0` default |
 | **AD595 polynomial** | identical 4th-order, threshold −12 °C | identical |
-| **`heatersafeV` default** | 5.61 V (calibration.ini) | 9.0 V (`Calibration.safe_voltage`) — **looks like a chip/era mismatch worth verifying** |
+| **`heatersafeV`** | loaded from `calibration.ini` at runtime (the ini is not in this snapshot) | chip-specific `Calibration.safe_voltage` (default 8 V); set per chip -- see TODO P1-42 |
 | **Heater R formula** | `(Uhtr_mV − Ihtr_mV)/Ihtr_mA` — both numerator terms in **mV**, divided by mA → kΩ (off by 1000× vs current code) | `(V_AO − V_shunt + uhtr0) * uhtr1 / ih` in **V/A = Ω** |
 | **Lock-in** | time-domain x-correlation + iterative fit, ref = measured Ihtr, x2 mode by squaring | sin/cos + Butterworth (`lockin_demodulate`) or rFFT (`fft_demodulate`) with proper integer-cycle window and explicit harmonics |
 | **Phase reference** | measured Ihtr (shunt) | commanded AO sine by default; optional measured AI ch0 via `use_measured_reference` (P1-34, time-domain lock-in) |

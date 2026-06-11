@@ -26,7 +26,9 @@ def test_reads_default_calibration_from_package_rel_path():
 
 def test_default_calibration_is_identity():
     cal = Calibration()
-    voltages = np.array([0.0, 1.0, 5.0, 9.0])
+    # Stay within the default safe_voltage (8 V): voltage_to_temperature clamps
+    # its input to [0, safe_voltage], so a point above it would not round-trip.
+    voltages = np.array([0.0, 1.0, 5.0, 8.0])
     temps = voltage_to_temperature(voltages, cal)
     np.testing.assert_allclose(temps, voltages)
 

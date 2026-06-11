@@ -300,7 +300,8 @@ These hold across the back-end; breaking one usually produces numbers that
   CONTINUOUS, so `f_mod` should give an integer number of cycles per second to
   avoid a phase jump at the wrap (37.5 Hz does not -- a known WARNING).
 * **Safe-voltage clamp**: heater drive is clipped to `[0, safe_voltage]`
-  (default 9 V); the heater is driven to **0 V on Off / disconnect / abort**
+  (conservative default 8 V; the real ceiling is chip-specific -- see the chip
+  config plan, todo P1-42); the heater is driven to **0 V on Off / disconnect / abort**
   (`zero_ao`) so it is never left latched (the DAC holds its last sample).
 * **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
   sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
