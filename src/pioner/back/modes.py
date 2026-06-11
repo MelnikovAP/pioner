@@ -63,6 +63,18 @@ from pioner.back.experiment_manager import ExperimentManager, ScanResult
 logger = logging.getLogger(__name__)
 
 
+class SafeVoltageError(ValueError):
+    """Commanded heater drive would exceed the chip's ``safe_voltage`` envelope.
+
+    Raised at ``arm`` (before the profile is built/clamped) so the GUI blocks
+    the launch -- Start stays disabled and a pop-up explains -- instead of the
+    drive being silently clamped (fail-loud, P1-4). Subclasses ``ValueError`` so
+    existing ``except ValueError`` arm handlers still catch it; the GUI
+    special-cases it to record a session stat. The ``safe_voltage`` clamps stay
+    in place as a last-resort fallback for any path that bypasses this check.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Program validation and AO profile generation
 # ---------------------------------------------------------------------------
@@ -271,6 +283,64 @@ def _program_to_voltage(
                 calibration.safe_voltage,
             )
     return arr
+
+
+def _validate_safe_voltage(
+    programs: Dict[str, ChannelProgram], calibration: Calibration
+) -> None:
+    """Fail-loud: block a heater program that would exceed ``safe_voltage`` (P1-4).
+
+    Runs at ``arm``, BEFORE the profile is built/clamped, so the operator is
+    blocked (Start disabled + pop-up) rather than the drive being silently
+    clamped. Only the heater channel (``HEATER_AO``) is enforced -- other
+    channels (e.g. a guard line) may legitimately use a different range.
+
+    Temperature programs are checked in degrees C (against the chip ceiling
+    ``max_temp`` = T(safe_voltage), so the message is in the operator's units);
+    raw ``volt`` programs are checked in volts (against ``safe_voltage``). The
+    clamps (``temperature_to_voltage`` / ``_clip_modulation_to_safe``) stay as a
+    last-resort fallback for any path that bypasses this check.
+    """
+    prog = programs.get(HEATER_AO)
+    if prog is None or prog.values.size == 0:
+        return
+    if prog.is_temperature:
+        hi = float(np.max(prog.values))
+        if hi > calibration.max_temp + 1e-6:
+            raise SafeVoltageError(
+                f"heater temperature {hi:.1f} C exceeds the chip ceiling "
+                f"{calibration.max_temp:.1f} C (= safe_voltage "
+                f"{calibration.safe_voltage:.3f} V); lower the setpoint or load "
+                "a chip whose calibration allows it"
+            )
+    else:
+        peak = float(np.max(np.abs(prog.values)))
+        if peak > calibration.safe_voltage + 1e-6:
+            raise SafeVoltageError(
+                f"heater voltage peak |{peak:.3f}| V exceeds safe_voltage "
+                f"{calibration.safe_voltage:.3f} V; reduce the program"
+            )
+
+
+def _assert_modulation_within_safe(
+    arr: np.ndarray, safe_voltage: float, channel: str
+) -> None:
+    """Fail-loud if the modulated drive peak (DC offset + AC) exceeds
+    ``safe_voltage`` (P1-4).
+
+    Checks the *requested* (pre-clip) modulated profile so the operator is
+    blocked at ``arm`` rather than the sine being silently flat-topped (which
+    biases the lock-in). The following ``_clip_modulation_to_safe`` stays as the
+    last-resort clamp.
+    """
+    if arr.size == 0:
+        return
+    hi = float(np.max(arr))
+    if hi > safe_voltage + 1e-6:
+        raise SafeVoltageError(
+            f"modulation on {channel}: drive peak {hi:.3f} V (DC offset + AC) "
+            f"exceeds safe_voltage {safe_voltage:.3f} V; reduce the offset or amplitude"
+        )
 
 
 def _clip_modulation_to_safe(
@@ -544,6 +614,9 @@ class BaseMode(abc.ABC):
             limits = getattr(self._settings, "limits", None)
         if limits is not None:
             _validate_program_limits(self._programs, limits)
+        # Fail-loud heater over-voltage block (P1-4): reject before building the
+        # profile so the GUI blocks Start + pops up, instead of silent clamping.
+        _validate_safe_voltage(self._programs, self._calibration)
         seconds = self._duration_ms / 1000.0
         self._samples_per_channel = int(round(ao.sample_rate * seconds))
         self._voltage_profiles = self._build_profiles()
@@ -671,8 +744,13 @@ class SlowMode(BaseMode):
         profiles[self._modulation_channel] = apply_modulation(
             time_s, profiles[self._modulation_channel], params
         )
-        # Clamp to the safe voltage envelope so we cannot saturate the heater
-        # (warns if the modulation actually had to be clipped -- P1-4).
+        # Fail-loud if the modulated peak exceeds safe_voltage (P1-4), then keep
+        # the clamp as a last-resort fallback (warns if it ever had to clip).
+        _assert_modulation_within_safe(
+            profiles[self._modulation_channel],
+            self._calibration.safe_voltage,
+            self._modulation_channel,
+        )
         _clip_modulation_to_safe(
             profiles[self._modulation_channel],
             self._calibration.safe_voltage,
@@ -867,6 +945,7 @@ class IsoMode(BaseMode):
             base = np.full(n, _program_to_voltage(prog, n, self._calibration)[0])
             if ch == self._modulation_channel:
                 base = apply_modulation(time_s, base, params)
+                _assert_modulation_within_safe(base, self._calibration.safe_voltage, ch)
                 _clip_modulation_to_safe(base, self._calibration.safe_voltage, ch)
             profiles[ch] = base
         # Sanity check: the AO buffer is replayed CONTINUOUS, so a non-integer

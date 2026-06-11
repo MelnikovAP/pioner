@@ -12,11 +12,14 @@ into the calibrated range to avoid silent out-of-bounds indexing.
 
 from __future__ import annotations
 
+import logging
 from typing import Iterable, List
 
 import numpy as np
 
 from pioner.shared.calibration import Calibration
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +115,20 @@ def temperature_to_voltage(
     # the raw polynomial dips slightly below T(V=0) somewhere on the interval.
     temp_mono = np.maximum.accumulate(temp_calib)
 
+    # Defense-in-depth clamp to the calibrated/safe envelope. Fail-loud blocking
+    # of out-of-range setpoints happens upstream at arm (modes._validate_safe_voltage);
+    # if we still get here with an out-of-range temperature, log that the clamp
+    # was needed (P1-4) so it is never silent.
+    n_over = int(np.count_nonzero(temp > calibration.max_temp + 1e-9))
+    n_under = int(np.count_nonzero(temp < calibration.min_temp - 1e-9))
+    if n_over or n_under:
+        logger.warning(
+            "temperature_to_voltage clamped %d high / %d low sample(s) to the "
+            "[%.1f, %.1f] C envelope (safe_voltage=%.3f V); the commanded "
+            "temperature was out of range and the drive was capped.",
+            n_over, n_under, calibration.min_temp, calibration.max_temp,
+            calibration.safe_voltage,
+        )
     temp_clipped = np.clip(temp, calibration.min_temp, calibration.max_temp)
     idx = np.searchsorted(temp_mono, temp_clipped, side="left")
     np.clip(idx, 0, n_grid - 1, out=idx)

@@ -24,7 +24,15 @@ def settings() -> BackSettings:
 
 @pytest.fixture
 def calibration() -> Calibration:
-    return Calibration()
+    cal = Calibration()
+    # Realistic chip theater polynomial so temperature programs have a sensible
+    # ceiling (max_temp ~ 275 C at safe_voltage 8 V) instead of the identity
+    # default's 8 C -- otherwise the P1-4 over-voltage block rejects ordinary
+    # 20..300 C test ramps. AI-side calibration stays identity, so assertions on
+    # temp / temp-hr / Thtr are unaffected (theater only maps T->V on AO).
+    cal.theater0, cal.theater1, cal.theater2 = -2.425, 8.0393, -0.42986
+    cal._add_params()
+    return cal
 
 
 @pytest.fixture

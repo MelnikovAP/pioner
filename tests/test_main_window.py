@@ -402,6 +402,27 @@ def test_fh_arm_raw_mode_still_works(window):
     assert program["ch1"]["temp"] == [0.0, 50.0]
 
 
+def test_arm_unsafe_voltage_blocks_and_counts(window, recorded_errors):
+    """P1-4: when the backend rejects an over-voltage program (SafeVoltageError),
+    the GUI shows a pop-up, does not arm, and counts it as a safety event."""
+    from pioner.back.modes import SafeVoltageError
+
+    fc = FakeController()
+
+    def _raise_arm(mode_name, programs_json):
+        raise SafeVoltageError("heater temperature 999 C exceeds the chip ceiling")
+
+    fc.arm = _raise_arm
+    window.controller = fc
+    window._rate_confirmed = True
+    window.segStartTempInput.setText("0")
+    _set_seg_row(window, 0, "heat", rate=100, target=200)
+    recorded_errors.clear()
+    window.fh_arm()
+    assert recorded_errors and "Unsafe" in recorded_errors[0]
+    assert window._stats.get("safe_voltage_blocked") == 1
+
+
 def test_check_chip_without_backend_warns(window, recorded_errors):
     window.controller = None
     recorded_errors.clear()

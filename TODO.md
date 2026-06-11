@@ -695,6 +695,61 @@ calibration + safe_voltage + limits per chip is error-prone and a wrong
 calibration-file flow works), but high operator value once more than one chip
 is in use.
 
+### P1-43. Developer mode (hidden, key-combo gated)
+
+**Priority: high.** **Where:** `front/mainWindow.py` + `front/mainWindowUi.py`
+(gate visibility/enable of dev-only widgets), small state flag on the window.
+
+**What:** a hidden **developer mode** that ordinary operators never see, entered
+by a key combination (e.g. a chord / a modifier+key sequence). When off (the
+default), low-level, unsafe, or diagnostic controls are hidden or disabled; when
+on, they appear. Keeps the normal UI clean and prevents an operator from
+accidentally reaching a path that can damage a chip.
+
+**What lives behind it (initial set; extend over time):**
+- **raw-`volt` programs** -- the direct, un-calibrated heater-voltage path
+  (`{"volt": [...]}`, the "advanced raw points" radio). Normal users only get
+  temperature / segment programs (which are clamped + validated); raw-volt is a
+  dev/diagnostic escape hatch. (Ties into the heater-channel `safe_voltage`
+  fail-loud check discussed for raw-volt.)
+- debug / diagnostic buttons (e.g. `print_debug`, scope internals), mock/test
+  toggles, advanced calibration internals, and similar maintainer tools.
+
+**Normal-user view (dev mode OFF) -- UI simplification (idea, confirm w/ operator):**
+- **Hide the Signals/scope display** -- the raw signal plot is a dev/diagnostic
+  tool; the operator does not need it.
+- **Hide all voltage-based entry** -- raw-`volt` programs and fast-heat
+  parameters entered as voltage. Operator works in temperature units only.
+- **Modulation in temperature terms.** Instead of raw AC `amplitude (V)` /
+  `offset (V)`, let the operator set only: **frequency**, **offset (degC)**, and
+  **delta-T (degC)** (the temperature swing on the modulation heater), plus a
+  **trigger checkbox**. Derive the AC voltage from the chip calibration (T->V
+  on the modulation heater); the dT<->AC-amplitude mapping depends on the
+  operating point and is not linear -- **confirm the model with the physicist**
+  before building (do not assume a simple scale).
+- **Drop the bottom diagnostic-readout panel** for normal users; replace with a
+  small **mnemonic / colour status**: chip-connected indicator, signal-OK /
+  signal-problem indicator, run state, etc. (the live numbers stay available in
+  dev mode). Ties into chip-presence detection (P1-36).
+
+**Action / open questions (decide before building):**
+- **Entry mechanism.** Which key combination (a `QShortcut` chord vs a
+  modifier+click vs a typed sequence); make it non-obvious but documented for
+  maintainers. Decide whether it also needs a settings flag / env var for
+  headless/dev launches.
+- **Indication + persistence.** Show an unobtrusive "DEV" indicator when active;
+  default **off** every session (do not persist on), so a normal launch is
+  always the safe, clean UI. Toggle is session-only.
+- **Gating model.** One `self._dev_mode` flag drives `setVisible`/`setEnabled`
+  on a registered set of dev widgets; arm/safety validation stays enforced
+  regardless of dev mode (dev mode reveals controls, it does NOT bypass the
+  `safe_voltage` / limits guards). Add offscreen tests that the dev widgets are
+  hidden by default and appear after the toggle.
+
+**Why high:** raw-volt and other low-level paths are reachable today with only a
+warning; hiding them behind an explicit dev gate is a real safety/UX win before
+real-chip operators use the GUI.
+
 ---
 
 ## P2 — code quality / DX

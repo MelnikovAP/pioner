@@ -26,6 +26,9 @@ ISO_SET = "iso_set"
 ISO_OFF = "iso_off"
 CHIP_CHECK = "chip_check"
 RHCORR = "rhcorr"
+# Operator tried to arm a program that would drive the heater past safe_voltage
+# and was blocked fail-loud (P1-4); counted as a safety event.
+SAFE_VOLTAGE_BLOCKED = "safe_voltage_blocked"
 SETTINGS_SAVED = "settings_saved"
 
 

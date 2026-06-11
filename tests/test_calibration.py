@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -31,6 +32,16 @@ def test_default_calibration_is_identity():
     voltages = np.array([0.0, 1.0, 5.0, 8.0])
     temps = voltage_to_temperature(voltages, cal)
     np.testing.assert_allclose(temps, voltages)
+
+
+def test_temperature_to_voltage_logs_when_clamping(caplog):
+    """The defense-in-depth clamp is no longer silent: an out-of-range
+    temperature is capped to the safe envelope AND logged (P1-4)."""
+    cal = Calibration()  # identity: max_temp == safe_voltage
+    with caplog.at_level(logging.WARNING, logger="pioner.shared.utils"):
+        out = temperature_to_voltage(np.array([5.0, cal.max_temp + 50.0]), cal)
+    assert out[-1] == pytest.approx(cal.safe_voltage, abs=1e-3)  # capped
+    assert any("clamped" in r.message for r in caplog.records)
 
 
 def test_temperature_to_voltage_clamps_to_safe_voltage():

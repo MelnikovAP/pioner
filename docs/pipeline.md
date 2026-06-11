@@ -126,6 +126,11 @@ seamless. See §3.7c.
 │       offset + A·sin(2π·f·t) to the modulation_channel (default   │
 │       HEATER_AO/ch1), then np.clip into [0, safe_voltage].        │
 └───────────────────────────────────────────────────────────────────┘
+   NOTE: the clamps above are a logged fallback. The primary guard is
+   fail-loud at arm -- `modes._validate_safe_voltage` (heater temp >
+   max_temp, or raw `volt` peak > safe_voltage) and
+   `_assert_modulation_within_safe` (DC+AC peak > safe_voltage) raise
+   `SafeVoltageError`, so the GUI blocks the launch (item 8 below).
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
@@ -584,11 +589,15 @@ working end-to-end on mock or on real hardware.
    `bandwidth = f / 5 = 7.5 Hz` corresponds to a settling time
    `~0.13 s`. For ramp rates above ~5 K/s the bandwidth starts smearing the
    `C_p(T)` curve. Make `bandwidth` an explicit `ModulationParams` field.
-8. **Modulation clipping on slow/iso** — the AC profile is clipped to
-   `[0, safe_voltage]`. This is no longer silent: `_clip_modulation_to_safe`
-   logs a WARNING with the out-of-range sample count when e.g.
-   `DC=7 V, A=2 V, safe=8 V` flat-tops the sine (which would bias the
-   lock-in amplitude). Reduce the DC offset or amplitude when you see it.
+8. **Over-safe-voltage is fail-loud at arm (P1-4).** A heater program
+   (temperature above the chip ceiling `max_temp = T(safe_voltage)`, raw `volt`
+   peak, or modulated `DC+AC` peak above `safe_voltage`) is **rejected at
+   `arm`** (`modes._validate_safe_voltage` / `_assert_modulation_within_safe`
+   raise `SafeVoltageError`), so the GUI blocks Start + pops up rather than
+   silently clamping. The clamps stay as a **logged** last-resort fallback:
+   `temperature_to_voltage` logs when it caps an out-of-range temperature, and
+   `_clip_modulation_to_safe` logs the out-of-range sample count (e.g.
+   `DC=7 V, A=2 V, safe=8 V` flat-topping the sine). Both are never silent.
 9. **AO buffer seamlessness at f_mod = 37.5 Hz** — `IsoMode.arm` logs a
    warning quantifying the defect, but the production fix (drop to a
    seamless `f_mod` such as 40 Hz, or expose the buffer length as a

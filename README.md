@@ -299,10 +299,15 @@ These hold across the back-end; breaking one usually produces numbers that
 * **Lock-in needs `f_mod < sample_rate / 2`**; iso replays a 1 s AO buffer
   CONTINUOUS, so `f_mod` should give an integer number of cycles per second to
   avoid a phase jump at the wrap (37.5 Hz does not -- a known WARNING).
-* **Safe-voltage clamp**: heater drive is clipped to `[0, safe_voltage]`
-  (conservative default 8 V; the real ceiling is chip-specific -- see the chip
-  config plan, todo P1-42); the heater is driven to **0 V on Off / disconnect / abort**
-  (`zero_ao`) so it is never left latched (the DAC holds its last sample).
+* **Safe-voltage block (fail-loud)**: a program -- temperature, raw `volt`, or
+  AC modulation peak -- that would drive the heater past `safe_voltage` is
+  **rejected at arm** (Start stays disabled + a pop-up; the operator fixes the
+  program). The `[0, safe_voltage]` clamp stays as a **logged** last-resort
+  fallback for any path that bypasses arm validation, never silent.
+  (`safe_voltage` is a conservative 8 V by default; the real ceiling is
+  chip-specific -- see the chip config plan, todo P1-42.) The heater is also
+  driven to **0 V on Off / disconnect / abort** (`zero_ao`) so it is never left
+  latched (the DAC holds its last sample).
 * **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
   sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
 * **Start order is AI then AO** so the AO leading edge is not missed (without a

@@ -29,7 +29,7 @@ from pioner.back.device_controller import (
     LocalDeviceController,
     TangoDeviceController,
 )
-from pioner.back.modes import read_calibrated_h5, segments_to_program
+from pioner.back.modes import SafeVoltageError, read_calibrated_h5, segments_to_program
 from pioner.front.calibWindow import *
 from pioner.front.configWindow import *
 from pioner.front.mainWindowUi import mainWindowUi
@@ -907,6 +907,12 @@ class mainWindow(mainWindowUi):
         # of letting the ValueError escape unhandled (P1-38).
         try:
             self.controller.arm(self._selected_mode(), self.time_temp_volt_tables_str)
+        except SafeVoltageError as exc:
+            # Heater would exceed safe_voltage -- block Start + pop up, count it.
+            logger.warning("Arm blocked -- safe voltage (mode=%s): %s", self._selected_mode(), exc)
+            self._stats.record(stats.SAFE_VOLTAGE_BLOCKED)
+            ErrorWindow(f"Unsafe program -- not armed:\n{exc}")
+            return
         except ValueError as exc:
             logger.warning("Arm rejected (mode=%s): %s", self._selected_mode(), exc)
             self._stats.record(stats.ARM_REJECTED)
@@ -1047,6 +1053,10 @@ class mainWindow(mainWindowUi):
             # operator safety limits (per-mode temp range); see P1-38.
             try:
                 self.controller.arm_iso_mode(json.dumps(program))
+            except SafeVoltageError as exc:
+                self._stats.record(stats.SAFE_VOLTAGE_BLOCKED)
+                ErrorWindow(f"Unsafe iso setpoint -- not armed:\n{exc}")
+                return
             except ValueError as exc:
                 ErrorWindow(f"Cannot set iso value: {exc}")
                 return
@@ -1062,6 +1072,10 @@ class mainWindow(mainWindowUi):
             self.chan_temp_volt_str = json.dumps(chan_temp_volt)
             try:
                 self.controller.arm_iso_mode(self.chan_temp_volt_str)
+            except SafeVoltageError as exc:
+                self._stats.record(stats.SAFE_VOLTAGE_BLOCKED)
+                ErrorWindow(f"Unsafe iso setpoint -- not armed:\n{exc}")
+                return
             except ValueError as exc:
                 ErrorWindow(f"Cannot set iso value: {exc}")
                 return

@@ -13,10 +13,12 @@ from pioner.back.modes import (
     DEFAULT_AI_CHANNELS,
     FastHeat,
     IsoMode,
+    SafeVoltageError,
     SlowMode,
     create_mode,
 )
 from pioner.shared.modulation import ModulationParams
+from pioner.shared.settings import ExperimentLimits
 
 
 @pytest.fixture
@@ -113,6 +115,59 @@ def test_slow_mode_measured_reference_runs_and_produces_phase(
     df = mode.run()
     assert "temp-hr_phase" in df.columns
     assert "temp-hr_amp" in df.columns
+
+
+# --- P1-4: fail-loud heater over-voltage block at arm -----------------------
+
+def test_arm_blocks_raw_volt_over_safe_voltage(connected_daq, settings, calibration):
+    """A raw volt program whose heater peak exceeds safe_voltage is rejected
+    fail-loud at arm (no silent clamp)."""
+    programs = {
+        "ch0": {"time": [0, 1000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 1000], "volt": [0.0, calibration.safe_voltage + 1.0]},
+    }
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    with pytest.raises(SafeVoltageError):
+        mode.arm()
+
+
+def test_arm_blocks_temp_over_chip_ceiling(connected_daq, settings, calibration):
+    """A temperature above the chip ceiling (max_temp = T(safe_voltage)) is
+    rejected fail-loud. Limits are widened so the safe_voltage check is what fires."""
+    settings.limits_by_mode = {"fast": ExperimentLimits(min_temp=0.0, max_temp=1e6)}
+    too_hot = calibration.max_temp + 100.0
+    programs = {
+        "ch0": {"time": [0, 1000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 1000], "temp": [20.0, too_hot]},
+    }
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    with pytest.raises(SafeVoltageError):
+        mode.arm()
+
+
+def test_arm_blocks_modulation_peak_over_safe_voltage(connected_daq, settings, calibration):
+    """DC near safe_voltage + AC amplitude pushes the modulated peak over the
+    envelope -> fail-loud at arm rather than a silently flat-topped sine."""
+    settings.modulation = ModulationParams(frequency=100.0, amplitude=2.0, offset=0.0)
+    dc = calibration.safe_voltage - 0.5  # static peak is fine; +2 V AC is not
+    programs = {
+        "ch0": {"time": [0, 1000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 1000], "volt": [dc, dc]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    with pytest.raises(SafeVoltageError):
+        mode.arm()
+
+
+def test_arm_accepts_program_within_safe_voltage(connected_daq, settings, calibration):
+    """Sanity: a heater volt program within safe_voltage arms cleanly."""
+    programs = {
+        "ch0": {"time": [0, 1000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 1000], "volt": [0.0, calibration.safe_voltage - 1.0]},
+    }
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    mode.arm()
+    assert mode.is_armed()
 
 
 def test_iso_mode_streams_into_dataframe(
