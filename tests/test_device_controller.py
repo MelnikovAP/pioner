@@ -207,7 +207,10 @@ class TestSampleRate:
         local_controller.arm_fast_heat(TestExperiment._FAST)
         assert local_controller.get_sample_rate() == 20000
 
-    def test_fast_run_restores_pre_fast_rate(self, local_controller):
+    def test_fast_run_restores_pre_fast_rate(self, local_controller, tmp_path, monkeypatch):
+        # Redirect the result file into tmp so data/exp_data.h5 is untouched.
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
         # Fast arms at 20 kHz, but after the run the ring returns to the rate
         # active before fast (the monitor default), not stays at 20 kHz.
         assert local_controller.get_sample_rate() == 2000
@@ -248,7 +251,10 @@ class TestExperiment:
         '"ch2": {"time": [0, 1000], "volt": [5, 5]}}'
     )
 
-    def test_arm_run_fast_heat_writes_result(self, local_controller):
+    def test_arm_run_fast_heat_writes_result(self, local_controller, tmp_path, monkeypatch):
+        # Redirect the result file into tmp so data/exp_data.h5 is untouched.
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
         # run() returns a RunResult (paths + summary), not a frame; the data is
         # on disk -> read it back to check the engineering columns (P1-17 4c-3).
         local_controller.arm_fast_heat(self._FAST)
@@ -261,7 +267,10 @@ class TestExperiment:
     def test_run_without_arm_returns_none(self, local_controller):
         assert local_controller.run() is None
 
-    def test_stream_resumes_after_experiment(self, local_controller):
+    def test_stream_resumes_after_experiment(self, local_controller, tmp_path, monkeypatch):
+        # Redirect the result file into tmp so data/exp_data.h5 is untouched.
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
         _wait_for_stream(local_controller)
         local_controller.arm_fast_heat(self._FAST)
         local_controller.run_fast_heat()
