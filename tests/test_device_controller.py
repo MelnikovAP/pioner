@@ -114,6 +114,53 @@ class TestRhcorr:
         assert reloaded.thtrcorr == pytest.approx(10.0, abs=0.01)
 
 
+def _rhtr_window(controller, r_proxy, *, current=0.001, n=500):
+    """Window where the proxy heater resistance is exactly ``r_proxy``.
+
+    Identity calibration: Rhtr = (ch5 - ch0)/ch0, so ch5 = current*(r_proxy+1).
+    """
+    channels = controller._ai_channels
+    window = np.zeros((n, len(channels)), dtype=float)
+    col = {ch: i for i, ch in enumerate(channels)}
+    window[:, col[0]] = current                          # HEATER_CURRENT_AI
+    window[:, col[5]] = current * (r_proxy + 1.0)         # UHTR_AI
+    return window
+
+
+class TestHeaterHealth:
+    """Read-only broken/shorted heater diagnostic (P2-24)."""
+
+    def test_unknown_when_not_powered(self, local_controller, monkeypatch):
+        channels = local_controller._ai_channels
+        monkeypatch.setattr(local_controller, "peek_last",
+                            lambda n: np.zeros((100, len(channels)), dtype=float))
+        rep = local_controller.heater_health_report()
+        assert rep["available"] is True and rep["verdict"] == "unknown"
+        assert rep["n_valid"] == 0 and "powered" in rep["reason"]
+
+    def test_unknown_when_heater_channels_absent(self, local_controller, monkeypatch):
+        # Degenerate AI scan that does not span ch0/ch5: heater_resistance is
+        # all-NaN, so the report degrades to "unknown" instead of raising
+        # KeyError (P2-24 guard).
+        monkeypatch.setattr(local_controller, "_ai_channels", [1, 2])
+        monkeypatch.setattr(local_controller, "peek_last",
+                            lambda n: np.zeros((100, 2), dtype=float))
+        rep = local_controller.heater_health_report()
+        assert rep["available"] is True and rep["verdict"] == "unknown"
+
+    @pytest.mark.parametrize("r_proxy, verdict", [
+        (1700.0, "ok"), (20000.0, "broken"), (10.0, "shorted"),
+    ])
+    def test_classifies_powered_window(self, local_controller, monkeypatch, r_proxy, verdict):
+        monkeypatch.setattr(local_controller, "peek_last",
+                            lambda n: _rhtr_window(local_controller, r_proxy))
+        rep = local_controller.heater_health_report()
+        assert rep["available"] is True
+        assert rep["verdict"] == verdict
+        assert rep["r_proxy"] == pytest.approx(r_proxy, rel=1e-6)
+        assert rep["n_valid"] > 0
+
+
 class TestChipPresence:
     """Read-only chip-presence detection wiring (P1-36)."""
 

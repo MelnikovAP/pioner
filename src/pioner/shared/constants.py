@@ -135,6 +135,11 @@ AMPLITUDE_CORRECTION_FIELD = "Amplitude correction"
 AMPLITUDE_CORRECTION_ENABLED_FIELD = "enabled"
 R_HEATER_FIELD = "R heater"
 R_GUARD_FIELD = "R guard"
+# Optional broken/shorted heater-resistance thresholds (P2-24), in the same
+# dimensionless proxy domain as ``modes.heater_resistance`` (V/V, NOT ohms).
+# Diagnostic only: R above broken -> open/no contact, R below shorted -> short.
+R_HEATER_BROKEN_FIELD = "R heater broken"
+R_HEATER_SHORTED_FIELD = "R heater shorted"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
 

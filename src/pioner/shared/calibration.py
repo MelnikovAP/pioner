@@ -57,7 +57,9 @@ from pioner.shared.constants import (
     I_HTR_FIELD,
     JSON_EXTENSION,
     R_GUARD_FIELD,
+    R_HEATER_BROKEN_FIELD,
     R_HEATER_FIELD,
+    R_HEATER_SHORTED_FIELD,
     T_HEATER_FIELD,
     T_HTRD_FIELD,
     T_HTR_FIELD,
@@ -161,6 +163,15 @@ class Calibration:
         # Heater / guard reference resistances (Ohm).
         self.rhtr: float = 1700.0
         self.rghtr: float = 2300.0
+        # Broken/shorted heater thresholds (P2-24), in the dimensionless proxy
+        # domain of ``modes.heater_resistance`` (V/V, NOT ohms). Diagnostic only
+        # (see ``classify_heater_resistance``); defaults are conservative
+        # starting values from Bondar uCal (9000/50) -- the production proxy R is
+        # numerically ohm-like at room temperature, but the real thresholds are
+        # chip-specific and must be tuned on the bench. Never gate a run on them
+        # from a guessed value.
+        self.r_heater_broken: float = 9000.0
+        self.r_heater_shorted: float = 50.0
         # Maximum DC voltage allowed on the heater AO channel (V).
         self.safe_voltage: float = 8.0
 
@@ -231,6 +242,13 @@ class Calibration:
 
         self.rhtr = float(coeffs[R_HEATER_FIELD])
         self.rghtr = float(coeffs[R_GUARD_FIELD])
+        # Optional broken/shorted thresholds; absent in legacy files -> defaults.
+        self.r_heater_broken = float(
+            coeffs.get(R_HEATER_BROKEN_FIELD, self.r_heater_broken)
+        )
+        self.r_heater_shorted = float(
+            coeffs.get(R_HEATER_SHORTED_FIELD, self.r_heater_shorted)
+        )
         self.safe_voltage = float(coeffs[HEATER_SAFE_VOLTAGE_FIELD])
 
         # Optional hardware block; falls back to factory defaults.
@@ -284,6 +302,8 @@ class Calibration:
                 },
                 R_HEATER_FIELD: self.rhtr,
                 R_GUARD_FIELD: self.rghtr,
+                R_HEATER_BROKEN_FIELD: self.r_heater_broken,
+                R_HEATER_SHORTED_FIELD: self.r_heater_shorted,
                 HEATER_SAFE_VOLTAGE_FIELD: self.safe_voltage,
                 HARDWARE_FIELD: {
                     HARDWARE_GAIN_UTPL_FIELD: self.hardware.gain_utpl,
@@ -310,6 +330,26 @@ class Calibration:
         """
         t = temp
         return self.ac0 + self.ac1 * t + self.ac2 * t**2 + self.ac3 * t**3
+
+    def classify_heater_resistance(self, rhtr: float) -> str:
+        """Classify a proxy heater resistance as ``ok`` / ``broken`` / ``shorted``
+        / ``unknown`` (P2-24).
+
+        ``rhtr`` is the dimensionless proxy from ``modes.heater_resistance``
+        (V/V). ``broken`` = open / no contact (R above ``r_heater_broken``);
+        ``shorted`` = R below ``r_heater_shorted``; ``unknown`` = not finite
+        (e.g. NaN at idle when no heater current flows). Diagnostic only -- it
+        does NOT gate a run; the thresholds are bench-tunable starting values.
+        """
+        import math
+
+        if rhtr is None or not math.isfinite(rhtr):
+            return "unknown"
+        if rhtr > self.r_heater_broken:
+            return "broken"
+        if rhtr < self.r_heater_shorted:
+            return "shorted"
+        return "ok"
 
     @staticmethod
     def solve_rhcorr(

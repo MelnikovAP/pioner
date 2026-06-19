@@ -386,9 +386,18 @@ def heater_resistance(df: pd.DataFrame, calibration: Calibration) -> pd.Series:
     physically meaningless ~ -1070 C through the production polynomial.
 
     Single source of truth for both :func:`apply_calibration` (-> ``Thtr``) and
-    the in-situ R-correction auto-zero (P1-33). ``df`` must carry the raw
-    ``HEATER_CURRENT_AI`` and ``UHTR_AI`` columns.
+    the in-situ R-correction auto-zero (P1-33).
+
+    If the heater channels (``HEATER_CURRENT_AI`` / ``UHTR_AI``) are absent from
+    ``df`` (a degenerate AI scan that does not span them), the resistance is
+    undefined everywhere -- return an all-NaN series rather than raising, so
+    unguarded callers (the diagnostic ``heater_health_report`` /
+    ``_rhcorr_operating_point``) degrade to "unknown" / "unavailable" instead of
+    a ``KeyError``. ``apply_calibration`` pre-guards on the same columns, so this
+    is a no-op for the main path.
     """
+    if HEATER_CURRENT_AI not in df.columns or UHTR_AI not in df.columns:
+        return pd.Series(np.full(len(df), np.nan), index=df.index)
     ih = cast(
         pd.Series,
         calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1,

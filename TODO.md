@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **244 passed** (mock backend, ~50 s).
+- `pytest tests/`: **260 passed** (mock backend, ~50 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -917,19 +917,37 @@ feedback, by subtracting the shunt IR drop: `Uhtr_eff = AI5 - AI0`
 both raw channels in `apply_calibration` but never derives this. Add a
 per-sample derived column `Uhtr_eff`. Cosmetic/diagnostic, not physics.
 
-### P2-24. Configurable heater broken/shorted thresholds -- from Bondar uCal
+### P2-24. Heater broken/shorted detection -- from Bondar uCal
 
-**What:** Bondar flags `R > 9000 Ohm` -> "broken", `R < 50 Ohm` -> "shorted"
-(hardcoded, Bondar-uCal.md §9.12). Add optional `r_heater_broken_ohms` /
-`r_heater_shorted_ohms` to `Calibration` for a fail-loud diagnostic that
-catches a dead chip / bad contact before mains is applied. Diagnostic only --
-low urgency for code.
+**Landed (foundation):** `Calibration.r_heater_broken` / `r_heater_shorted`
+thresholds (read/written in the calibration JSON) + `classify_heater_resistance`
+(`ok`/`broken`/`shorted`/`unknown`); `LocalDeviceController.heater_health_report`
+takes the median proxy `Rhtr` over a recent powered AI window and classifies it;
+GUI "Check heater" button shows the verdict. **Read-only -- drives no AO and does
+NOT gate a run.** Defaults are conservative starting values from Bondar
+(broken > 9000, shorted < 50) **in the dimensionless proxy domain** (V/V, not
+ohms -- the production proxy R is numerically ohm-like at room temperature, but
+this is calibration-specific).
 
-**Note:** the per-chip `safe_voltage` itself is **not** a fixed number to
-"verify" -- it is chip-specific and belongs in the chip config (see **P1-42**).
-The bundled default is now a conservative **8 V**; the real ceiling for a given
-chip must come from its config / the physicist-EE, confirmed before the first
-powered run (bring-up prerequisite, P1-28).
+**Remaining (bench / harder):**
+- **Tune the thresholds on the bench** (normal chip / open / shorted -> read the
+  proxy R, set the values). Do NOT gate a run on guessed numbers (same caveat as
+  P1-36). Move the per-chip values into the chip config (**P1-42**).
+- **Decide whether to gate** arm/start on `broken`/`shorted` (auto-abort +
+  `zero_ao`) or keep it advisory; if gating, run the check on the first powered
+  samples and handle start-up transients (the report already uses the median).
+- **Relation to P1-36** (passive chip-presence): one is "is a chip there?" (no
+  power), the other "is the powered heater intact?" -- decide if they stay two
+  signals or fold into one present/healthy verdict.
+- **`ih` zero-current floor** (`1e-9`) that gates "powered" is mock-tuned; the
+  real-hardware idle level may differ (see P0-3) -- may need its own threshold.
+- **SI units** (P2-21): if `ihtr1 ~ 1/R_shunt` ever lands, thresholds become real
+  ohms and Bondar's 9000/50 apply directly.
+
+**Note:** the per-chip `safe_voltage` is chip-specific and belongs in the chip
+config (**P1-42**); the bundled default is a conservative **8 V**, the real
+ceiling must be confirmed with the physicist/EE before the first powered run
+(bring-up prerequisite, P1-28).
 
 ### P2-25. Median + symmetric moving-average post-filter helpers -- from Bondar uCal
 
@@ -975,6 +993,30 @@ the live-monitor panel. UX polish.
 > de-sync jitter (anti-pattern; integer-cycle alignment is the right fix).
 > AD595 low-T correction is already applied (`modes.py:234`); only its
 > whole-scan averaging drift remains (already noted, P0-3 area).
+
+### P2-30. Profile the pandas pipeline; decide pandas vs numpy by numbers
+
+**Priority: low.** **Where:** `back/modes.apply_calibration`,
+`back/device_controller.calibrate_window`.
+
+**What:** the per-sample pipeline uses pandas DataFrames. This is fine today --
+the demod hot path is already numpy (`.to_numpy()` before lock-in/FFT), there
+are no per-row loops, and streaming/chunked finalize keeps giant frames out of
+RAM -- so pandas is **not** a known bottleneck and a rewrite is not justified
+without evidence. Two spots carry the real pandas overhead (whole-frame
+`copy()`, per-column `Series`, `.loc` masks): `apply_calibration` (per
+run/block) and especially **`calibrate_window`, which builds a DataFrame on
+every live tick**.
+
+**Action (investigation, not a rewrite):**
+- Add a small **bench/profiling script (NOT in CI)** that times
+  `apply_calibration` and `calibrate_window` on representative sizes (1 s @
+  20 kHz fast block; a slow finalize block; a ~0.2 s live window at the GUI
+  refresh rate). Decide by measured numbers, on real-ish data.
+- Only if a hotspot is confirmed: numpy-ify the offending path (most likely the
+  per-tick `calibrate_window`), keeping pandas as a thin layer at the HDF5 /
+  named-column output boundary. Do **not** drop the named-column output or the
+  HDF5 pandas layer (clear win there).
 
 ---
 

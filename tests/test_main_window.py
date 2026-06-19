@@ -143,6 +143,11 @@ class FakeController:
         self.calls.append(("apply_rhcorr",))
         return {**self._rhcorr_rep, "written_to": "settings/calibration.json"}
 
+    def heater_health_report(self, window_seconds=0.5):
+        return {"available": True, "verdict": "ok", "r_proxy": 1700.0,
+                "n_valid": 500, "broken_threshold": 9000.0,
+                "shorted_threshold": 50.0, "reason": ""}
+
 
 # --- A2: connect-failure diagnostics (pure static mapping) -----------------
 
@@ -439,6 +444,22 @@ def test_check_chip_shows_report(window, monkeypatch):
     text = shown[0]
     assert "Chip presence" in text
     assert "band" in text and "abs_level" in text and "variance" in text
+
+
+def test_check_heater_without_backend_warns(window, recorded_errors):
+    window.controller = None
+    recorded_errors.clear()
+    window.check_heater()
+    assert recorded_errors
+
+
+def test_check_heater_shows_report(window, monkeypatch):
+    shown = []
+    monkeypatch.setattr(mw, "MessageWindow", lambda *a, **k: shown.append(a[0] if a else ""))
+    window.controller = FakeController()
+    window.check_heater()
+    assert shown and "Heater health" in shown[0] and "OK" in shown[0]
+    assert window._stats.get("heater_check") == 1
 
 
 def test_rhcorr_without_backend_warns(window, recorded_errors):

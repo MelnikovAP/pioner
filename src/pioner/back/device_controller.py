@@ -239,6 +239,10 @@ class DeviceController(abc.ABC):
         """Bench-comparison report of per-channel metrics + strategy verdicts."""
         return {"available": False, "channel": None, "metrics": {}, "verdicts": {}}
 
+    def heater_health_report(self, window_seconds: float = 0.5) -> dict:
+        """Read-only broken/shorted heater check from the live AI window (P2-24)."""
+        return {"available": False, "reason": "not supported by this backend"}
+
     def rhcorr_report(self, window_seconds: float = 1.0) -> dict:
         """Preview the in-situ heater R-correction auto-zero (P1-33), no write."""
         return {"available": False, "reason": "not supported by this backend"}
@@ -700,6 +704,38 @@ class LocalDeviceController(DeviceController):
         return presence_report(
             self._chip_presence_window(), self._ai_channels, self._settings.chip_presence
         )
+
+    def heater_health_report(self, window_seconds: float = 0.5) -> dict:
+        """Broken/shorted heater check from the live AI window (P2-24), read-only.
+
+        Computes the proxy heater resistance over a recent window and classifies
+        it (ok / broken / shorted / unknown). Diagnostic only -- it drives no AO
+        and does NOT gate a run. Needs the heater **powered** (e.g. during an iso
+        hold) for a meaningful verdict: at idle the current is ~0 so Rhtr is
+        undefined and the verdict is ``unknown``. Uses the median over powered
+        samples (robust to start-up transients).
+        """
+        n = max(1, int(window_seconds * self.ai_sample_rate))
+        raw = self.peek_last(n)
+        if raw.size == 0:
+            return {"available": False, "reason": "no live AI stream yet"}
+        channels = self._ai_channels or list(range(raw.shape[1]))
+        raw_df = pd.DataFrame(raw, columns=channels)
+        rhtr = heater_resistance(raw_df, self._calibration).to_numpy()
+        valid = np.isfinite(rhtr)
+        n_valid = int(valid.sum())
+        r_proxy = float(np.median(rhtr[valid])) if n_valid else float("nan")
+        verdict = self._calibration.classify_heater_resistance(r_proxy)
+        return {
+            "available": True,
+            "verdict": verdict,                       # ok | broken | shorted | unknown
+            "r_proxy": r_proxy,                       # dimensionless V/V (NaN if idle)
+            "n_valid": n_valid,                       # powered samples in the window
+            "broken_threshold": self._calibration.r_heater_broken,
+            "shorted_threshold": self._calibration.r_heater_shorted,
+            "reason": ("" if n_valid else
+                       "heater not powered (Rhtr undefined) -- run during a powered hold"),
+        }
 
     # ------------------------------------------------------------------
     # In-situ heater R-correction auto-zero (P1-33): trim ``thtrcorr`` so the

@@ -20,7 +20,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pioner.back.modes import _kamp_divide, _lockin_reference, apply_calibration
+from pioner.back.modes import (
+    _kamp_divide,
+    _lockin_reference,
+    apply_calibration,
+    heater_resistance,
+)
 from pioner.shared.calibration import Calibration
 from pioner.shared.modulation import ModulationParams
 
@@ -229,3 +234,15 @@ def test_lockin_reference_selects_ch0_only_when_opted_in():
     np.testing.assert_array_equal(_lockin_reference(raw, on), np.arange(5.0))
     # Opted in but ch0 absent -> None (falls back to synthetic).
     assert _lockin_reference(pd.DataFrame({5: np.zeros(3)}), on) is None
+
+
+def test_heater_resistance_all_nan_when_channels_absent():
+    """A degenerate AI frame without the heater channels (ch0/ch5) yields an
+    all-NaN proxy resistance instead of raising KeyError, so the diagnostic
+    callers degrade gracefully (P2-24)."""
+    cal = Calibration()
+    # Only thermopile-ish columns present; no HEATER_CURRENT_AI (0) / UHTR_AI (5).
+    df = pd.DataFrame({1: np.ones(10), 4: np.ones(10)})
+    out = heater_resistance(df, cal)
+    assert len(out) == 10
+    assert out.isna().all()

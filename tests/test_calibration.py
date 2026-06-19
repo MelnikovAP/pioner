@@ -253,3 +253,32 @@ def test_compute_rhcorr_mutates_the_right_field():
     assert rep_d["field"] == "thtrdcorr"
     assert cal.thtrdcorr == pytest.approx(-8.0, abs=0.01)
     assert cal.thtrcorr == pytest.approx(5.0, abs=0.01)  # heater still as before
+
+
+# --- P2-24: broken/shorted heater classification ---------------------------
+
+def test_classify_heater_resistance():
+    cal = Calibration()  # defaults: broken > 9000, shorted < 50 (proxy V/V)
+    assert cal.classify_heater_resistance(1700.0) == "ok"
+    assert cal.classify_heater_resistance(20000.0) == "broken"
+    assert cal.classify_heater_resistance(10.0) == "shorted"
+    assert cal.classify_heater_resistance(float("nan")) == "unknown"  # idle
+
+
+def test_heater_threshold_round_trips(tmp_path: Path):
+    cal = Calibration()
+    cal.r_heater_broken, cal.r_heater_shorted = 12345.0, 7.0
+    out = tmp_path / "c.json"
+    cal.write(str(out))
+    other = Calibration()
+    other.read(str(out))
+    assert other.r_heater_broken == 12345.0 and other.r_heater_shorted == 7.0
+    # Legacy file without the keys -> defaults.
+    data = json.loads(out.read_text())
+    del data["Calibration coeff"]["R heater broken"]
+    del data["Calibration coeff"]["R heater shorted"]
+    legacy = tmp_path / "legacy.json"
+    legacy.write_text(json.dumps(data))
+    lc = Calibration()
+    lc.read(str(legacy))
+    assert lc.r_heater_broken == 9000.0 and lc.r_heater_shorted == 50.0

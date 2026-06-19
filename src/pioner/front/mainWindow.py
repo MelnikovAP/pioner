@@ -123,6 +123,7 @@ class mainWindow(mainWindowUi):
         self.sysSetupButton.clicked.connect(self.show_help)
         self.checkChipButton.clicked.connect(self.check_chip)
         self.rhcorrButton.clicked.connect(self.rhcorr_autozero)
+        self.checkHeaterButton.clicked.connect(self.check_heater)
 
         self.calibPathButton.clicked.connect(self.select_calibration_file)
         self.calibViewButton.clicked.connect(self.view_calibraton_info)
@@ -435,6 +436,38 @@ class mainWindow(mainWindowUi):
             ErrorWindow("No backend connection: connect first to read chip presence.")
             return
         MessageWindow(self._format_chip_presence_report(self.controller.chip_presence_report()))
+
+    def check_heater(self):
+        """Show the read-only broken/shorted heater diagnostic (P2-24).
+
+        Classifies the proxy heater resistance from the live AI window. Drives no
+        AO and never gates a run. Needs the heater powered (e.g. an iso hold) for
+        a meaningful verdict -- at idle the verdict is ``unknown`` (no current).
+        """
+        logger.info("Check heater pressed")
+        self._stats.record(stats.HEATER_CHECK)
+        if self.controller is None:
+            ErrorWindow("No backend connection: connect first to check the heater.")
+            return
+        MessageWindow(self._format_heater_health_report(self.controller.heater_health_report()))
+
+    def _format_heater_health_report(self, report: dict) -> str:
+        """Render a heater-health report dict into operator-readable text."""
+        if not report.get("available"):
+            return ("Heater health: no live signal yet.\n"
+                    "Connect and let the stream run, then try again.")
+        verdict = report.get("verdict", "unknown")
+        lines = [
+            "Heater health (read-only -- proxy resistance, no gating)",
+            f"  verdict: {verdict.upper()}",
+            f"  proxy R: {report.get('r_proxy'):.4g} (V/V; thresholds "
+            f"broken>{report.get('broken_threshold'):.4g}, "
+            f"shorted<{report.get('shorted_threshold'):.4g})",
+            f"  powered samples in window: {report.get('n_valid')}",
+        ]
+        if report.get("reason"):
+            lines.append(f"  note: {report['reason']}")
+        return "\n".join(lines)
 
     def _format_chip_presence_report(self, report: dict) -> str:
         """Render a chip-presence report dict into operator-readable text."""

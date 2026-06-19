@@ -75,6 +75,12 @@ class mainWindowUi(qt.QWidget):
         self.rhcorrButton = qt.QPushButton("R-corr auto-zero")
         lout_0.addWidget(self.rhcorrButton)
 
+        # Read-only broken/shorted heater diagnostic (P2-24): classifies the
+        # proxy heater resistance from the live AI window. Needs the heater
+        # powered (e.g. an iso hold); drives no AO and never gates a run.
+        self.checkHeaterButton = qt.QPushButton("Check heater")
+        lout_0.addWidget(self.checkHeaterButton)
+
         
         # ####### Experiment Group Box
         # ########################################
