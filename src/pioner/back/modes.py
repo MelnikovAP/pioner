@@ -100,6 +100,10 @@ def _to_channel_program(table: dict) -> ChannelProgram:
     values = np.asarray(table[keys[0]], dtype=float)
     if time_ms.ndim != 1 or values.ndim != 1:
         raise ValueError("'time' and the value array must be 1-D")
+    # Fail loud on NaN/Inf -- a non-finite setpoint would otherwise propagate
+    # through interpolation / T->V into a garbage AO command (P2-18).
+    if not (np.all(np.isfinite(time_ms)) and np.all(np.isfinite(values))):
+        raise ValueError("channel program contains NaN/Inf in 'time' or values")
     if time_ms.size != values.size:
         raise ValueError(
             f"'time' ({time_ms.size}) and value ({values.size}) arrays must have "

@@ -17,11 +17,14 @@ This module contains two generators:
 
 from __future__ import annotations
 
+import logging
 from typing import Dict, Iterable, List, MutableSequence, cast
 
 import numpy as np
 
 from .mock_uldaq import uldaq as ul
+
+logger = logging.getLogger(__name__)
 
 
 def _channel_keys(low: int, high: int) -> List[str]:
@@ -61,6 +64,10 @@ class ScanDataGenerator:
         for key in _channel_keys(low_channel, high_channel):
             data = voltage_profiles.get(key)
             if data is None:
+                # Absent AO channel -> held at 0 V. Log it so a typo'd channel
+                # key (silently driving 0 V instead of the intended profile) is
+                # visible rather than a mystery flat line (P1-12).
+                logger.info("AO %s not provided; holding at 0 V", key)
                 self._profiles[key] = np.zeros(self._buffer_size, dtype=float)
             else:
                 arr = np.asarray(data, dtype=float)

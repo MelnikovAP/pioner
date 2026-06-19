@@ -282,3 +282,14 @@ def test_heater_threshold_round_trips(tmp_path: Path):
     lc = Calibration()
     lc.read(str(legacy))
     assert lc.r_heater_broken == 9000.0 and lc.r_heater_shorted == 50.0
+
+
+def test_read_malformed_calibration_raises_clear_error(tmp_path: Path):
+    """A calibration file missing a required field raises a clear ValueError
+    naming the file, not a bare KeyError (P1-16)."""
+    data = {"Calibration coeff": {"Utpl": {"0": 0.0}}}  # almost everything missing
+    p = tmp_path / "bad.json"
+    p.write_text(json.dumps(data))
+    cal = Calibration()
+    with pytest.raises(ValueError, match="malformed"):
+        cal.read(str(p))

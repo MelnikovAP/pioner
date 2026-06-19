@@ -700,3 +700,20 @@ def test_segments_to_program_rejects_bad_segments():
         segments_to_program([{"type": "bogus", "duration_ms": 100}])
     with _pytest.raises(ValueError):
         segments_to_program([{"type": "iso", "duration_ms": 0}])
+
+
+def test_arm_rejects_nonfinite_program(connected_daq, settings, calibration):
+    """A program with NaN/Inf is rejected fail-loud at construction (P2-18)."""
+    bad = {"ch1": {"time": [0, 1000], "temp": [20.0, float("nan")]}}
+    with pytest.raises(ValueError, match="NaN/Inf"):
+        FastHeat(connected_daq, settings, calibration, bad)
+
+
+def test_scan_data_generator_logs_absent_channel(caplog):
+    """An AO channel with no profile is held at 0 V and logged (P1-12)."""
+    import logging
+
+    from pioner.back.ao_data_generators import ScanDataGenerator
+    with caplog.at_level(logging.INFO, logger="pioner.back.ao_data_generators"):
+        ScanDataGenerator({"ch0": [0.1, 0.1]}, low_channel=0, high_channel=1)
+    assert any("ch1" in r.message and "0 V" in r.message for r in caplog.records)

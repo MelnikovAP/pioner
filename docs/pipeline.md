@@ -395,9 +395,9 @@ identity — see `TODO.md` P2-21.
 `np.searchsorted(temp_mono, temp_clipped)`. Catastrophic non-monotonicity
 (`T(V_max) ≤ T(0)`) is rejected with `ValueError`; the small sub-zero dip
 the historical 39392 polynomial has near `V ≈ 0.16 V` is tolerated by the
-cumulative-max. Output is rounded to 4 decimals — slightly tighter than the
-16-bit DAC LSB (~0.305 mV), so the rounding does not matter on real
-hardware (see `TODO.md` P2-19).
+cumulative-max. Output is the grid voltage directly (no early rounding); the
+grid step (`resolution`, 0.1 mV default) is already below the 16-bit DAC LSB
+(~0.305 mV), so resolution is DAC-bound on real hardware.
 
 ---
 

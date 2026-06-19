@@ -132,7 +132,12 @@ def temperature_to_voltage(
     temp_clipped = np.clip(temp, calibration.min_temp, calibration.max_temp)
     idx = np.searchsorted(temp_mono, temp_clipped, side="left")
     np.clip(idx, 0, n_grid - 1, out=idx)
-    return np.round(volt_calib[idx], 4)
+    # No early np.round: the grid already quantises at ``resolution`` (0.1 mV
+    # default), which is below the 16-bit DAC's ~0.305 mV LSB at +/-10 V, and
+    # the DAC quantises again on output. Rounding the grid value to 0.1 mV here
+    # was redundant; drop it (P2-19). Tighten ``resolution`` if finer T->V
+    # inversion is ever needed.
+    return volt_calib[idx]
 
 
 # ---------------------------------------------------------------------------

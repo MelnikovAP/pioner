@@ -16,7 +16,7 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **260 passed** (mock backend, ~50 s).
+- `pytest tests/`: **263 passed** (mock backend, ~50 s).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample
@@ -174,12 +174,6 @@ returns an empty array with no explanation.
 does not raise). The user gets all problems on one line instead of one at
 a time.
 
-### P1-12. `ScanDataGenerator` silently zero-fills missing channels
-
-**Where:** `src/pioner/back/ao_data_generators.py:60-69`
-
-**Action:** `logger.info("AO ch%d not provided, holding at 0 V", ch)`.
-
 ### P1-13. `_collect_finite_ai`: needlessly tight 1 ms busy-poll
 
 **Where:** `src/pioner/back/experiment_manager.py:362`
@@ -221,17 +215,6 @@ debugging if `f_mod` is anywhere near 196 Hz.
 **Action:** replace with `np.random.default_rng(seed=hash(channel))`
 Gaussian noise of the same RMS. Make the seed configurable via
 `PIONER_MOCK_NOISE_SEED`.
-
-### P1-16. `Calibration.read` produces unfriendly errors on malformed files
-
-**Where:** `src/pioner/shared/calibration.py:177-209`
-
-**What:** direct indexing like `coeffs[U_TPL_FIELD]["0"]` raises bare
-`KeyError` with no context.
-
-**Action:** wrap the field-extraction block in
-`try/except KeyError as exc: raise ValueError(f"Missing field {exc} in
-calibration file {path}")`.
 
 ### P1-17. Live AI streaming architecture (persistent AI + dormant disk recorder)
 
@@ -750,6 +733,35 @@ accidentally reaching a path that can damage a chip.
 warning; hiding them behind an explicit dev gate is a real safety/UX win before
 real-chip operators use the GUI.
 
+### P1-44. Per-channel AI input ranges + auto-gain -- from IR-branch
+
+**Priority: high.** **Where:** `back/ai_device.py` (per-channel queue),
+`shared/settings.py` (per-channel range config), new `front/` gains panel.
+
+**What:** mainline arms every AI channel at one global `RangeId` (+/-10 V). The
+heater-current proxy (ch0) and thermopile channels swing far less than 10 V, so
+most of the 16-bit ADC range -- and the signal-to-noise on `Uhtr`/`Uref`/`Umod`
+-- is wasted. IR sets a **per-channel input range queue** (uldaq
+`a_in_load_queue` + `AiQueueElement`) and an **auto-gain** that picks the
+tightest range from the live signal level
+([ai_device.py:159](pioner-IR-branch/pioner_app/hardware/ai_device.py#L159),
+`_maybe_apply_autogain` in
+[daq_controller.py:169](pioner-IR-branch/pioner_app/hardware/daq_controller.py#L169)),
+plus an `InputGainsPanel` (vertical sliders + auto-gain checkboxes, persisted)
+([input_gains_panel.py](pioner-IR-branch/pioner_app/ui/widgets/input_gains_panel.py)).
+
+**Why high:** direct improvement of the measured signal quality on the real
+board -- the noise floor on the small thermopile / current-proxy channels is the
+limiting factor for C_p resolution. Worth doing for bring-up.
+
+**Action:** port the per-channel queue setup into `back/ai_device.py` (IR's is
+the cleanest part of that branch); add per-channel range to the AI settings;
+add the gains panel (depends only on `set_channel_gains`). **Verify on real
+hardware** -- per-channel ranges change the LSB scaling, so re-check that
+`apply_calibration` still sees volts correctly (the range affects raw->V). Auto-
+gain thresholds (IR uses 0.92 / 0.12 + 500 ms debounce) are bench-tunable, not
+load-bearing defaults. IR has no tests -- add them.
+
 ---
 
 ## P2 — code quality / DX
@@ -848,24 +860,6 @@ data type asymmetry remains.)
 **Action:** either return a full `n = sample_rate` line, or do **not**
 return a profile at all for DC-only (separate `_dc_voltages: Dict[str,
 float]`, checked in `run()`).
-
-### P2-18. `ChannelProgram` does not catch NaN/Inf
-
-**Where:** `src/pioner/back/modes.py:79-94`
-
-**Action:** `if not np.all(np.isfinite(values)): raise ValueError(
-"program values contain NaN/Inf")`.
-
-### P2-19. `temperature_to_voltage` rounds to 4 decimals → 0.1 mV
-
-**Where:** `src/pioner/shared/utils.py:118`
-
-**What:** `np.round(volt_calib[idx], 4)`. The 16-bit DAC at ±10 V has an
-LSB of ~0.305 mV; rounding to 0.1 mV is below the DAC resolution and just
-quantises early.
-
-**Action:** drop `np.round` (the DAC quantises by itself) or expose the
-resolution as a parameter.
 
 ### P2-20. Port simpleFastHeatWidget segmentation feature from IR-branch
 
@@ -1018,6 +1012,77 @@ every live tick**.
   named-column output boundary. Do **not** drop the named-column output or the
   HDF5 pandas layer (clear win there).
 
+### P2-31. Fast-heat post-processing: heat-exchange / power / C_p -- from IR-branch
+
+**Priority: medium.** **Where:** new `front/` analysis widget (+ shared math).
+
+**What:** the physical fast-heat post-processing we currently leave to the
+operator's scripts: average N fast-heat scans, sample-vs-reference
+heat-exchange correction, and power / heat-capacity extraction
+([procFastHeatWidget.py](pioner-IR-branch/pioner_app/ui/widgets/procFastHeatWidget.py),
+`average_exp_data` at :414, `empty_G` / `exp_P`). Reuses the generic
+fit/smooth/peak/area bricks (`SimpleProcessWidget` / `UniversalResultsWidget` /
+`EvaluationWidget`).
+
+**Action / caveats:** port the averaging + heat-exchange/power math; **do NOT
+ship as-is** -- in IR `find_iso` is a `pass` stub and parts of the
+auto-correction are marked "under development" ([procFastHeatWidget.py:567]).
+Re-derive the physics (no tests in IR). Overlaps the generic-analysis part of
+P2-20.
+
+### P2-32. `post_hold` block in the experiment profile -- from IR-branch
+
+**Priority: low.** **Where:** `back/modes.py` profile builder.
+
+**What:** IR's fast-heat schema has a `post_hold` block that holds a specified
+voltage per channel after the program completes
+([experiment_manager.py:404](pioner-IR-branch/pioner_app/core/experiment_manager.py#L404))
+-- avoids relays clicking back to 0 V at the end. ~10 lines.
+
+**Safety caveat (load-bearing):** this **conflicts with the heater-safety model**
+-- PIONER deliberately drives the heater AO to 0 V on end / disconnect / abort
+(`zero_ao`). A `post_hold` that keeps the heater powered after a program would
+defeat that. Only admissible on **non-heater channels** (e.g. a guard line), and
+must still yield to `zero_ao` on Off/disconnect/abort. Decide with the physicist
+whether a non-zero post-program hold is wanted at all before building.
+
+### P2-33. `HardwareBackend` factory (direct / tango ABC) -- from IR-branch
+
+**Priority: low.** **Where:** `back/` (new backend ABC + factory).
+
+**What:** IR has a clean `HardwareBackend` ABC + `factory` (direct-uldaq /
+tango) ([backends/base.py](pioner-IR-branch/pioner_app/backends/base.py),
+[factory.py](pioner-IR-branch/pioner_app/backends/factory.py)); mainline
+hardcodes the direct-uldaq path and Tango lives only on the server side. The
+*shape* is right -- worth adopting before widening Tango support. IR's tango
+backend is an unfinished stub (raises `NotImplementedError`) -- adopt the
+pattern, not the stub. Overlaps the `DeviceController` abstraction we already
+have (`Local`/`Tango`) -- evaluate whether that already covers the need before
+adding a second layer.
+
+### P2-34. Layered user config (`config.json` <- `config.user.json`) -- from IR-branch
+
+**Priority: low.** **Where:** `shared/settings.py`.
+
+**What:** IR layers a default `config.json` under a `config.user.json` of
+overrides via `_deep_update`
+([settings.py](pioner-IR-branch/pioner_app/core/settings.py)); mainline reads a
+single settings file. Lets operators keep local overrides without editing the
+tracked default. Minor DX; partly overlaps the existing
+`settings.json` + `settings.user`-style split if/where present -- check before
+adding.
+
+### P2-35. F/A/P modulation ramps during slow heat (`AOStreamSHGenerator`) -- from IR-branch
+
+**Priority: low (research).** **Where:** `back/modes.SlowMode`, `shared/modulation.py`.
+
+**What:** IR can ramp modulation **frequency / amplitude / phase** across a
+slow-heat scan in discrete `ramp_steps`
+([ao_device.py:260](pioner-IR-branch/pioner_app/hardware/ao_device.py#L260));
+mainline holds them constant. Niche -- only useful for experiments that sweep
+the modulation parameters during a ramp. The chunk-by-chunk API maps onto our
+`apply_modulation`. Confirm there is an actual experimental need before building.
+
 ---
 
 ## P3 — documentation / observability
@@ -1105,7 +1170,7 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
    the test bed); iso first.
 6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +
    acquisition-path work; coordinate with P1-27 SPICE model).
-7. **P1-6 → P1-16** — two or three at a time.
+7. **P1-6 → P1-13** — robustness cleanups, two or three at a time.
 8. **P2-\*** — code-quality round after P0/P1 close.
 9. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 

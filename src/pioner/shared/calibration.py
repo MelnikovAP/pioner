@@ -204,65 +204,72 @@ class Calibration:
 
         self.comment = data.get(INFO_FIELD, "no calibration")
 
-        self.utpl0 = float(coeffs[U_TPL_FIELD]["0"])
+        try:
+            self.utpl0 = float(coeffs[U_TPL_FIELD]["0"])
 
-        self.ttpl0 = float(coeffs[T_TPL_FIELD]["0"])
-        self.ttpl1 = float(coeffs[T_TPL_FIELD]["1"])
+            self.ttpl0 = float(coeffs[T_TPL_FIELD]["0"])
+            self.ttpl1 = float(coeffs[T_TPL_FIELD]["1"])
 
-        self.thtr0 = float(coeffs[T_HTR_FIELD]["0"])
-        self.thtr1 = float(coeffs[T_HTR_FIELD]["1"])
-        self.thtr2 = float(coeffs[T_HTR_FIELD]["2"])
-        self.thtrcorr = float(coeffs[T_HTR_FIELD][CORR_FIELD])
+            self.thtr0 = float(coeffs[T_HTR_FIELD]["0"])
+            self.thtr1 = float(coeffs[T_HTR_FIELD]["1"])
+            self.thtr2 = float(coeffs[T_HTR_FIELD]["2"])
+            self.thtrcorr = float(coeffs[T_HTR_FIELD][CORR_FIELD])
 
-        self.thtrd0 = float(coeffs[T_HTRD_FIELD]["0"])
-        self.thtrd1 = float(coeffs[T_HTRD_FIELD]["1"])
-        self.thtrd2 = float(coeffs[T_HTRD_FIELD]["2"])
-        self.thtrdcorr = float(coeffs[T_HTRD_FIELD][CORR_FIELD])
+            self.thtrd0 = float(coeffs[T_HTRD_FIELD]["0"])
+            self.thtrd1 = float(coeffs[T_HTRD_FIELD]["1"])
+            self.thtrd2 = float(coeffs[T_HTRD_FIELD]["2"])
+            self.thtrdcorr = float(coeffs[T_HTRD_FIELD][CORR_FIELD])
 
-        self.uhtr0 = float(coeffs[U_HTR_FIELD]["0"])
-        self.uhtr1 = float(coeffs[U_HTR_FIELD]["1"])
+            self.uhtr0 = float(coeffs[U_HTR_FIELD]["0"])
+            self.uhtr1 = float(coeffs[U_HTR_FIELD]["1"])
 
-        self.ihtr0 = float(coeffs[I_HTR_FIELD]["0"])
-        self.ihtr1 = float(coeffs[I_HTR_FIELD]["1"])
+            self.ihtr0 = float(coeffs[I_HTR_FIELD]["0"])
+            self.ihtr1 = float(coeffs[I_HTR_FIELD]["1"])
 
-        self.theater0 = float(coeffs[T_HEATER_FIELD]["0"])
-        self.theater1 = float(coeffs[T_HEATER_FIELD]["1"])
-        self.theater2 = float(coeffs[T_HEATER_FIELD]["2"])
+            self.theater0 = float(coeffs[T_HEATER_FIELD]["0"])
+            self.theater1 = float(coeffs[T_HEATER_FIELD]["1"])
+            self.theater2 = float(coeffs[T_HEATER_FIELD]["2"])
 
-        self.ac0 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["0"])
-        self.ac1 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["1"])
-        self.ac2 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["2"])
-        self.ac3 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["3"])
-        # Optional opt-in switch; absent in legacy files -> stays off.
-        self.amplitude_correction_enabled = bool(
-            coeffs[AMPLITUDE_CORRECTION_FIELD].get(
-                AMPLITUDE_CORRECTION_ENABLED_FIELD, False
-            )
-        )
-
-        self.rhtr = float(coeffs[R_HEATER_FIELD])
-        self.rghtr = float(coeffs[R_GUARD_FIELD])
-        # Optional broken/shorted thresholds; absent in legacy files -> defaults.
-        self.r_heater_broken = float(
-            coeffs.get(R_HEATER_BROKEN_FIELD, self.r_heater_broken)
-        )
-        self.r_heater_shorted = float(
-            coeffs.get(R_HEATER_SHORTED_FIELD, self.r_heater_shorted)
-        )
-        self.safe_voltage = float(coeffs[HEATER_SAFE_VOLTAGE_FIELD])
-
-        # Optional hardware block; falls back to factory defaults.
-        hw = coeffs.get(HARDWARE_FIELD, {})
-        self.hardware = HardwareCalibration(
-            gain_utpl=float(hw.get(HARDWARE_GAIN_UTPL_FIELD, 11.0)),
-            gain_umod=float(hw.get(HARDWARE_GAIN_UMOD_FIELD, 121.0)),
-            ad595_low_correction=list(
-                hw.get(
-                    HARDWARE_AD595_LOW_FIELD,
-                    [2.6843, 1.2709, 0.0042867, 3.4944e-05],
+            self.ac0 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["0"])
+            self.ac1 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["1"])
+            self.ac2 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["2"])
+            self.ac3 = float(coeffs[AMPLITUDE_CORRECTION_FIELD]["3"])
+            # Optional opt-in switch; absent in legacy files -> stays off.
+            self.amplitude_correction_enabled = bool(
+                coeffs[AMPLITUDE_CORRECTION_FIELD].get(
+                    AMPLITUDE_CORRECTION_ENABLED_FIELD, False
                 )
-            ),
-        )
+            )
+
+            self.rhtr = float(coeffs[R_HEATER_FIELD])
+            self.rghtr = float(coeffs[R_GUARD_FIELD])
+            # Optional broken/shorted thresholds; absent in legacy files -> defaults.
+            self.r_heater_broken = float(
+                coeffs.get(R_HEATER_BROKEN_FIELD, self.r_heater_broken)
+            )
+            self.r_heater_shorted = float(
+                coeffs.get(R_HEATER_SHORTED_FIELD, self.r_heater_shorted)
+            )
+            self.safe_voltage = float(coeffs[HEATER_SAFE_VOLTAGE_FIELD])
+
+            # Optional hardware block; falls back to factory defaults.
+            hw = coeffs.get(HARDWARE_FIELD, {})
+            self.hardware = HardwareCalibration(
+                gain_utpl=float(hw.get(HARDWARE_GAIN_UTPL_FIELD, 11.0)),
+                gain_umod=float(hw.get(HARDWARE_GAIN_UMOD_FIELD, 121.0)),
+                ad595_low_correction=list(
+                    hw.get(
+                        HARDWARE_AD595_LOW_FIELD,
+                        [2.6843, 1.2709, 0.0042867, 3.4944e-05],
+                    )
+                ),
+            )
+
+        except (KeyError, TypeError, IndexError) as exc:
+            raise ValueError(
+                f"Calibration file '{path}' is malformed "
+                f"(missing or invalid field: {exc})"
+            ) from exc
 
         self._add_params()
 
