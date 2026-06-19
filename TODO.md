@@ -592,10 +592,16 @@ with an `ErrorWindow` (fast/slow `fh_arm`, iso `set_temp_volt`). Tested in
 (arm rejects over-temp / too-fast cool / too-slow heat, accepts heat-iso-cool in
 range).
 
-**Remaining (pending physicist):** the committed slow/fast rate bounds are
-placeholders -- the achievable passive cool rate is hardware-dependent and must
-be measured on the bench (ties into P0-5 / the soak run), then the real numbers
-committed to `settings.json`.
+**Remaining (one bench check):** the committed temperature ranges and heat-rate
+bounds are intentional operator-set values and are fine as-is. The single
+hardware-dependent item is the **`MaxCoolRate`** ceiling: the chip has no active
+cooling (P1-23), so it cannot cool faster than passive dissipation at heater=0.
+A program commanding a cool segment faster than the achievable passive rate would
+pass validation but the chip would not track it. Verify on the bench that the
+committed `MaxCoolRate` (100000 K/s fast, 60 K/s slow) does not exceed the
+measured passive cool rate (ties into P0-5 / the soak run); cap it to the
+measured value if it does. Lower-rate controlled cooling in slow keeps the heater
+on (drive-limited, already fine) -- this is only about the upper passive bound.
 
 ### P1-40. Choose the proper location for session log files
 
