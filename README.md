@@ -341,10 +341,13 @@ exactly that.
 
 ## 6. Calibration
 
-Two calibration JSON files live under `settings/`:
+Two calibration JSON files back the front-end (mirroring the
+`default_settings.json` / `settings.json` split):
 
-* `default_calibration.json` — identity calibration (V == V, T == T).
-* `calibration.json` — chip-specific coefficients (filled in via the GUI).
+* `default_calibration.json` — identity calibration (V == V, T == T), shipped
+  with the package under `src/pioner/settings/` (the fallback).
+* `calibration.json` — chip-specific coefficients (filled in via the GUI); the
+  runtime copy under `settings/` in the working directory.
 
 Beyond the historical `Theater`/`Thtr`/`Ttpl` polynomials, the calibration
 JSON now carries an explicit **Hardware** sub-block describing the analog
@@ -404,7 +407,9 @@ and an end-to-end pass through all three modes on the mock backend
 including the hardware-trigger path. It also pins the default-calibration
 identity constants (`tests/test_calibration.py`, todo P2-21) and round-trips
 the settings-driven `HardwareTrigger` flag (`tests/test_back_settings.py`).
-**263 tests, ~50 seconds** locally.
+The full suite runs in **~55 seconds** locally; see
+[docs/tests-info.md](docs/tests-info.md) for the canonical test count and a
+numbered per-test index.
 
 ---
 
@@ -492,6 +497,8 @@ These are runtime artefacts; a run overwrites `exp_data.h5` (and
   open-source split).
 * **[ERRORS.md](ERRORS.md)** + `postmortem/` — resolved incidents, chronological.
 * **[pioner-pypi.md](pioner-pypi.md)** — open-source / proprietary split plan.
+* **[docs/tests-info.md](docs/tests-info.md)** — canonical test count + numbered
+  per-test index (the single place the count lives).
 * **docs/** — reference library: [docs/pipeline.md](docs/pipeline.md) (full
   AO/AI pipeline spec), [docs/mock-verification.md](docs/mock-verification.md),
   [docs/design-notes.md](docs/design-notes.md),

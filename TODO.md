@@ -16,7 +16,8 @@ File references use the `path/to/file.py:line` format. Test command:
 
 ## Status
 
-- `pytest tests/`: **263 passed** (mock backend, ~50 s).
+- `pytest tests/`: **full suite passes** (mock backend, ~55 s; canonical count +
+  per-test index in `docs/tests-info.md`).
 - `python -m pioner.back.debug` runs all three modes end-to-end clean.
 - Mock-DAQ pipeline verification: see `docs/mock-verification.md` — modulation
   + lock-in confirmed within ~10 % of the analytical amplitude, no sample

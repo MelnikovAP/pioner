@@ -160,13 +160,16 @@ pioner/
    `temperature_to_voltage` to `nanocal/convert.py` (or keep them accepting a
    `Calibration` arg). ~2-3 h.
 
-4. **(Recommended, optional) Lift the 1-second buffer constraint.** Today the AI
-   buffer is one second (`experiment_manager.py:480`,
-   `total_samples_per_channel = sample_rate * seconds` at `:494`) and durations
-   must be whole seconds (`modes.py:119` `total_ms % 1000`). A generic library
-   should not impose `total_ms % 1000 == 0`; size the buffer to
-   `ceil(seconds) * sample_rate` and trim the tail. Even reshape stays valid by
-   rounding the half-buffer up. ~1-2 h. (Tracked in todo as the buffer-length
+4. **(Recommended, optional) Lift the 1-second buffer constraint.** The AI buffer
+   is still one second (`experiment_manager.py:549`, `samples_per_channel =
+   sample_rate`). The whole-second *duration* constraint (`total_ms % 1000 == 0`)
+   has already been lifted in mainline -- `finite_scan` collects whole
+   half-buffer chunks and trims to `total_samples_per_channel =
+   round(sample_rate * seconds)` (`experiment_manager.py:563`), so fractional
+   durations already work. The remaining library task is only the buffer
+   *sizing*: a generic library should size the buffer to `ceil(seconds) *
+   sample_rate` rather than assuming exactly one second. Even reshape stays valid
+   by rounding the half-buffer up. ~1-2 h. (Tracked in todo as the buffer-length
    item.)
 
 ## 7. Simple front to exercise the library
@@ -198,7 +201,8 @@ a smoke/demo front.
   default; realistic chip signals are a nanocal plug-in.
 - **Tests:** split the suite -- generic DAQ/acquisition/mock tests ship with the
   library; calibration/modulation/modes tests stay private. ~half the current
-  112 tests are library-side (DAQ, mock, acquisition, settings parsing).
+  suite is library-side (DAQ, mock, acquisition, settings parsing); see
+  `docs/tests-info.md` for the per-test breakdown.
 
 ## 9. Risks / open questions
 
