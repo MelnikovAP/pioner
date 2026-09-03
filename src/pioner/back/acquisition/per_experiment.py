@@ -99,18 +99,23 @@ class PerExperimentAIProvider(AIProvider):
             self._start_monitoring()
             logger.debug("Per-experiment provider: monitoring resumed after experiment")
 
+    def _stream_up(self) -> bool:
+        """Monitoring armed AND the ring worker is actually alive (see
+        :class:`PersistentAIProvider`)."""
+        return self._monitoring and self._em.ring_alive()
+
     def peek_last(self, samples: int) -> np.ndarray:
-        if not self._monitoring:
+        if not self._stream_up():
             return np.empty((0, 0), dtype=float)
         return self._em.peek_last_samples(samples)
 
     def read_new(self, consumer_id: str) -> np.ndarray:
-        if not self._monitoring:
+        if not self._stream_up():
             return np.empty((0, 0), dtype=float)
         return self._em.read_new_samples(consumer_id)
 
     def is_active(self) -> bool:
-        return self._monitoring
+        return self._stream_up()
 
     # ------------------------------------------------------------------
     # Internal lifecycle helpers

@@ -55,6 +55,7 @@ from pioner.shared.modulation import (
     fft_demodulate,
     lockin_demodulate,
 )
+from pioner.shared.constants import AO_BUFFER_MAX_BYTES, AO_BUFFER_WARN_BYTES
 from pioner.shared.settings import BackSettings, ExperimentLimits
 from pioner.shared.utils import temperature_to_voltage
 from pioner.back.daq_device import DaqDeviceHandler
@@ -658,6 +659,29 @@ class BaseMode(abc.ABC):
     # Voltage profile assembly (overridable by concrete modes)
     # ------------------------------------------------------------------
     def _build_profiles(self) -> Dict[str, np.ndarray]:
+        # AO host-buffer guard (fail-loud at arm): the interleaved AO buffer
+        # built at scan time covers the FULL AO channel range at float64, and
+        # there is no AO streaming / double-buffered refill -- a very long
+        # program at a high rate would exhaust host memory (the Pi especially)
+        # before the scan even starts. Checked here, before any profile array
+        # is materialised. IsoMode overrides this method (its AO buffer is at
+        # most one second, replayed CONTINUOUS), so long iso holds/programs
+        # are unaffected.
+        n_ao = max(1, self._settings.ao_params.channel_count())
+        est_bytes = self._samples_per_channel * n_ao * 8
+        if est_bytes > AO_BUFFER_MAX_BYTES:
+            raise ValueError(
+                f"AO buffer for this program would be ~{est_bytes / 2**20:.0f} MiB "
+                f"({self._samples_per_channel} samples x {n_ao} AO channels x 8 B), "
+                f"above the {AO_BUFFER_MAX_BYTES // 2**20} MiB limit -- there is "
+                "no AO streaming. Lower the sample rate or shorten the program."
+            )
+        if est_bytes > AO_BUFFER_WARN_BYTES:
+            logger.warning(
+                "AO buffer for this program is large: ~%.0f MiB (%d samples x "
+                "%d AO channels); expect slow arming and high RAM use.",
+                est_bytes / 2**20, self._samples_per_channel, n_ao,
+            )
         return {
             ch: _program_to_voltage(
                 program, self._samples_per_channel, self._calibration
@@ -1072,6 +1096,10 @@ class IsoMode(BaseMode):
         self._stop_event.clear()
 
         injected = em is not None
+        # Actual driver AI rate for the owned ring scan (P1-31/bring-up: may
+        # deviate from the nominal settings rate on real hardware). None on
+        # the injected path -- the caller owns the ring and its rate.
+        ring_rate: Optional[float] = None
         if not injected:
             em = ExperimentManager(self._daq, self._settings)
         try:
@@ -1083,7 +1111,9 @@ class IsoMode(BaseMode):
                 self._stop_event.wait(timeout=duration_seconds)
                 samples = snapshot() if snapshot is not None else np.empty((0, 0), dtype=float)
             else:
-                em.start_ring_buffer(self._ai_channels, max_seconds=self._ring_buffer_seconds)
+                ring_rate = em.start_ring_buffer(
+                    self._ai_channels, max_seconds=self._ring_buffer_seconds
+                )
                 # Block until either the timeout expires or stop() is called.
                 self._stop_event.wait(timeout=duration_seconds)
                 em.stop_ring_buffer()
@@ -1099,15 +1129,20 @@ class IsoMode(BaseMode):
             return pd.DataFrame(columns=["time", "Taux", "Thtr", "temp", "temp-hr"])
 
         raw_df = pd.DataFrame(samples, columns=self._ai_channels)
+        # Owned path: use the actual driver rate the ring scan reported;
+        # injected path: the caller's ring rate is not visible here, fall back
+        # to the nominal settings rate.
+        ai_rate = float(ring_rate) if ring_rate else float(
+            self._settings.ai_params.sample_rate
+        )
         df = apply_calibration(
             raw_df,
-            sample_rate=self._settings.ai_params.sample_rate,
+            sample_rate=ai_rate,
             calibration=self._calibration,
             voltage_profiles=self._voltage_profiles,
             ai_channels=self._ai_channels,
         )
         if params.lockin_capable and "temp-hr" in df.columns:
-            ai_rate = float(self._settings.ai_params.sample_rate)
             temp_hr = df["temp-hr"].to_numpy()
             # Time-domain lock-in: per-sample amp/phase trace. Useful for
             # visual diagnostics (settling, drift) even in iso mode.

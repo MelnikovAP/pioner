@@ -150,9 +150,15 @@ seamless. See §3.7c.
 │     a) AI armed first (CONTINUOUS), AO armed second (BLOCKIO);    │
 │        with hardware_trigger=True both pre-arm with EXTTRIGGER    │
 │        and fire_software_trigger() releases them on a shared t=0. │
+│        Fails fast BEFORE arming if the backend has no             │
+│        software-trigger primitive (real uldaq has none).          │
 │     b) _collect_finite_ai polls current_index at 1 ms cadence     │
 │        and copies each half-buffer into ``chunks: list[ndarray]`` │
 │        on flip; trims to seconds·sample_rate at the end.          │
+│        Overrun guard: if the driver's scan count runs a           │
+│        full buffer ahead of the collected count, raise            │
+│        (finally zeroes AO) -- never return a silently             │
+│        time-misaligned frame.                                     │
 │     c) AO scan_stop, AI scan_stop, return ScanResult(df, rates).  │
 │                                                                   │
 │   IsoMode AC → ao_modulated(profiles) + start_ring_buffer:        │
@@ -164,6 +170,10 @@ seamless. See §3.7c.
 │        ``AiRingBuffer`` thread that flips half-buffers into a     │
 │        bounded deque (default ring_buffer_seconds = 10 s, so up   │
 │        to 20 half-second chunks).                                 │
+│        start_ring_buffer returns the driver's ACTUAL AI           │
+│        rate (ring_ai_rate); a worker crash / driver stop          │
+│        flips ring_alive() False (providers report the             │
+│        stream down); overruns log ERROR + a counter.              │
 │     c) snapshot_ring_buffer() returns np.concatenate(deque).      │
 │                                                                   │
 │   IsoMode DC → ao_set(channel, V) + start_ring_buffer:            │

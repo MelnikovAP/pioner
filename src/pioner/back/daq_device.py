@@ -138,6 +138,18 @@ class DaqDeviceHandler:
     # ------------------------------------------------------------------
     # Hardware-trigger primitive (todo P0-5)
     # ------------------------------------------------------------------
+    def supports_software_trigger(self) -> bool:
+        """``True`` when the backend can fire :meth:`fire_software_trigger`.
+
+        The pure-Python mock implements the primitive; **real uldaq has no
+        such call** (releasing EXTTRIGGER-armed scans needs a DIO pulse into
+        the board's trigger input, which is not implemented). Callers that
+        arm with ``EXTTRIGGER`` must check this BEFORE arming, so a
+        misconfigured ``HardwareTrigger: true`` on real hardware fails fast
+        instead of leaving two scans gated on a trigger that can never fire.
+        """
+        return getattr(self._daq_device, "fire_software_trigger", None) is not None
+
     def fire_software_trigger(self) -> None:
         """Pulse the DAQ trigger line so both EXTTRIGGER-armed scans start.
 

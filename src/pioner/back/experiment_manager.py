@@ -100,6 +100,15 @@ class ExperimentManager:
         self._ring_lock = threading.Lock()
         self._ring_data: deque[np.ndarray] = deque()
         self._ring_max_seconds: float = 10.0
+        # Actual AI rate reported by the driver for the running ring scan
+        # (may differ slightly from the requested rate on real hardware).
+        # ``None`` when no ring scan is active. Consumers (time axis, lock-in,
+        # calibration) should prefer this over the nominal settings rate.
+        self._ring_ai_rate: Optional[float] = None
+        # Samples/channel the driver overwrote before the ring worker read
+        # them (half-buffer overrun), cumulative for the current ring session.
+        # 0 means no data loss detected. See ``_ring_loop``.
+        self._ring_overrun_samples: int = 0
         # Total samples ever appended to the ring buffer (monotonic counter,
         # incremented in ``_ring_loop``). Used as the cursor space for
         # ``read_new_samples``.
@@ -233,6 +242,17 @@ class ExperimentManager:
         #      ``N`` samples in ``apply_calibration``. Cheap but host-specific.
         triggered = bool(getattr(self._daq_device_handler._params,
                                   "hardware_trigger", False))
+        # Fail fast BEFORE arming: real uldaq has no software-trigger
+        # primitive (a DIO pulse into TTLTRG is not implemented), so arming
+        # both scans with EXTTRIGGER would gate them on a trigger that can
+        # never fire (todo P0-5).
+        if triggered and not self._daq_device_handler.supports_software_trigger():
+            raise RuntimeError(
+                "DAQ.HardwareTrigger is enabled but this backend has no "
+                "software-trigger primitive (real uldaq lacks one; the DIO "
+                "pulse into the trigger input is not implemented). Disable "
+                "HardwareTrigger in settings.json (see todo P0-5)."
+            )
         ao_options = ul.ScanOption.BLOCKIO
         ai_options = ul.ScanOption.DEFAULTIO if single_shot else ul.ScanOption.CONTINUOUS
         if triggered:
@@ -317,6 +337,15 @@ class ExperimentManager:
         ao_handler = self._ensure_ao_handler()
         triggered = bool(getattr(self._daq_device_handler._params,
                                   "hardware_trigger", False))
+        # Same fail-fast as ``finite_scan``: never arm EXTTRIGGER without a
+        # working trigger primitive (todo P0-5).
+        if triggered and not self._daq_device_handler.supports_software_trigger():
+            raise RuntimeError(
+                "DAQ.HardwareTrigger is enabled but this backend has no "
+                "software-trigger primitive (real uldaq lacks one; the DIO "
+                "pulse into the trigger input is not implemented). Disable "
+                "HardwareTrigger in settings.json (see todo P0-5)."
+            )
         ao_options = ul.ScanOption.CONTINUOUS
         if triggered:
             ao_options |= ul.ScanOption.EXTTRIGGER
@@ -334,13 +363,19 @@ class ExperimentManager:
         self,
         ai_channels: Sequence[int],
         max_seconds: float = 10.0,
-    ) -> None:
+    ) -> float:
         """Start streaming AI into a background ring buffer.
 
         ``ai_channels`` is the subset to retain. ``max_seconds`` is the depth
         of history kept in memory; older samples are dropped as new ones
         arrive. Use :meth:`snapshot_ring_buffer` to read the latest samples,
         and :meth:`stop_ring_buffer` to stop the worker thread.
+
+        Returns the **actual** AI sample rate reported by the driver (may
+        differ slightly from the requested rate on real hardware); also
+        exposed as :attr:`ring_ai_rate` while the ring is running. Consumers
+        must use it -- not the nominal settings rate -- for the time axis and
+        the lock-in reference, or the phase drifts over long scans.
         """
         if self._ring_thread is not None and self._ring_thread.is_alive():
             raise RuntimeError("Ring buffer is already running")
@@ -365,7 +400,7 @@ class ExperimentManager:
         self._ai_params.options = ai_options
         ai_handler = self._ensure_ai_handler(self._ai_params.sample_rate)
         ai_handler.stop()
-        ai_handler.scan(self._ai_buffer_samples_per_channel)
+        actual_rate = float(ai_handler.scan(self._ai_buffer_samples_per_channel))
         if ao_triggered:
             self._daq_device_handler.fire_software_trigger()
 
@@ -376,6 +411,8 @@ class ExperimentManager:
             # consumer cursors from a previous session.
             self._ring_total_samples = 0
             self._ring_cursors.clear()
+        self._ring_ai_rate = actual_rate
+        self._ring_overrun_samples = 0
         self._ring_stop.clear()
         self._ring_thread = threading.Thread(
             target=self._ring_loop,
@@ -384,14 +421,32 @@ class ExperimentManager:
             daemon=True,
         )
         self._ring_thread.start()
+        return actual_rate
 
     def stop_ring_buffer(self) -> None:
         self._ring_stop.set()
         if self._ring_thread is not None:
             self._ring_thread.join(timeout=2.0)
             self._ring_thread = None
+        self._ring_ai_rate = None
         if self._ai_handler is not None:
             self._ai_handler.stop()
+
+    @property
+    def ring_ai_rate(self) -> Optional[float]:
+        """Actual AI rate of the running ring scan; ``None`` when not running."""
+        return self._ring_ai_rate
+
+    def ring_alive(self) -> bool:
+        """``True`` while the ring worker thread is actually running.
+
+        Distinguishes a live stream from a dead one: the worker exits when the
+        driver stops (underrun) or crashes on an exception, and the providers
+        gate ``is_active`` / ``peek`` / ``read_new`` on this so the GUI sees a
+        dead stream instead of silently re-reading stale ring data forever.
+        """
+        t = self._ring_thread
+        return t is not None and t.is_alive()
 
     def snapshot_ring_buffer(self) -> np.ndarray:
         """Return a copy of all samples currently held in the ring buffer."""
@@ -607,6 +662,29 @@ class ExperimentManager:
                 break
             current_index = transfer.current_index
 
+            # Half-buffer integrity (fail-loud): the driver's monotonic
+            # per-channel sample counter says how far the writer really got.
+            # The buffer holds ``samples_per_channel``, so the oldest
+            # uncollected sample (index ``collected``) is overwritten exactly
+            # when the writer passes ``collected + samples_per_channel`` --
+            # i.e. the host stalled longer than the buffer depth and the frame
+            # would be silently time-misaligned. Abort instead (the finally in
+            # ``finite_scan`` zeroes AO). If the counter is absent or wrapped
+            # (< collected) it cannot be trusted and the check is skipped;
+            # confirm real-uldaq counter semantics at bring-up (P1-28).
+            scan_count = getattr(transfer, "current_scan_count", None)
+            if (scan_count is not None
+                    and scan_count > collected + samples_per_channel):
+                lost = scan_count - samples_per_channel - collected
+                raise RuntimeError(
+                    f"AI half-buffer overrun: driver wrote {scan_count} "
+                    f"samples/channel but only {collected} were collected "
+                    f"(buffer holds {samples_per_channel}); ~{lost} "
+                    "samples/channel were overwritten unread. The host "
+                    "stalled longer than the buffer depth; aborting the scan "
+                    "instead of returning a time-misaligned frame."
+                )
+
             # writer just crossed half-buffer boundary upwards:
             # lower half is now complete and safe to copy.
             if (
@@ -749,51 +827,84 @@ class ExperimentManager:
         lower_half_collected = False
         upper_half_collected = False
         appended = 0  # half-buffer chunks copied during this ring session
+        lost_logged = 0
         driver_stopped = False
 
-        while not self._ring_stop.is_set():
-            ai_status, transfer = ai_handler.status()
-            if ai_status != ul.ScanStatus.RUNNING:
-                driver_stopped = True
-                break
-            current_index = transfer.current_index
+        # The whole loop is guarded: an unhandled exception (e.g. a ULError
+        # from ``status()``) used to kill this daemon thread silently while
+        # the providers kept reporting an active stream serving stale ring
+        # data. Now the crash is logged and ``ring_alive()`` -- which the
+        # providers gate on -- turns False, so the GUI sees the stream die.
+        try:
+            while not self._ring_stop.is_set():
+                ai_status, transfer = ai_handler.status()
+                if ai_status != ul.ScanStatus.RUNNING:
+                    driver_stopped = True
+                    break
+                current_index = transfer.current_index
 
-            chunk: Optional[np.ndarray] = None
-            if (
-                not lower_half_collected
-                and current_index >= half_buf_len
-                and last_index < half_buf_len
-            ):
-                chunk = (
-                    np.asarray(buf[:half_buf_len], dtype=float)
-                    .reshape(half_per_channel, n_ai_chans)[:, keep_indices]
-                    .copy()
-                )
-                lower_half_collected = True
-                upper_half_collected = False
-            elif (
-                not upper_half_collected
-                and current_index < last_index
-                and last_index >= half_buf_len
-            ):
-                chunk = (
-                    np.asarray(buf[half_buf_len:], dtype=float)
-                    .reshape(half_per_channel, n_ai_chans)[:, keep_indices]
-                    .copy()
-                )
-                upper_half_collected = True
-                lower_half_collected = False
+                # Driver-side overrun detection (same criterion as
+                # ``_collect_finite_ai``): samples older than one buffer
+                # behind the writer are overwritten. The live view tolerates
+                # a gap, but a DiskRecorder capture in progress is corrupted
+                # by it -- log loudly and keep a counter. Skipped when the
+                # counter is absent or wrapped (cannot be trusted).
+                scan_count = getattr(transfer, "current_scan_count", None)
+                if scan_count is not None:
+                    lost = scan_count - samples_per_channel - appended
+                    if lost > lost_logged:
+                        self._ring_overrun_samples = int(lost)
+                        logger.error(
+                            "AI ring overrun: ~%d samples/channel overwritten "
+                            "unread (driver at %d, appended %d, buffer %d). "
+                            "Any recording in progress has a gap.",
+                            lost, scan_count, appended, samples_per_channel,
+                        )
+                        lost_logged = lost
 
-            if chunk is not None:
-                appended += int(chunk.shape[0])
-                with self._ring_lock:
-                    self._ring_data.append(chunk)
-                    self._ring_total_samples += int(chunk.shape[0])
-                    while len(self._ring_data) > max_chunks:
-                        self._ring_data.popleft()
+                chunk: Optional[np.ndarray] = None
+                if (
+                    not lower_half_collected
+                    and current_index >= half_buf_len
+                    and last_index < half_buf_len
+                ):
+                    chunk = (
+                        np.asarray(buf[:half_buf_len], dtype=float)
+                        .reshape(half_per_channel, n_ai_chans)[:, keep_indices]
+                        .copy()
+                    )
+                    lower_half_collected = True
+                    upper_half_collected = False
+                elif (
+                    not upper_half_collected
+                    and current_index < last_index
+                    and last_index >= half_buf_len
+                ):
+                    chunk = (
+                        np.asarray(buf[half_buf_len:], dtype=float)
+                        .reshape(half_per_channel, n_ai_chans)[:, keep_indices]
+                        .copy()
+                    )
+                    upper_half_collected = True
+                    lower_half_collected = False
 
-            last_index = current_index
-            time.sleep(0.001)
+                if chunk is not None:
+                    appended += int(chunk.shape[0])
+                    with self._ring_lock:
+                        self._ring_data.append(chunk)
+                        self._ring_total_samples += int(chunk.shape[0])
+                        while len(self._ring_data) > max_chunks:
+                            self._ring_data.popleft()
+
+                last_index = current_index
+                time.sleep(0.001)
+        except Exception:
+            logger.exception(
+                "Ring buffer worker CRASHED after %d samples per channel; "
+                "the live AI stream is down (is_streaming() now reports False)",
+                appended,
+            )
+            return
 
         # Observability: a clean stop exits because ``_ring_stop`` was set; an
         # unexpected exit (driver no longer RUNNING) usually means an underrun.

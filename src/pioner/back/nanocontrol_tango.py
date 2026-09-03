@@ -194,6 +194,15 @@ class NanoControl(Device):  # type: ignore[misc]
                 f"sample rate must be an even integer in [2, {MAX_SCAN_SAMPLE_RATE}], "
                 f"got {scan_rate}"
             )
+        # USB-2637's 1,000 kS/s hardware-paced ceiling is AGGREGATE across the
+        # scanned channels (one muxed ADC; specs/USB-2637.pdf p. 14).
+        n_chans = max(1, self._settings.ai_params.channel_count())
+        if rate * n_chans > MAX_SCAN_SAMPLE_RATE:
+            raise ValueError(
+                f"sample rate {rate} Hz x {n_chans} AI channels exceeds the "
+                f"board's aggregate ceiling {MAX_SCAN_SAMPLE_RATE} S/s "
+                f"(max per-channel rate here: {MAX_SCAN_SAMPLE_RATE // n_chans} Hz)"
+            )
         self._settings.ai_params.sample_rate = rate
         self._settings.ao_params.sample_rate = rate
         logger.info("Sample rate set to %d Hz", rate)

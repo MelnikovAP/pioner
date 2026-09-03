@@ -54,9 +54,23 @@ class PersistentAIProvider(AIProvider):
     def mode(self) -> AcquisitionMode:
         return AcquisitionMode.PERSISTENT
 
+    def _stream_up(self) -> bool:
+        """Provider armed AND the ring worker thread is actually alive.
+
+        The worker exits on a driver stop or crashes on an exception; gating
+        every read on ``ring_alive()`` makes a dead stream visible (empty
+        reads, ``is_active() == False``) instead of serving stale ring data
+        behind a stuck ``_active`` flag.
+        """
+        return self._active and self._em.ring_alive()
+
     def on_connect(self, ai_channels: Sequence[int]) -> None:
-        """Arm the persistent AI scan immediately after DAQ open."""
-        if self._active:
+        """Arm the persistent AI scan immediately after DAQ open.
+
+        A dead worker (``_active`` set but the thread gone) does not block a
+        re-arm: connect restarts the stream.
+        """
+        if self._stream_up():
             logger.warning("PersistentAIProvider.on_connect called while already active; ignoring")
             return
         self._ai_channels = list(ai_channels)
@@ -94,17 +108,17 @@ class PersistentAIProvider(AIProvider):
         return None
 
     def peek_last(self, samples: int) -> np.ndarray:
-        if not self._active:
+        if not self._stream_up():
             return np.empty((0, 0), dtype=float)
         return self._em.peek_last_samples(samples)
 
     def read_new(self, consumer_id: str) -> np.ndarray:
-        if not self._active:
+        if not self._stream_up():
             return np.empty((0, 0), dtype=float)
         return self._em.read_new_samples(consumer_id)
 
     def is_active(self) -> bool:
-        return self._active
+        return self._stream_up()
 
 
 __all__ = ["PersistentAIProvider"]

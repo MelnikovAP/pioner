@@ -2,7 +2,23 @@ from os import path
 
 # Common constants
 # =================================================================================
+# USB-2637 hardware-paced ceiling: "The maximum sampling rate in hardware
+# paced mode from one to 64 channels is 1,000 kS/s, max" (User's Guide ch. 4,
+# "Hardware paced", specs/USB-2637.pdf p. 14). One muxed ADC -> this is the
+# AGGREGATE budget across channels: validate ``rate * n_channels`` against it,
+# not the per-channel rate alone.
 MAX_SCAN_SAMPLE_RATE = 1000000
+
+# AO host-buffer guards (fail-loud at arm). The interleaved AO buffer is
+# materialised in RAM in full (float64) -- there is no AO streaming /
+# double-buffered refill -- so a very long program at a high rate would
+# exhaust host memory (Raspberry Pi especially) before the scan starts.
+# Iso is exempt: its AO buffer is at most one second (CONTINUOUS replay).
+# The physics limits keep real programs far below the cap (slow: <= ~2000 s
+# at 2 kHz ~= 128 MiB); revisit if AO streaming ever lands.
+AO_BUFFER_WARN_BYTES = 64 * 2**20    # warn: unusually large program
+AO_BUFFER_MAX_BYTES = 512 * 2**20    # reject: would not survive on the Pi
+
 JSON_EXTENSION = "json"
 H5_EXTENSION = "h5"
 

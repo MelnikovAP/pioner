@@ -96,7 +96,8 @@ provenance is known and a bench re-check of C_p is scheduled.
 `src/pioner/back/daq_device.py` (`DaqParams.hardware_trigger`,
 `fire_software_trigger`).
 
-**Status:** the trigger primitive is implemented and mock-tested (see
+**Status:** the trigger primitive is implemented **in the mock backend only**
+and mock-tested (see
 `tests/test_modes_e2e.py::test_fast_mode_with_hardware_trigger_runs_clean`).
 Both AO and AI pre-arm with `ScanOption.EXTTRIGGER` when
 `BackSettings.daq_params.hardware_trigger=True`, and a single
@@ -133,6 +134,14 @@ restoring the natural arm=prime / start=fire model and removing the leading-edge
 latency window. See [docs/live-streaming.md](docs/live-streaming.md) for the
 arm/start workflow design.
 
+**Fail-fast landed (2026-09-03):** real uldaq has **no** software-trigger
+primitive (`fire_software_trigger` is mock-only; releasing EXTTRIGGER-armed
+scans on real hardware would need a DIO pulse into the trigger input, not
+implemented). `finite_scan` / `ao_modulated` now check
+`DaqDeviceHandler.supports_software_trigger()` and raise BEFORE arming, so
+`HardwareTrigger: true` on a real board fails loud instead of hanging two
+gated scans.
+
 **Open:** if/when skew matters, implement the software offset-trim. (The
 `EXTTRIGGER` loopback validation only applies if a trigger line is ever added.)
 Drive a 1 kHz square wave on AO ch1, read it back on AI ch1, find the leading
@@ -160,11 +169,14 @@ as deprecated aliases that log a warning when used.
 **Where:** `src/pioner/back/experiment_manager.py:240-254`
 
 **What:** `ai_handler.scan(...)` returns the rate but does not assert that
-the scan actually started. The worker thread immediately sees
-`ScanStatus != RUNNING` and exits silently; `snapshot_ring_buffer()`
-returns an empty array with no explanation.
+the scan actually started.
 
-**Action:** after `ai_handler.scan(...)`, poll up to ~100 ms for
+**Partially closed (2026-09-03):** the *silent* part is fixed -- a worker that
+exits (driver stopped) or crashes now logs WARNING/ERROR and the providers
+gate `is_active()` / `peek` / `read_new` on `ExperimentManager.ring_alive()`,
+so a dead stream reads as down instead of serving stale data.
+
+**Remaining:** after `ai_handler.scan(...)`, poll up to ~100 ms for
 `get_scan_status()[0] == RUNNING`. Raise `RuntimeError` on timeout.
 
 ### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
@@ -285,6 +297,13 @@ inflate file size linearly (50 kHz x 6 ch x 8 B = 2.4 MB/s sustained
 vs current ~1 MB/s at 20 kHz). Idea: dynamic per-segment rate (fine
 resolution during transient, coarse during isothermal hold) to keep
 files manageable.
+
+**Board-limit validation landed (2026-09-03):** the USB-2637 hardware ceiling
+(1,000 kS/s **aggregate** across scanned channels, User's Guide ch. 4 /
+specs/USB-2637.pdf p. 14) is now enforced in
+`LocalDeviceController._validate_rate` and the Tango `set_sample_scan_rate`
+(`rate * n_AI_channels <= MAX_SCAN_SAMPLE_RATE`). The softer *production*
+ceiling below remains open.
 
 **Action:** (a) Document a hard sample-rate ceiling — default suggestion
 50 kHz, capped in settings validator. (b) Investigate dynamic
@@ -475,7 +494,12 @@ mock for whole + fractional seconds.
 - **Slow-heat + live streaming stay on the `CONTINUOUS` one-second half-flip
   path** (`_collect_finite_ai` / `_ring_loop`) -- same risk class at 20 kHz x 6
   ch. Decide whether to move slow to single-shot too, or document a sample-rate
-  ceiling for the streaming paths.
+  ceiling for the streaming paths. **Mitigated (2026-09-03): the overwrite is
+  no longer silent** -- both loops compare the driver's `current_scan_count`
+  against the collected count; a finite scan aborts fail-loud (AO zeroed) and
+  the ring logs an ERROR + counts the gap (`_ring_overrun_samples`). Confirm
+  the real-uldaq `current_scan_count` semantics (monotonic per-channel) at
+  bring-up -- the check skips itself if the counter is absent or wrapped.
 - **Hardware validation:** the mock cannot reproduce `ULError.OVERRUN`, so the
   fast-heat fix and the slow/live margin must be confirmed on the real board
   (20 kHz x 6 ch x 3 s, bare metal and VM). The B3 sample-count logging

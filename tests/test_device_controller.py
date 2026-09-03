@@ -531,3 +531,89 @@ def test_streaming_run_zeroes_heater_on_exception(local_controller, monkeypatch)
     with pytest.raises(RuntimeError, match="mid-run failure"):
         local_controller.run()
     assert _ao_shared(local_controller).iso_voltages.get(1) == 0.0
+
+
+def test_ai_sample_rate_prefers_actual_ring_rate(monkeypatch):
+    """The time-axis/demod rate is the driver-reported ACTUAL ring rate.
+
+    On real hardware the pacer can deviate from the requested rate; using the
+    nominal settings value would skew the time axis and drift the lock-in
+    phase. Simulated by skewing what ``AiDeviceHandler.scan`` reports.
+    """
+    from pioner.back.ai_device import AiDeviceHandler
+
+    orig = AiDeviceHandler.scan
+    monkeypatch.setattr(
+        AiDeviceHandler, "scan",
+        lambda self, samples_per_channel=None: orig(self, samples_per_channel) + 2.0,
+    )
+    settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    controller = LocalDeviceController(settings, ring_max_seconds=2.0)
+    controller.connect()
+    nominal = float(settings.ai_params.sample_rate)
+    try:
+        assert controller.ai_sample_rate == nominal + 2.0
+    finally:
+        controller.disconnect()
+    # No ring after disconnect -> falls back to the nominal settings rate.
+    assert controller.ai_sample_rate == nominal
+
+
+def test_ring_worker_death_is_visible(local_controller, monkeypatch):
+    """A crashed ring worker must surface as a dead stream, not stale data.
+
+    Regression: an exception in the worker (e.g. a ULError from
+    ``get_scan_status``) used to kill the thread while ``is_streaming()``
+    stayed True and ``peek_last`` served the last ring contents forever.
+    """
+    _wait_for_stream(local_controller)
+    assert local_controller.is_streaming()
+
+    dev = local_controller._daq.get_ai_device()
+
+    def raiser(*args, **kwargs):
+        raise RuntimeError("driver blew up")
+
+    monkeypatch.setattr(dev, "get_scan_status", raiser)
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline and local_controller.is_streaming():
+        time.sleep(0.02)
+    assert not local_controller.is_streaming(), "dead worker still reported active"
+    assert local_controller.peek_last(100).size == 0, "stale data served after crash"
+
+
+def test_override_rate_rejects_aggregate_overflow(local_controller):
+    """USB-2637's 1 MS/s hardware-paced ceiling is aggregate across channels:
+    200 kHz x 6 AI channels = 1.2 MS/s must be rejected even though the
+    per-channel rate alone is within the board maximum."""
+    with pytest.raises(ValueError, match="aggregate"):
+        local_controller.override_mode_rate("slow", 200_000)
+
+
+def test_atexit_backstop_registration_and_zero(monkeypatch):
+    """connect() arms an atexit hook that zeroes AO; disconnect() removes it."""
+    from types import SimpleNamespace
+
+    import pioner.back.device_controller as dc
+
+    calls = {"reg": [], "unreg": []}
+    monkeypatch.setattr(
+        dc, "atexit",
+        SimpleNamespace(register=calls["reg"].append, unregister=calls["unreg"].append),
+    )
+    settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    controller = LocalDeviceController(settings)
+    controller.connect()
+    try:
+        assert calls["reg"] == [controller._emergency_zero]
+        # Simulate an exit while connected: the hook zeroes the latched drive.
+        controller._em.ao_set(1, 0.5)
+        shared = _ao_shared(controller)
+        assert shared.iso_voltages.get(1) == 0.5
+        controller._emergency_zero()
+        assert shared.iso_voltages.get(1) == 0.0
+    finally:
+        controller.disconnect()
+    assert calls["unreg"] == [controller._emergency_zero]

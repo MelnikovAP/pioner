@@ -743,3 +743,93 @@ def test_finite_scan_zeroes_ao_on_collect_exception(connected_daq, settings, mon
     for ch in range(settings.ao_params.low_channel,
                     settings.ao_params.high_channel + 1):
         assert shared.iso_voltages.get(ch) == 0.0, f"AO ch{ch} not zeroed"
+
+
+def test_finite_scan_rejects_trigger_without_primitive(
+    connected_daq, settings, monkeypatch
+):
+    """HardwareTrigger without a software-trigger primitive fails fast (P0-5).
+
+    Real uldaq has no ``fire_software_trigger``; arming both scans with
+    EXTTRIGGER would gate them on a trigger that can never fire. The check
+    must reject BEFORE any scan is armed.
+    """
+    from pioner.back.experiment_manager import ExperimentManager
+    from pioner.back.mock_uldaq import uldaq as ul
+
+    settings.daq_params.hardware_trigger = True
+    monkeypatch.setattr(connected_daq, "supports_software_trigger", lambda: False)
+
+    em = ExperimentManager(connected_daq, settings)
+    n = settings.ao_params.sample_rate
+    with pytest.raises(RuntimeError, match="software-trigger"):
+        em.finite_scan({"ch1": np.full(n, 0.5)}, list(DEFAULT_AI_CHANNELS), seconds=1.0)
+    # Nothing was armed: no AI scan left gated/running.
+    assert connected_daq.get_ai_device().get_scan_status()[0] == ul.ScanStatus.IDLE
+
+
+def test_finite_scan_aborts_on_half_buffer_overrun(connected_daq, settings):
+    """A driver that lapped the collector by a full buffer aborts fail-loud.
+
+    A missed half means the frame is silently time-misaligned; the integrity
+    check (driver scan count vs collected count) raises instead, and the
+    ``finally`` in ``finite_scan`` drives AO to 0 (heater safety).
+    """
+    from types import SimpleNamespace
+
+    from pioner.back.experiment_manager import ExperimentManager
+    from pioner.back.mock_uldaq import uldaq as ul
+
+    rate = settings.ai_params.sample_rate
+    n_chans = settings.ai_params.channel_count()
+
+    class OverrunStubAI:
+        samples_per_channel = rate
+
+        def allocate_buffer(self, spc):
+            self.samples_per_channel = spc
+
+        def stop(self):
+            pass
+
+        def scan(self, spc=None):
+            return float(rate)
+
+        def status(self):
+            # Writer claims 10 buffers' worth while nothing was collected.
+            return ul.ScanStatus.RUNNING, SimpleNamespace(
+                current_index=0, current_scan_count=10 * rate,
+            )
+
+        def get_buffer(self):
+            return [0.0] * (rate * n_chans)
+
+    em = ExperimentManager(connected_daq, settings)
+    em._ai_handler = OverrunStubAI()
+    with pytest.raises(RuntimeError, match="half-buffer overrun"):
+        em.finite_scan({"ch1": np.full(rate, 2.0)}, list(DEFAULT_AI_CHANNELS), seconds=1.0)
+
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, "heater not zeroed on overrun abort"
+
+
+def test_arm_rejects_oversized_ao_buffer(connected_daq, settings, calibration):
+    """A program whose AO buffer would not fit in RAM is rejected at arm.
+
+    There is no AO streaming: the interleaved buffer is materialised in full,
+    so a 9000 s program at 2 kHz x 4 AO channels (~550 MiB) must fail loud
+    before any profile array is allocated.
+    """
+    programs = {"ch1": {"time": [0, 9_000_000], "volt": [0, 1]}}
+    mode = FastHeat(connected_daq, settings, calibration, programs)
+    with pytest.raises(ValueError, match="AO buffer"):
+        mode.arm()
+
+
+def test_iso_arm_allows_long_program(connected_daq, settings, calibration):
+    """IsoMode is exempt from the AO-buffer cap: its AO buffer is at most one
+    second (CONTINUOUS replay), so multi-hour iso programs must still arm."""
+    programs = {"ch1": {"time": [0, 9_000_000], "volt": [0.2, 0.2]}}
+    mode = IsoMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    assert mode.is_armed()

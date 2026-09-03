@@ -265,7 +265,19 @@ Buffer-side details:
   sample_rate`). Both halves are filled by the driver in turn; the reader
   detects the half-flip via `current_index` and copies whichever half has
   just become stable. This gives 0.5 s of jitter tolerance for the polling
-  thread.
+  thread. **Integrity is checked against the driver's scan count**: if the
+  host stalls longer than the buffer depth and a half is overwritten unread,
+  a finite scan **aborts fail-loud** (AO zeroed) instead of returning a
+  silently time-misaligned frame; the persistent ring logs an ERROR and
+  counts the gap (`_ring_overrun_samples`).
+* The driver-reported **actual** AI rate (which can deviate slightly from the
+  requested rate on real hardware) is what feeds the time axis, calibration,
+  and lock-in: `finite_scan` returns it in `ScanResult.ai_rate`, and the
+  persistent ring exposes it as `ExperimentManager.ring_ai_rate` /
+  `DeviceController.ai_sample_rate`.
+* A crashed or driver-stopped ring worker is **visible**: the providers gate
+  `is_streaming()` / `peek` / `read_new` on the worker thread being alive, so
+  a dead stream reads as down instead of serving stale ring data forever.
 * Both AO and AI scans are stopped explicitly via `scan_stop`. The mock
   backend exposes a `threading.Event`-based stop so the iso ring-buffer
   thread joins cleanly within ~10 ms.
@@ -291,8 +303,11 @@ These hold across the back-end; breaking one usually produces numbers that
   `{Default, Fast, Slow, Iso}` (default 2 kHz monitor, fast 20 kHz, slow/iso
   2 kHz); a bare int still works (same rate for all). Arming a mode applies its
   rate; the GUI's single rate field shows the selected mode's rate and an
-  **Apply** press confirms it (arming is blocked until then). Odd or
-  sub-Nyquist (`rate <= 2*f_mod`) rates are rejected.
+  **Apply** press confirms it (arming is blocked until then). Odd,
+  sub-Nyquist (`rate <= 2*f_mod`), or over-budget rates are rejected: the
+  USB-2637 hardware-paced ceiling of 1,000 kS/s is **aggregate across all
+  scanned channels** (one muxed ADC; User's Guide ch. 4, specs/USB-2637.pdf
+  p. 14), so `rate x n_AI_channels` must fit `MAX_SCAN_SAMPLE_RATE`.
 * **AO and AI MUST share one sample rate / clock domain** -- they are always
   set equal; the pipeline assumes a single clock, so an AO != AI rate is a bug,
   not a supported configuration. Any rate change sets both at once.
@@ -313,7 +328,14 @@ These hold across the back-end; breaking one usually produces numbers that
 * **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
   sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
 * **Start order is AI then AO** so the AO leading edge is not missed (without a
-  hardware trigger there is a small ~100 us start skew -- todo P0-5).
+  hardware trigger there is a small ~100 us start skew -- todo P0-5). Enabling
+  `DAQ.HardwareTrigger` on a backend without a software-trigger primitive
+  (real uldaq has none) **fails fast at scan setup**, before any scan is
+  armed, instead of gating both scans on a trigger that can never fire.
+* **AO buffers are size-capped at arm**: the interleaved AO buffer is built in
+  RAM in full (no AO streaming), so fast/slow programs whose buffer would
+  exceed `AO_BUFFER_MAX_BYTES` (512 MiB) are rejected fail-loud (warning above
+  64 MiB). Iso is exempt -- its AO buffer is at most one second.
 
 ---
 
@@ -425,8 +447,11 @@ numbered per-test index.
   `ScanOption.EXTTRIGGER` and a single `fire_software_trigger` releases
   them on a shared t=0. It is now settings-driven -- set
   `DAQ.HardwareTrigger: true` in `settings.json` to enable it without a code
-  edit. It is mock-tested; real-hardware loopback validation is still pending
-  (todo P0-5, see [docs/hardware-bringup.md](docs/hardware-bringup.md)).
+  edit. **Mock-only for now**: real uldaq has no software-trigger primitive
+  (releasing the scans would need a DIO pulse into the trigger input, not yet
+  implemented), so enabling the flag on real hardware fails fast at scan
+  setup instead of hanging two gated scans (todo P0-5, see
+  [docs/hardware-bringup.md](docs/hardware-bringup.md)).
 * **GUI mode selection (fast / slow / iso).** The main window has a
   `Mode` combo: fast and slow share the ramp-table editor (slow layers AC
   modulation in the backend), iso uses the Set/Off controls. The GUI talks

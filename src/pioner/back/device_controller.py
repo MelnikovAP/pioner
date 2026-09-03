@@ -30,6 +30,7 @@ readable.
 from __future__ import annotations
 
 import abc
+import atexit
 import json
 import logging
 import os
@@ -55,6 +56,7 @@ from pioner.shared.constants import (
     CALIBRATION_FILE_REL_PATH,
     DEFAULT_CALIBRATION_FILE_REL_PATH,
     EXP_DATA_FILE_REL_PATH,
+    MAX_SCAN_SAMPLE_RATE,
 )
 from pioner.shared.settings import BackSettings
 
@@ -322,6 +324,11 @@ class LocalDeviceController(DeviceController):
         # Default to the bundled calibration so derived live values
         # (R, I, T) are computable immediately after connect.
         self.apply_default_calibration()
+        # Last-resort heater safety: if the process exits while connected
+        # (unhandled exception unwinding the GUI, sys.exit, ...), drive AO to
+        # 0 V on the way out. Unregistered again on a clean disconnect.
+        # Cannot cover SIGKILL / hard crashes -- real bring-up stays attended.
+        atexit.register(self._emergency_zero)
         logger.info("LocalDeviceController connected (channels=%s)", self._ai_channels)
 
     def disconnect(self) -> None:
@@ -353,7 +360,26 @@ class LocalDeviceController(DeviceController):
         self._daq = None
         self._mode = None
         self._iso_holding = False
+        # Clean shutdown already zeroed AO above; drop the exit hook.
+        atexit.unregister(self._emergency_zero)
         logger.info("LocalDeviceController disconnected")
+
+    def _emergency_zero(self) -> None:
+        """``atexit`` hook: drive AO to 0 V if the process exits while connected.
+
+        Best-effort backstop for exits that never reach ``disconnect()`` (an
+        unhandled exception tearing down the GUI, ``sys.exit``). Must never
+        raise -- it runs during interpreter shutdown.
+        """
+        try:
+            if self._em is not None:
+                self._em.zero_ao()
+                logger.warning(
+                    "Process exited while connected: AO driven to 0 V by the "
+                    "atexit backstop (disconnect() was never called)"
+                )
+        except Exception:
+            logger.exception("Emergency AO zero at exit failed")
 
     def is_connected(self) -> bool:
         return self._daq is not None and self._daq.is_connected()
@@ -388,12 +414,24 @@ class LocalDeviceController(DeviceController):
         - even (the persistent ring and the slow/iso CONTINUOUS path both use
           the 1 s half-buffer flip, which needs an even length);
         - above the lock-in Nyquist (``f_mod < rate / 2``) whenever AC
-          modulation is configured.
+          modulation is configured;
+        - within the board's hardware-paced budget: USB-2637 tops out at
+          1,000 kS/s **aggregate** across all scanned channels (one muxed ADC;
+          User's Guide ch. 4, specs/USB-2637.pdf p. 14), so the per-channel
+          rate times the AI channel count must fit ``MAX_SCAN_SAMPLE_RATE``.
         """
         if rate <= 0:
             raise ValueError(f"sample rate must be positive, got {rate}")
         if rate % 2 != 0:
             raise ValueError(f"sample rate must be even (half-buffer flip), got {rate}")
+        n_chans = max(1, self._settings.ai_params.channel_count())
+        if rate * n_chans > MAX_SCAN_SAMPLE_RATE:
+            raise ValueError(
+                f"sample rate {rate} Hz x {n_chans} AI channels = "
+                f"{rate * n_chans} S/s exceeds the board's aggregate ceiling "
+                f"{MAX_SCAN_SAMPLE_RATE} S/s (USB-2637 hardware-paced max, "
+                f"max per-channel rate here: {MAX_SCAN_SAMPLE_RATE // n_chans} Hz)"
+            )
         f_mod = float(getattr(self._settings.modulation, "frequency", 0.0) or 0.0)
         if f_mod > 0 and rate <= 2 * f_mod:
             raise ValueError(
@@ -585,7 +623,9 @@ class LocalDeviceController(DeviceController):
         mark = recorder.mark_index or 0
         summary = finalize_raw_to_h5(
             raw_path, cal_path,
-            sample_rate=float(self._settings.ai_params.sample_rate),
+            # Actual driver rate of the (still-running) ring the recorder
+            # drained, not the nominal settings rate.
+            sample_rate=self.ai_sample_rate,
             calibration=self._calibration,
             settings=self._settings,
             voltage_profiles=self._mode.voltage_profiles,
@@ -671,6 +711,16 @@ class LocalDeviceController(DeviceController):
 
     @property
     def ai_sample_rate(self) -> float:
+        """AI rate for time axes / demod: the driver-reported **actual** rate
+        of the running ring scan when available, else the nominal settings
+        rate. On real hardware the pacer can deviate slightly from the
+        request; using the nominal value would skew the time axis and drift
+        the lock-in phase over long captures."""
+        em = self._em
+        if em is not None:
+            actual = em.ring_ai_rate
+            if actual:
+                return float(actual)
         return float(self._settings.ai_params.sample_rate)
 
     @property
@@ -854,7 +904,7 @@ class LocalDeviceController(DeviceController):
         raw_df = pd.DataFrame(raw, columns=list(range(raw.shape[1])))
         return apply_calibration(
             raw_df,
-            float(self._settings.ai_params.sample_rate),
+            self.ai_sample_rate,
             self._calibration,
             {},
             ai_channels=self._ai_channels or list(range(raw.shape[1])),

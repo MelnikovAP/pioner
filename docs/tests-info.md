@@ -1,6 +1,6 @@
 # PIONER test suite - canonical index
 
-**268 collected test cases** across **16 test files** (255 test functions;
+**276 collected test cases** across **16 test files** (263 test functions;
 parametrized functions expand to several cases each). This file is the **single
 source of truth for the test count** - other docs link here instead of
 repeating the number.
@@ -9,7 +9,7 @@ Run the suite / regenerate the numbers:
 
 ```bash
 PYTHONPATH=src .venv/bin/pytest -q                              # full run (~55 s, mock backend)
-PYTHONPATH=src .venv/bin/pytest tests/ --collect-only -q | grep -c ::   # 268 (collected cases)
+PYTHONPATH=src .venv/bin/pytest tests/ --collect-only -q | grep -c ::   # 276 (collected cases)
 ```
 
 > Maintenance: this is a hand-maintained list and rots fast. When you add,
@@ -17,7 +17,7 @@ PYTHONPATH=src .venv/bin/pytest tests/ --collect-only -q | grep -c ::   # 268 (c
 > numbered line, and fix both the per-file counts and the totals in this header.
 > The "N functions / M cases" split differs only for parametrized files.
 
-Numbering is continuous (1..255) over the files in pytest collection
+Numbering is continuous (1..263) over the files in pytest collection
 (alphabetical) order. Parametrized functions are listed once with their case
 count in parentheses.
 
@@ -129,7 +129,7 @@ count in parentheses.
 87. `test_presence_report_structure` - presence_report builds an available/channel/verdicts/metrics dict.
 88. `test_presence_report_empty_window` - presence_report marks an empty window unavailable, metrics empty.
 
-## tests/test_device_controller.py - 36 functions / 38 cases
+## tests/test_device_controller.py - 40 functions / 42 cases
 
 89. `test_report_unavailable_when_heater_not_powered` - heater-health report unavailable when not powered.
 90. `test_report_previews_correction_without_mutating` - preview shows a correction without mutating state.
@@ -167,161 +167,169 @@ count in parentheses.
 122. `test_stop_run_zeroes_heater_after_hold` - stop_run zeroes the heater after a hold.
 123. `test_disconnect_zeroes_heater_after_hold` - disconnect zeroes the heater after a hold.
 124. `test_streaming_run_zeroes_heater_on_exception` - an exception mid streaming-run zeroes the heater (no latched DAC).
+125. `test_ai_sample_rate_prefers_actual_ring_rate` - the time-axis/demod rate is the driver-reported actual ring rate, not the nominal.
+126. `test_ring_worker_death_is_visible` - a crashed ring worker flips is_streaming() False and stops serving stale data.
+127. `test_override_rate_rejects_aggregate_overflow` - rates over the board's 1 MS/s aggregate (rate x channels) are rejected.
+128. `test_atexit_backstop_registration_and_zero` - connect registers an atexit AO-zero hook; disconnect removes it; the hook zeroes AO.
 
 ## tests/test_disk_recorder.py - 7 functions / 7 cases
 
-125. `test_records_baseline_and_run_with_mark` - the recorder captures baseline and run, mark at the boundary.
-126. `test_start_primes_cursor_and_drops_backlog` - start primes the cursor and discards pre-arm backlog.
-127. `test_mark_index_minus_one_when_never_marked` - mark_index is sentinel -1 when never marked.
-128. `test_stop_without_data_writes_empty_file` - stop with no data writes an empty file (no raw_ai dataset).
-129. `test_double_start_is_ignored` - a double start is a no-op and preserves is_recording.
-130. `test_chunk_order_preserved_across_many_feeds` - chunk order is preserved across many feeds.
-131. `test_periodic_flush_fires_during_recording` - drains flush the HDF5 file periodically (crash-survivable capture).
+129. `test_records_baseline_and_run_with_mark` - the recorder captures baseline and run, mark at the boundary.
+130. `test_start_primes_cursor_and_drops_backlog` - start primes the cursor and discards pre-arm backlog.
+131. `test_mark_index_minus_one_when_never_marked` - mark_index is sentinel -1 when never marked.
+132. `test_stop_without_data_writes_empty_file` - stop with no data writes an empty file (no raw_ai dataset).
+133. `test_double_start_is_ignored` - a double start is a no-op and preserves is_recording.
+134. `test_chunk_order_preserved_across_many_feeds` - chunk order is preserved across many feeds.
+135. `test_periodic_flush_fires_during_recording` - drains flush the HDF5 file periodically (crash-survivable capture).
 
 ## tests/test_finalize_recording.py - 8 functions / 8 cases
 
-132. `test_finalize_writes_separate_calibrated_file` - finalize writes a separate calibrated file and keeps the raw.
-133. `test_finalize_chunked_matches_whole_frame` - block-by-block finalize equals a whole-frame apply_calibration.
-134. `test_finalize_lockin_columns_with_modulation` - finalize writes lockin amp/phase/valid columns with modulation.
-135. `test_finalize_program_offset_marks_baseline_uref_nan` - rows before program_offset get a NaN-Uref baseline.
-136. `test_read_calibrated_decimation` - read_calibrated_h5 decimation: step, max_points, column subset.
-137. `test_finalize_tile_profile_iso_vs_slice` - tile_profile True tiles the profile; False slices and NaNs past end.
-138. `test_finalize_rejects_same_path` - finalize raises ValueError when input and output paths are identical.
-139. `test_finalize_empty_raw_returns_none` - finalize returns None for an empty raw file.
+136. `test_finalize_writes_separate_calibrated_file` - finalize writes a separate calibrated file and keeps the raw.
+137. `test_finalize_chunked_matches_whole_frame` - block-by-block finalize equals a whole-frame apply_calibration.
+138. `test_finalize_lockin_columns_with_modulation` - finalize writes lockin amp/phase/valid columns with modulation.
+139. `test_finalize_program_offset_marks_baseline_uref_nan` - rows before program_offset get a NaN-Uref baseline.
+140. `test_read_calibrated_decimation` - read_calibrated_h5 decimation: step, max_points, column subset.
+141. `test_finalize_tile_profile_iso_vs_slice` - tile_profile True tiles the profile; False slices and NaNs past end.
+142. `test_finalize_rejects_same_path` - finalize raises ValueError when input and output paths are identical.
+143. `test_finalize_empty_raw_returns_none` - finalize returns None for an empty raw file.
 
 ## tests/test_logging_setup.py - 5 functions / 5 cases
 
-140. `test_creates_session_file_and_writes` - configure_logging creates the session file and writes messages.
-141. `test_filename_is_filesystem_safe` - session_log_filename is filesystem-safe (no colons).
-142. `test_idempotent_no_duplicate_handlers` - configure_logging is idempotent, swapping handlers rather than stacking.
-143. `test_console_handler_optional` - console=True adds both a FileHandler and a StreamHandler.
-144. `test_creates_missing_log_dir` - configure_logging creates a missing log directory.
+144. `test_creates_session_file_and_writes` - configure_logging creates the session file and writes messages.
+145. `test_filename_is_filesystem_safe` - session_log_filename is filesystem-safe (no colons).
+146. `test_idempotent_no_duplicate_handlers` - configure_logging is idempotent, swapping handlers rather than stacking.
+147. `test_console_handler_optional` - console=True adds both a FileHandler and a StreamHandler.
+148. `test_creates_missing_log_dir` - configure_logging creates a missing log directory.
 
 ## tests/test_main_window.py - 35 functions / 42 cases
 
-145. `test_local_connect_error_text` - maps connection-failure error messages (parametrized, 4 cases).
-146. `test_local_mock_connect_sets_status_and_enables` - mock connect sets status, enables controls, confirms rate.
-147. `test_disconnect_resets_status` - disconnect clears the controller, resets status, disables controls.
-148. `test_fmt_blanks_none_and_nan` - the formatter blanks None/NaN but shows regular numbers.
-149. `test_thtr_blanked_when_idle` - heater temperature blanks when idle while others still show.
-150. `test_thtr_shown_when_driven` - heater temperature displays when actively driven.
-151. `test_iso_eternal_hold_drives_and_marks` - an eternal hold arms the program and marks the heater driven.
-152. `test_iso_off_zeroes_and_blanks` - Off arms 0 V and blanks the heater-driven state.
-153. `test_iso_off_during_run_acts_as_stop` - Off during a run calls stop, not re-arm.
-154. `test_iso_timed_launches_worker_and_resets_on_finish` - a timed program launches a worker and resets on finish.
-155. `test_iso_set_without_backend_warns` - Set without a backend shows an error.
-156. `test_iso_set_without_rate_confirmed_warns` - Set without a confirmed rate warns and does not arm.
-157. `test_segment_mode_default_and_toggle_visibility` - the segments editor is default; the radio toggles visibility.
-158. `test_segment_widgets_hidden_for_iso` - segment UI is hidden for iso, visible otherwise.
-159. `test_segment_builder_converts_rate_to_duration` - heat/iso/cool segments convert to time/temp tables.
-160. `test_segment_builder_nonzero_start` - cooling from a non-zero start builds correct tables.
-161. `test_segment_builder_invalid_returns_none_with_warning` - invalid segments return None with an error (parametrized, 5 cases).
-162. `test_segment_builder_bad_start_temp_warns` - a non-numeric start temp shows an error and returns None.
-163. `test_segment_builder_delegates_to_core_validation` - invalid segment logic is rejected by core validation.
-164. `test_fh_arm_segment_mode_arms_converted_program` - Fast mode arms the converted segment program.
-165. `test_fh_arm_raw_mode_still_works` - raw-points mode still arms with time-scale conversion.
-166. `test_arm_unsafe_voltage_blocks_and_counts` - unsafe voltage raises SafeVoltageError, warns, and counts a stat.
-167. `test_check_chip_without_backend_warns` - a chip check without a backend shows an error.
-168. `test_check_chip_shows_report` - the chip-presence check displays strategies and verdicts.
-169. `test_check_heater_without_backend_warns` - a heater check without a backend shows an error.
-170. `test_check_heater_shows_report` - the heater-health check displays a report and increments a stat.
-171. `test_rhcorr_without_backend_warns` - R-correction without a backend shows an error.
-172. `test_rhcorr_unavailable_shows_reason` - an unavailable R-correction shows a reason and does not apply.
-173. `test_rhcorr_preview_confirm_applies` - a confirmed R-correction preview applies and shows the result.
-174. `test_rhcorr_preview_cancel_does_not_apply` - a cancelled R-correction preview does not apply.
-175. `test_rhcorr_diverged_warns_and_does_not_apply` - a diverged R-correction warns and does not apply.
-176. `test_ui_action_logs_info_and_counts` - a Stop action logs at INFO and increments statistics.
-177. `test_scope_change_logged_at_debug_not_info` - scope changes log at DEBUG, not INFO.
-178. `test_close_logs_session_stats_summary` - window close logs the session-stats summary at INFO.
-179. `test_fh_arm_raw_empty_table_warns` - an empty raw table shows an error and does not arm.
+149. `test_local_connect_error_text` - maps connection-failure error messages (parametrized, 4 cases).
+150. `test_local_mock_connect_sets_status_and_enables` - mock connect sets status, enables controls, confirms rate.
+151. `test_disconnect_resets_status` - disconnect clears the controller, resets status, disables controls.
+152. `test_fmt_blanks_none_and_nan` - the formatter blanks None/NaN but shows regular numbers.
+153. `test_thtr_blanked_when_idle` - heater temperature blanks when idle while others still show.
+154. `test_thtr_shown_when_driven` - heater temperature displays when actively driven.
+155. `test_iso_eternal_hold_drives_and_marks` - an eternal hold arms the program and marks the heater driven.
+156. `test_iso_off_zeroes_and_blanks` - Off arms 0 V and blanks the heater-driven state.
+157. `test_iso_off_during_run_acts_as_stop` - Off during a run calls stop, not re-arm.
+158. `test_iso_timed_launches_worker_and_resets_on_finish` - a timed program launches a worker and resets on finish.
+159. `test_iso_set_without_backend_warns` - Set without a backend shows an error.
+160. `test_iso_set_without_rate_confirmed_warns` - Set without a confirmed rate warns and does not arm.
+161. `test_segment_mode_default_and_toggle_visibility` - the segments editor is default; the radio toggles visibility.
+162. `test_segment_widgets_hidden_for_iso` - segment UI is hidden for iso, visible otherwise.
+163. `test_segment_builder_converts_rate_to_duration` - heat/iso/cool segments convert to time/temp tables.
+164. `test_segment_builder_nonzero_start` - cooling from a non-zero start builds correct tables.
+165. `test_segment_builder_invalid_returns_none_with_warning` - invalid segments return None with an error (parametrized, 5 cases).
+166. `test_segment_builder_bad_start_temp_warns` - a non-numeric start temp shows an error and returns None.
+167. `test_segment_builder_delegates_to_core_validation` - invalid segment logic is rejected by core validation.
+168. `test_fh_arm_segment_mode_arms_converted_program` - Fast mode arms the converted segment program.
+169. `test_fh_arm_raw_mode_still_works` - raw-points mode still arms with time-scale conversion.
+170. `test_arm_unsafe_voltage_blocks_and_counts` - unsafe voltage raises SafeVoltageError, warns, and counts a stat.
+171. `test_check_chip_without_backend_warns` - a chip check without a backend shows an error.
+172. `test_check_chip_shows_report` - the chip-presence check displays strategies and verdicts.
+173. `test_check_heater_without_backend_warns` - a heater check without a backend shows an error.
+174. `test_check_heater_shows_report` - the heater-health check displays a report and increments a stat.
+175. `test_rhcorr_without_backend_warns` - R-correction without a backend shows an error.
+176. `test_rhcorr_unavailable_shows_reason` - an unavailable R-correction shows a reason and does not apply.
+177. `test_rhcorr_preview_confirm_applies` - a confirmed R-correction preview applies and shows the result.
+178. `test_rhcorr_preview_cancel_does_not_apply` - a cancelled R-correction preview does not apply.
+179. `test_rhcorr_diverged_warns_and_does_not_apply` - a diverged R-correction warns and does not apply.
+180. `test_ui_action_logs_info_and_counts` - a Stop action logs at INFO and increments statistics.
+181. `test_scope_change_logged_at_debug_not_info` - scope changes log at DEBUG, not INFO.
+182. `test_close_logs_session_stats_summary` - window close logs the session-stats summary at INFO.
+183. `test_fh_arm_raw_empty_table_warns` - an empty raw table shows an error and does not arm.
 
 ## tests/test_mock_uldaq.py - 5 functions / 5 cases
 
-180. `test_lifecycle` - the device lifecycle connects and disconnects.
-181. `test_create_float_buffer_shape` - float-buffer creation returns the correct list shape.
-182. `test_ai_scan_progresses_and_stops` - an AI scan progresses and stops via a stop request.
-183. `test_ai_buffer_is_shared_not_copied` - the AI buffer list mutates in place (shared object).
-184. `test_ao_iso_voltage` - an AO iso voltage set returns the expected value.
+184. `test_lifecycle` - the device lifecycle connects and disconnects.
+185. `test_create_float_buffer_shape` - float-buffer creation returns the correct list shape.
+186. `test_ai_scan_progresses_and_stops` - an AI scan progresses and stops via a stop request.
+187. `test_ai_buffer_is_shared_not_copied` - the AI buffer list mutates in place (shared object).
+188. `test_ao_iso_voltage` - an AO iso voltage set returns the expected value.
 
-## tests/test_modes_e2e.py - 40 functions / 40 cases
+## tests/test_modes_e2e.py - 44 functions / 44 cases
 
-185. `test_fast_mode_no_point_loss` - FastHeat loses no samples over a one-second run.
-186. `test_slow_mode_produces_lockin_columns` - SlowMode produces lock-in amplitude and phase columns.
-187. `test_slow_mode_amplitude_correction_divides_reported_amplitude` - amplitude correction divides the reported amplitude.
-188. `test_slow_mode_measured_reference_runs_and_produces_phase` - SlowMode with a measured reference produces a phase.
-189. `test_arm_blocks_raw_volt_over_safe_voltage` - arm rejects heater programs over safe voltage.
-190. `test_arm_blocks_temp_over_chip_ceiling` - arm rejects temperatures over the chip ceiling.
-191. `test_arm_blocks_modulation_peak_over_safe_voltage` - arm rejects DC+AC peaks over safe voltage.
-192. `test_arm_accepts_program_within_safe_voltage` - arm accepts programs within safe voltage.
-193. `test_iso_mode_streams_into_dataframe` - IsoMode produces the expected sample count.
-194. `test_iso_mode_with_modulation_emits_fft_attrs_and_warns_on_non_seamless` - iso AC logs a non-seamless warning and emits FFT attrs.
-195. `test_iso_ac_with_hardware_trigger_runs_clean` - iso AC with a hardware trigger completes cleanly.
-196. `test_fast_mode_with_hardware_trigger_runs_clean` - FastHeat with a hardware trigger produces a full frame.
-197. `test_ao_set_rejects_out_of_range_voltage` - a direct AO set rejects out-of-range voltage.
-198. `test_iso_dc_temp_program_goes_through_calibration` - an iso temp program converts through calibration.
-199. `test_iso_mode_stops_early_on_external_request` - IsoMode stops early on an external request.
-200. `test_iso_mode_stop_is_resettable_for_a_second_run` - a prior stop does not poison the next iso run.
-201. `test_create_mode_factory` - create_mode returns the correct mode instance.
-202. `test_create_mode_unknown_raises` - create_mode raises KeyError for an unknown mode.
-203. `test_validate_accepts_non_second_durations` - arm accepts fractional-second durations.
-204. `test_validate_rejects_inconsistent_durations` - arm rejects inconsistent channel durations.
-205. `test_fast_mode_with_temperature_program_runs_calibration_path` - a FastHeat temp program converts through calibration.
-206. `test_fast_mode_fractional_seconds` - FastHeat collects the exact sample count for fractional durations.
-207. `test_clip_modulation_warns_when_clipped` - clipping modulation outside the safe range warns.
-208. `test_clip_modulation_silent_when_within_range` - clipping within the safe range is silent.
-209. `test_zero_ao_drives_all_channels_to_zero` - zero_ao drives all channels to 0 V.
-210. `test_finite_scan_single_shot_full_buffer` - a single-shot finite scan returns the exact sample count.
-211. `test_slow_mode_stop_cancels_and_zeroes` - a SlowMode stop aborts early and zeroes the heater.
-212. `test_fast_mode_stop_returns_early_and_zeroes` - a FastHeat stop returns early and zeroes the heater.
-213. `test_mode_stop_without_run_is_noop` - a mode stop before any run is a no-op.
-214. `test_slow_mode_injected_off_ring` - the SlowMode injected path uses caller-supplied snapshot data.
-215. `test_slow_mode_injected_stop_interrupts` - the SlowMode injected-path stop interrupts the ramp wait.
-216. `test_arm_rejects_temperature_above_max` - arm rejects a temperature above the mode limit.
-217. `test_arm_accepts_heat_iso_cool_in_range` - arm accepts a multi-segment program within limits.
-218. `test_arm_rejects_cool_faster_than_max` - arm rejects cooling faster than MaxCoolRate.
-219. `test_arm_rejects_heat_slower_than_min` - arm rejects heating slower than MinHeatRate.
-220. `test_segments_to_program_heat_iso_cool` - the segments builder produces a correct heat-iso-cool program.
-221. `test_segments_to_program_rejects_bad_segments` - the segments builder rejects invalid segments.
-222. `test_arm_rejects_nonfinite_program` - arm rejects programs containing NaN/Inf.
-223. `test_scan_data_generator_logs_absent_channel` - the data generator logs an absent AO channel held at 0 V.
-224. `test_finite_scan_zeroes_ao_on_collect_exception` - an exception in the collect loop drives all AO channels to 0 V.
+189. `test_fast_mode_no_point_loss` - FastHeat loses no samples over a one-second run.
+190. `test_slow_mode_produces_lockin_columns` - SlowMode produces lock-in amplitude and phase columns.
+191. `test_slow_mode_amplitude_correction_divides_reported_amplitude` - amplitude correction divides the reported amplitude.
+192. `test_slow_mode_measured_reference_runs_and_produces_phase` - SlowMode with a measured reference produces a phase.
+193. `test_arm_blocks_raw_volt_over_safe_voltage` - arm rejects heater programs over safe voltage.
+194. `test_arm_blocks_temp_over_chip_ceiling` - arm rejects temperatures over the chip ceiling.
+195. `test_arm_blocks_modulation_peak_over_safe_voltage` - arm rejects DC+AC peaks over safe voltage.
+196. `test_arm_accepts_program_within_safe_voltage` - arm accepts programs within safe voltage.
+197. `test_iso_mode_streams_into_dataframe` - IsoMode produces the expected sample count.
+198. `test_iso_mode_with_modulation_emits_fft_attrs_and_warns_on_non_seamless` - iso AC logs a non-seamless warning and emits FFT attrs.
+199. `test_iso_ac_with_hardware_trigger_runs_clean` - iso AC with a hardware trigger completes cleanly.
+200. `test_fast_mode_with_hardware_trigger_runs_clean` - FastHeat with a hardware trigger produces a full frame.
+201. `test_ao_set_rejects_out_of_range_voltage` - a direct AO set rejects out-of-range voltage.
+202. `test_iso_dc_temp_program_goes_through_calibration` - an iso temp program converts through calibration.
+203. `test_iso_mode_stops_early_on_external_request` - IsoMode stops early on an external request.
+204. `test_iso_mode_stop_is_resettable_for_a_second_run` - a prior stop does not poison the next iso run.
+205. `test_create_mode_factory` - create_mode returns the correct mode instance.
+206. `test_create_mode_unknown_raises` - create_mode raises KeyError for an unknown mode.
+207. `test_validate_accepts_non_second_durations` - arm accepts fractional-second durations.
+208. `test_validate_rejects_inconsistent_durations` - arm rejects inconsistent channel durations.
+209. `test_fast_mode_with_temperature_program_runs_calibration_path` - a FastHeat temp program converts through calibration.
+210. `test_fast_mode_fractional_seconds` - FastHeat collects the exact sample count for fractional durations.
+211. `test_clip_modulation_warns_when_clipped` - clipping modulation outside the safe range warns.
+212. `test_clip_modulation_silent_when_within_range` - clipping within the safe range is silent.
+213. `test_zero_ao_drives_all_channels_to_zero` - zero_ao drives all channels to 0 V.
+214. `test_finite_scan_single_shot_full_buffer` - a single-shot finite scan returns the exact sample count.
+215. `test_slow_mode_stop_cancels_and_zeroes` - a SlowMode stop aborts early and zeroes the heater.
+216. `test_fast_mode_stop_returns_early_and_zeroes` - a FastHeat stop returns early and zeroes the heater.
+217. `test_mode_stop_without_run_is_noop` - a mode stop before any run is a no-op.
+218. `test_slow_mode_injected_off_ring` - the SlowMode injected path uses caller-supplied snapshot data.
+219. `test_slow_mode_injected_stop_interrupts` - the SlowMode injected-path stop interrupts the ramp wait.
+220. `test_arm_rejects_temperature_above_max` - arm rejects a temperature above the mode limit.
+221. `test_arm_accepts_heat_iso_cool_in_range` - arm accepts a multi-segment program within limits.
+222. `test_arm_rejects_cool_faster_than_max` - arm rejects cooling faster than MaxCoolRate.
+223. `test_arm_rejects_heat_slower_than_min` - arm rejects heating slower than MinHeatRate.
+224. `test_segments_to_program_heat_iso_cool` - the segments builder produces a correct heat-iso-cool program.
+225. `test_segments_to_program_rejects_bad_segments` - the segments builder rejects invalid segments.
+226. `test_arm_rejects_nonfinite_program` - arm rejects programs containing NaN/Inf.
+227. `test_scan_data_generator_logs_absent_channel` - the data generator logs an absent AO channel held at 0 V.
+228. `test_finite_scan_zeroes_ao_on_collect_exception` - an exception in the collect loop drives all AO channels to 0 V.
+229. `test_finite_scan_rejects_trigger_without_primitive` - HardwareTrigger without a software-trigger primitive fails fast before arming.
+230. `test_finite_scan_aborts_on_half_buffer_overrun` - a driver lapping the collector by a full buffer aborts fail-loud and zeroes AO.
+231. `test_arm_rejects_oversized_ao_buffer` - a program whose AO buffer would exceed the RAM cap is rejected at arm.
+232. `test_iso_arm_allows_long_program` - iso is exempt from the AO-buffer cap (1 s buffer); multi-hour iso programs still arm.
 
 ## tests/test_modulation.py - 22 functions / 22 cases
 
-225. `test_apply_modulation_no_op_when_disabled` - zero-amplitude modulation leaves the output unchanged.
-226. `test_apply_modulation_adds_sin_and_offset` - modulation adds a sinusoid and offset to the base signal.
-227. `test_lockin_recovers_amplitude_and_phase` - lock-in recovers amplitude and phase from a noisy signal.
-228. `test_lockin_rejects_invalid_inputs` - lock-in rejects a zero sample rate and invalid bandwidth.
-229. `test_reference_phase_recovers_reference_lag` - reference-phase extraction recovers the fundamental lag.
-230. `test_reference_phase_zero_for_dc_reference` - a DC reference yields phase zero.
-231. `test_lockin_with_measured_reference_subtracts_reference_phase` - a measured reference subtracts its phase from the report.
-232. `test_lockin_reference_shape_must_match` - lock-in requires the signal and reference to be equal length.
-233. `test_modulation_params_measured_reference_flag` - ModulationParams preserves use_measured_reference.
-234. `test_fft_demodulate_recovers_fundamental_amp_and_phase` - FFT demod recovers exact amp/phase from a clean tone.
-235. `test_fft_demodulate_extracts_harmonics` - FFT demod recovers multiple harmonics independently.
-236. `test_fft_demodulate_phase_matches_lockin` - FFT and lock-in report matching phase on a stationary signal.
-237. `test_fft_demodulate_leakage_flags_off_grid_tone` - the leakage fraction detects power at off-grid frequencies.
-238. `test_fft_demodulate_handles_aliased_harmonic` - FFT demod returns NaN for harmonics above Nyquist.
-239. `test_fft_demodulate_rejects_invalid_inputs` - FFT demod rejects a zero rate and invalid frequency.
-240. `test_ao_period_integrity_seamless_when_integer_cycles` - an integer-cycle buffer is seamless, zero drift.
-241. `test_ao_period_integrity_flags_production_iso_settings` - the production 37.5 Hz config is not seamless.
-242. `test_ao_period_integrity_19200_sample_buffer_is_clean` - a 36-cycle buffer at 37.5 Hz is seamless.
-243. `test_ao_period_integrity_flags_aliased_frequency` - an aliased (above-Nyquist) frequency is flagged.
-244. `test_ao_period_integrity_rejects_bad_inputs` - check_ao_period_integrity rejects empty/invalid inputs.
-245. `test_lockin_valid_mask_marks_settling_edges` - the valid mask marks the sosfiltfilt settling transient at the edges.
-246. `test_lockin_valid_all_false_for_short_signal` - a too-short signal yields an all-false valid mask.
+233. `test_apply_modulation_no_op_when_disabled` - zero-amplitude modulation leaves the output unchanged.
+234. `test_apply_modulation_adds_sin_and_offset` - modulation adds a sinusoid and offset to the base signal.
+235. `test_lockin_recovers_amplitude_and_phase` - lock-in recovers amplitude and phase from a noisy signal.
+236. `test_lockin_rejects_invalid_inputs` - lock-in rejects a zero sample rate and invalid bandwidth.
+237. `test_reference_phase_recovers_reference_lag` - reference-phase extraction recovers the fundamental lag.
+238. `test_reference_phase_zero_for_dc_reference` - a DC reference yields phase zero.
+239. `test_lockin_with_measured_reference_subtracts_reference_phase` - a measured reference subtracts its phase from the report.
+240. `test_lockin_reference_shape_must_match` - lock-in requires the signal and reference to be equal length.
+241. `test_modulation_params_measured_reference_flag` - ModulationParams preserves use_measured_reference.
+242. `test_fft_demodulate_recovers_fundamental_amp_and_phase` - FFT demod recovers exact amp/phase from a clean tone.
+243. `test_fft_demodulate_extracts_harmonics` - FFT demod recovers multiple harmonics independently.
+244. `test_fft_demodulate_phase_matches_lockin` - FFT and lock-in report matching phase on a stationary signal.
+245. `test_fft_demodulate_leakage_flags_off_grid_tone` - the leakage fraction detects power at off-grid frequencies.
+246. `test_fft_demodulate_handles_aliased_harmonic` - FFT demod returns NaN for harmonics above Nyquist.
+247. `test_fft_demodulate_rejects_invalid_inputs` - FFT demod rejects a zero rate and invalid frequency.
+248. `test_ao_period_integrity_seamless_when_integer_cycles` - an integer-cycle buffer is seamless, zero drift.
+249. `test_ao_period_integrity_flags_production_iso_settings` - the production 37.5 Hz config is not seamless.
+250. `test_ao_period_integrity_19200_sample_buffer_is_clean` - a 36-cycle buffer at 37.5 Hz is seamless.
+251. `test_ao_period_integrity_flags_aliased_frequency` - an aliased (above-Nyquist) frequency is flagged.
+252. `test_ao_period_integrity_rejects_bad_inputs` - check_ao_period_integrity rejects empty/invalid inputs.
+253. `test_lockin_valid_mask_marks_settling_edges` - the valid mask marks the sosfiltfilt settling transient at the edges.
+254. `test_lockin_valid_all_false_for_short_signal` - a too-short signal yields an all-false valid mask.
 
 ## tests/test_session_stats.py - 3 functions / 3 cases
 
-247. `test_empty_summary` - an empty summary shows no recorded actions.
-248. `test_record_counts_and_get` - record counts actions and get returns the values.
-249. `test_summary_is_sorted_and_readable` - the summary sorts keys alphabetically.
+255. `test_empty_summary` - an empty summary shows no recorded actions.
+256. `test_record_counts_and_get` - record counts actions and get returns the values.
+257. `test_summary_is_sorted_and_readable` - the summary sorts keys alphabetically.
 
 ## tests/test_ui_settings.py - 6 functions / 6 cases
 
-250. `test_loads_packaged_defaults` - packaged defaults populate every documented UI field.
-251. `test_falls_back_when_file_missing` - a missing file uses defaults without an exception.
-252. `test_partial_override` - a partial JSON override keeps the remaining fields at defaults.
-253. `test_full_override` - a full JSON override (Plot/Ring/Demod/Sliders) works.
-254. `test_bad_channel_key_dropped` - invalid channel keys are dropped, valid ones kept.
-255. `test_channel_indices_coerce_to_tuple_of_ints` - channel indices coerce from a list to an int tuple.
+258. `test_loads_packaged_defaults` - packaged defaults populate every documented UI field.
+259. `test_falls_back_when_file_missing` - a missing file uses defaults without an exception.
+260. `test_partial_override` - a partial JSON override keeps the remaining fields at defaults.
+261. `test_full_override` - a full JSON override (Plot/Ring/Demod/Sliders) works.
+262. `test_bad_channel_key_dropped` - invalid channel keys are dropped, valid ones kept.
+263. `test_channel_indices_coerce_to_tuple_of_ints` - channel indices coerce from a list to an int tuple.
