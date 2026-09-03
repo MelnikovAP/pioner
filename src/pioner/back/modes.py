@@ -385,9 +385,14 @@ def heater_resistance(df: pd.DataFrame, calibration: Calibration) -> pd.Series:
     / ih`` is therefore dimensionless (V/V) and the ``Thtr`` polynomial absorbs
     the implicit scaling (todo P2-21 tracks proper SI calibration).
 
-    At idle (``|ih| < 1e-9``) the resistance is undefined; those samples are
+    At idle (``|ih|`` at or below ``calibration.ih_idle_floor``, default
+    0.5 mV in the proxy domain) the resistance is undefined; those samples are
     NaN rather than a sentinel -- the legacy ``R=0`` sentinel produced a
-    physically meaningless ~ -1070 C through the production polynomial.
+    physically meaningless ~ -1070 C through the production polynomial. The
+    floor must sit above the ADC noise: the historical ``1e-9`` guard let
+    sub-mV noise through, so a cold heater yielded a finite noise-over-noise
+    ``Rhtr`` and ``heater_health_report`` could classify it as a confident
+    "ok"/"shorted" instead of "unknown".
 
     Single source of truth for both :func:`apply_calibration` (-> ``Thtr``) and
     the in-situ R-correction auto-zero (P1-33).
@@ -406,7 +411,7 @@ def heater_resistance(df: pd.DataFrame, calibration: Calibration) -> pd.Series:
         pd.Series,
         calibration.ihtr0 + df[HEATER_CURRENT_AI] * calibration.ihtr1,
     )
-    nz = ih.abs() > 1e-9
+    nz = ih.abs() > calibration.ih_idle_floor
     rhtr = pd.Series(np.full(len(df), np.nan), index=df.index)
     rhtr.loc[nz] = (
         (df.loc[nz, UHTR_AI] - df.loc[nz, HEATER_CURRENT_AI] + calibration.uhtr0)
@@ -506,7 +511,8 @@ def apply_calibration(
     #
     # The Thtr polynomial (thtr0=-1069.7, thtr1=0.78336, thtr2=-8.67e-5)
     # was fitted against proxy Rhtr (V/V), NOT physical ohms.
-    # At idle (ih ~ 0) Rhtr is undefined; mark NaN (see nz guard below).
+    # At idle (|ih| at or below calibration.ih_idle_floor) Rhtr is undefined;
+    # mark NaN (see the nz guard in heater_resistance).
     if UHTR_AI in df.columns and HEATER_CURRENT_AI in df.columns:
         # Single source of truth for the proxy heater resistance (V/V), NaN at
         # idle. Reused by the in-situ R-correction auto-zero (P1-33).

@@ -546,13 +546,23 @@ class BackSettings:
             raise ValueError("No fields found in the settings file: {}.".format(invalid_fields_str))
 
     def get_str(self):
-        _daq_params = str(self.daq_params)
-        _ai_params = str(self.ai_params)
-        _ao_params = str(self.ao_params)
-        settings_dict = str({"DAQ":_daq_params, "AI":_ai_params, "AO":_ao_params})
-        settings_dict = settings_dict.replace("\'", "\"")               # need because json.loads does not recognie " ' "
-        
-        return settings_dict
+        """Serialise the active DAQ/AI/AO params as a valid JSON string.
+
+        Stored as run metadata in every ``exp_data`` HDF5 file
+        (``modes.save_run_to_h5`` / ``finalize_raw_to_h5``), so it must be
+        machine-parseable. The historical ``str(dict)`` + quote-replace
+        implementation emitted Python literals (``False``) and colliding
+        quotes -- not JSON (P2-6). ``default=str`` guards against non-native
+        values (e.g. real-uldaq enum members on a hardware host).
+        """
+        return json.dumps(
+            {
+                "DAQ": vars(self.daq_params),
+                "AI": vars(self.ai_params),
+                "AO": vars(self.ao_params),
+            },
+            default=str,
+        )
 
 class FrontSettings:
     """Parses configuration file with all necessary acquisition parameters."""

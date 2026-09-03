@@ -306,8 +306,10 @@ These hold across the back-end; breaking one usually produces numbers that
   fallback for any path that bypasses arm validation, never silent.
   (`safe_voltage` is a conservative 8 V by default; the real ceiling is
   chip-specific -- see the chip config plan, todo P1-42.) The heater is also
-  driven to **0 V on Off / disconnect / abort** (`zero_ao`) so it is never left
-  latched (the DAC holds its last sample).
+  driven to **0 V on Off / disconnect / abort -- including an error mid-run**
+  (`zero_ao`; `finite_scan` and the streaming run zero AO on any abnormal
+  exit, cancel or exception) so it is never left latched (the DAC holds its
+  last sample).
 * **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
   sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
 * **Start order is AI then AO** so the AO leading edge is not missed (without a
@@ -440,9 +442,12 @@ numbered per-test index.
 * **Mock data is not a thermal model.** The synthetic AI signal mirrors the
   AO voltage scaled by hand-picked constants. It is sufficient for
   pipeline shape validation, not for closed-loop control development.
-* **`Thtr` is NaN whenever the heater current is below ~1 nA.** Earlier
-  versions emitted a sentinel of around –1070 °C in those samples. If you
-  re-process old HDF5 files, drop the rows with `np.isfinite(Thtr)` first.
+* **`Thtr` is NaN whenever the heater-current proxy is at or below the
+  calibration idle floor** (`Ihtr idle floor`, default 0.5 mV in the volts
+  proxy domain — just above the mock's synthetic noise; bench-tune per rig).
+  Below the floor `Rhtr = U/ih` would be noise-over-noise. Earlier versions
+  emitted a sentinel of around –1070 °C in those samples. If you re-process
+  old HDF5 files, drop the rows with `np.isfinite(Thtr)` first.
 * **`Uref` reflects the actual commanded voltage**: for iso (CONTINUOUS
   AO) the per-second AO buffer is tiled to match the AI length, so the
   column is meaningful for the full duration of an iso run.

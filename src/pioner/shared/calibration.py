@@ -53,6 +53,7 @@ from pioner.shared.constants import (
     HARDWARE_GAIN_UMOD_FIELD,
     HARDWARE_GAIN_UTPL_FIELD,
     HEATER_SAFE_VOLTAGE_FIELD,
+    IH_IDLE_FLOOR_FIELD,
     INFO_FIELD,
     I_HTR_FIELD,
     JSON_EXTENSION,
@@ -172,6 +173,14 @@ class Calibration:
         # from a guessed value.
         self.r_heater_broken: float = 9000.0
         self.r_heater_shorted: float = 50.0
+        # Idle floor for the heater-current proxy ``ih`` (V, proxy domain --
+        # see Ihtr above). At or below this |ih| the heater is treated as
+        # unpowered: ``Rhtr = U/ih`` would be noise-over-noise, so those
+        # samples are NaN and the heater-health diagnostic reports "unknown"
+        # instead of a verdict computed from ADC noise. The default sits just
+        # above the mock's 0.5 mV synthetic noise; the real rig's idle level
+        # must be bench-tuned (P2-24) and belongs in the chip config (P1-42).
+        self.ih_idle_floor: float = 5e-4
         # Maximum DC voltage allowed on the heater AO channel (V).
         self.safe_voltage: float = 8.0
 
@@ -250,6 +259,10 @@ class Calibration:
             self.r_heater_shorted = float(
                 coeffs.get(R_HEATER_SHORTED_FIELD, self.r_heater_shorted)
             )
+            # Optional idle floor; absent in legacy files -> default.
+            self.ih_idle_floor = float(
+                coeffs.get(IH_IDLE_FLOOR_FIELD, self.ih_idle_floor)
+            )
             self.safe_voltage = float(coeffs[HEATER_SAFE_VOLTAGE_FIELD])
 
             # Optional hardware block; falls back to factory defaults.
@@ -311,6 +324,7 @@ class Calibration:
                 R_GUARD_FIELD: self.rghtr,
                 R_HEATER_BROKEN_FIELD: self.r_heater_broken,
                 R_HEATER_SHORTED_FIELD: self.r_heater_shorted,
+                IH_IDLE_FLOOR_FIELD: self.ih_idle_floor,
                 HEATER_SAFE_VOLTAGE_FIELD: self.safe_voltage,
                 HARDWARE_FIELD: {
                     HARDWARE_GAIN_UTPL_FIELD: self.hardware.gain_utpl,

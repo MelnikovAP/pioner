@@ -197,9 +197,12 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
   `Thtr` polynomial absorbs the implicit scaling. A future SI calibration
   (`ihtr1 ~ 1/R_shunt`, `ih` in amperes, `Rhtr` in ohms) is tracked in
   `TODO.md` P2-21 — do not assume it is in effect. See also P0-3.
-- **Heater R undefined at zero current.** When `|ih| < 1e-9 A` mark `Rhtr` as
-  NaN. Never let `R = U/0` propagate; the legacy code produced ~−1070 °C and
-  it took a long time to track down.
+- **Heater R undefined at idle.** When `|ih|` is at or below the calibration
+  idle floor (`Ihtr idle floor` / `Calibration.ih_idle_floor`, default 5e-4 V
+  in the volts proxy domain — NOT amperes) mark `Rhtr` as NaN. Never let
+  `R = U/0` — or noise-over-noise at sub-floor currents — propagate; the
+  legacy code produced ~−1070 °C and it took a long time to track down, and a
+  too-low floor (the old `1e-9`) let ADC noise fake a "powered" heater.
 - **AC modulation + software lock-in.** Lock-in frequency must be strictly
   below Nyquist (`f_mod < ai_sample_rate / 2`). Integration window should
   cover an integer number of modulation periods to suppress `2f` leakage —
@@ -224,8 +227,9 @@ right but aren't. Keep them in mind when touching `back/modes.py`,
   halts the scan; the MCC DAC then holds its last sample until reset, so an
   eternal iso hold would leave the chip powered. `ExperimentManager.zero_ao`
   drives every AO channel to 0 and is called by `LocalDeviceController`
-  `disconnect()` and on iso-hold abort (`stop_run`). Never stop a hold with a
-  bare `stop_ao` — zero it. (Software can't protect against a GUI crash; real
+  `disconnect()`, on iso-hold abort (`stop_run`), and on any abnormal run exit
+  — cooperative cancel *or an exception* inside `finite_scan` / the streaming
+  run. Never stop a hold with a bare `stop_ao` — zero it. (Software can't protect against a GUI crash; real
   bring-up stays attended.)
 - **AD595 cold-junction.** Channel 3, scaled 100 °C/V, with a polynomial
   correction below −12 °C (`hardware.correct_ad595`). Currently averaged over

@@ -263,3 +263,15 @@ def test_acquisition_mode_camelcase(tmp_path: Path):
     assert BackSettings(str(out)).acquisition_mode == "per_experiment"
     # The committed default uses the capitalized "Persistent".
     assert BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH).acquisition_mode == "persistent"
+
+
+def test_get_str_returns_valid_json():
+    """``get_str`` is stored as run metadata in every exp_data HDF5 file, so it
+    must round-trip through ``json.loads`` (P2-6 regression: the historical
+    ``str(dict)`` + quote-replace emitted ``False`` and colliding quotes)."""
+    settings = BackSettings(DEFAULT_SETTINGS_FILE_REL_PATH)
+    parsed = json.loads(settings.get_str())
+    assert set(parsed) == {"DAQ", "AI", "AO"}
+    assert parsed["DAQ"]["hardware_trigger"] is False
+    assert parsed["AI"]["sample_rate"] == settings.ai_params.sample_rate
+    assert parsed["AO"]["low_channel"] == settings.ao_params.low_channel

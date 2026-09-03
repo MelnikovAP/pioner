@@ -566,15 +566,22 @@ class LocalDeviceController(DeviceController):
         raw_path = self._raw_path_for(cal_path)
         recorder = DiskRecorder(em, raw_path, consumer_id=self._STREAM_RECORDER)
         recorder.start()
+        completed = False
         try:
             recorder.mark_start()                    # program t=0 boundary
             self._mode.run(em=em, snapshot=None)     # drive AO only
+            completed = True
         finally:
-            recorder.stop()
             # The mode drives AO on our manager (no finite_scan to self-zero on
-            # cancel), so on a Stop drive the heater to 0 explicitly.
-            if self._stop_requested:
+            # cancel), so on a Stop -- or on an exception mid-run, which would
+            # otherwise leave the DAC latched at the last commanded sample --
+            # drive the heater to 0 explicitly (heater-safety rule). Zero
+            # BEFORE stopping the recorder: heater safety must not depend on
+            # the file teardown succeeding (the recorder just captures the
+            # zeroed tail, which is harmless).
+            if self._stop_requested or not completed:
                 em.zero_ao()
+            recorder.stop()
         mark = recorder.mark_index or 0
         summary = finalize_raw_to_h5(
             raw_path, cal_path,

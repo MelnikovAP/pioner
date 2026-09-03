@@ -717,3 +717,29 @@ def test_scan_data_generator_logs_absent_channel(caplog):
     with caplog.at_level(logging.INFO, logger="pioner.back.ao_data_generators"):
         ScanDataGenerator({"ch0": [0.1, 0.1]}, low_channel=0, high_channel=1)
     assert any("ch1" in r.message and "0 V" in r.message for r in caplog.records)
+
+
+def test_finite_scan_zeroes_ao_on_collect_exception(connected_daq, settings, monkeypatch):
+    """An exception inside the collect loop must drive AO to 0 V.
+
+    Heater-safety rule: a bare scan stop only halts the pacer and the DAC
+    holds its last sample -- before this guard, any unhandled error mid-scan
+    left the heater powered until Off/disconnect.
+    """
+    from pioner.back.experiment_manager import ExperimentManager
+
+    em = ExperimentManager(connected_daq, settings)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("collect blew up")
+
+    monkeypatch.setattr(em, "_collect_finite_ai", boom)
+    n = settings.ao_params.sample_rate  # 1 s profile at the AO rate
+    profiles = {"ch1": np.full(n, 2.0)}
+    with pytest.raises(RuntimeError, match="collect blew up"):
+        em.finite_scan(profiles, list(DEFAULT_AI_CHANNELS), seconds=1.0)
+
+    shared = connected_daq.get_ao_device()._shared
+    for ch in range(settings.ao_params.low_channel,
+                    settings.ao_params.high_channel + 1):
+        assert shared.iso_voltages.get(ch) == 0.0, f"AO ch{ch} not zeroed"

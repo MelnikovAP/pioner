@@ -141,3 +141,32 @@ def test_chunk_order_preserved_across_many_feeds(tmp_path):
     assert rows == 60
     expected = np.repeat(np.arange(20, dtype=float), 3).reshape(-1, 1)
     assert np.array_equal(raw, expected)
+
+
+def test_periodic_flush_fires_during_recording(tmp_path, monkeypatch):
+    """Drains must flush the HDF5 file periodically (crash-survivability).
+
+    An HDF5 file that is never flushed and not cleanly closed is typically
+    unreadable in full, so without periodic flushes a crash mid-run lost the
+    whole capture. With ``flush_interval=0`` every non-empty drain flushes.
+    """
+    calls: list = []
+    orig_flush = h5py.File.flush
+    monkeypatch.setattr(
+        h5py.File, "flush", lambda self: (calls.append(1), orig_flush(self))[1]
+    )
+
+    ring = FakeRing(channels=2)
+    rec = DiskRecorder(
+        ring, str(tmp_path / "raw.h5"), consumer_id="t",
+        poll_interval=10.0,  # keep the background thread out of the way
+        flush_interval=0.0,
+    )
+    rec.start()
+    ring.feed(10, 1.0)
+    rec.mark_start()  # synchronous drain under the lock -> write -> flush
+    assert calls, "no flush during recording (before stop)"
+    path = rec.stop()
+
+    raw, rows, mark = _read(path)
+    assert raw.shape == (10, 2) and rows == 10 and mark == 10

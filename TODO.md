@@ -794,10 +794,6 @@ GUI share one setup and one log-file convention.
 **Action:** `ruff format` plus an explicit style guide. PEP 604
 (`X | None`) plus `from __future__ import annotations` everywhere.
 
-### P2-6. `BackSettings.get_str` builds JSON via `dict→str→replace`
-
-**Action:** `json.dumps({"DAQ": vars(self.daq_params), …})`.
-
 ### P2-7. `is_int_or_raise` name does not match behaviour
 
 **Action:** rename to `validate_int(value, *, name="value")`. Keep the
@@ -940,8 +936,12 @@ this is calibration-specific).
 - **Relation to P1-36** (passive chip-presence): one is "is a chip there?" (no
   power), the other "is the powered heater intact?" -- decide if they stay two
   signals or fold into one present/healthy verdict.
-- **`ih` zero-current floor** (`1e-9`) that gates "powered" is mock-tuned; the
-  real-hardware idle level may differ (see P0-3) -- may need its own threshold.
+- **`ih` idle floor** is now the calibration field `Ihtr idle floor`
+  (`Calibration.ih_idle_floor`, default 5e-4 V in the proxy domain -- just
+  above the mock's 0.5 mV noise, so a cold heater reads "unknown" instead of a
+  verdict computed from noise). Bench-tune it on real hardware (the real
+  idle/noise level may differ, see P0-3) and move the per-chip value into the
+  chip config (P1-42).
 - **SI units** (P2-21): if `ihtr1 ~ 1/R_shunt` ever lands, thresholds become real
   ohms and Bondar's 9000/50 apply directly.
 

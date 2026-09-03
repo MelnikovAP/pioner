@@ -140,6 +140,11 @@ R_GUARD_FIELD = "R guard"
 # Diagnostic only: R above broken -> open/no contact, R below shorted -> short.
 R_HEATER_BROKEN_FIELD = "R heater broken"
 R_HEATER_SHORTED_FIELD = "R heater shorted"
+# Optional idle floor for the heater-current proxy ``ih`` (V, proxy domain):
+# below this |ih| the heater counts as unpowered and ``Rhtr`` is NaN (it would
+# be noise-over-noise). Default sits just above the mock's 0.5 mV noise;
+# bench-tune per rig (see P2-24) and move per-chip values to the chip config.
+IH_IDLE_FLOOR_FIELD = "Ihtr idle floor"
 HEATER_SAFE_VOLTAGE_FIELD = "Heater safe voltage"
 CORR_FIELD = "corr"
 

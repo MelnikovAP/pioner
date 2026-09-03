@@ -20,11 +20,13 @@ Implementation notes
   ``DEFAULTIO`` scan with a full-length buffer read once at the end -- no drain
   race, hence no FIFO ``OVERRUN`` (todo P1-30).
 * For the CONTINUOUS path the AI buffer is sized to exactly **one second** of
-  data. The reader loop
-  flips between the lower and upper half of the buffer based on the actual
-  ``current_index`` returned by the driver, which makes it robust against
-  slow callers (we will detect a "skipped" half by index comparison and
-  copy both halves before re-arming).
+  data. The reader loop flips between the lower and upper half of the buffer
+  based on the actual ``current_index`` returned by the driver, which gives
+  ~0.5 s of jitter tolerance for the polling thread. NOTE: a reader stall
+  longer than half a buffer is NOT detected as such -- the missed half is
+  silently overwritten by the driver and the frame simply comes out short
+  (surfaced by the "AI finite scan short" WARNING at the end of the scan).
+  There is no scan-count-based integrity check yet.
 * For finite scans we wait for the AO scan to terminate before stopping AI,
   then drain whatever was still in the AI buffer.
 * Data on disk goes through ``pandas.HDFStore``; we trigger the lazy
@@ -258,22 +260,30 @@ class ExperimentManager:
         if triggered:
             self._daq_device_handler.fire_software_trigger()
 
-        if single_shot:
-            df = self._collect_finite_ai_single_shot(
-                ai_handler, total_samples, ai_channels, seconds
-            )
-        else:
-            df = self._collect_finite_ai(ai_handler, ao_handler, seconds, ai_channels)
+        completed = False
+        try:
+            if single_shot:
+                df = self._collect_finite_ai_single_shot(
+                    ai_handler, total_samples, ai_channels, seconds
+                )
+            else:
+                df = self._collect_finite_ai(ai_handler, ao_handler, seconds, ai_channels)
+            completed = True
+        finally:
+            ao_handler.stop()
+            ai_handler.stop()
 
-        ao_handler.stop()
-        ai_handler.stop()
-
-        # On a cooperative abort (request_stop) the scan stop above only halts
-        # the pacer; the DAC holds its last sample. Drive AO to 0 so the heater
-        # is never left powered after a Stop (P1-17 step 3 / heater-safety rule).
-        if self._cancel.is_set():
-            self.zero_ao()
-            logger.info("finite_scan cancelled; AO driven to 0 V")
+            # A bare scan stop only halts the pacer; the DAC holds its last
+            # sample. On any abnormal exit -- cooperative abort (request_stop)
+            # or an exception in the collect loop -- drive AO to 0 so the
+            # heater is never left powered (heater-safety rule). Normal
+            # completion keeps the program's final sample on the DAC.
+            if self._cancel.is_set() or not completed:
+                self.zero_ao()
+                logger.info(
+                    "finite_scan %s; AO driven to 0 V",
+                    "cancelled" if self._cancel.is_set() else "failed",
+                )
 
         return ScanResult(
             data=df,

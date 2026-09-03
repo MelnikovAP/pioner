@@ -193,7 +193,7 @@ seamless. See §3.7c.
 │   Rhtr     = (U_AI5 − U_AI0 + uhtr0) · uhtr1 / Ihtr  [V/V]        │
 │       (production ihtr0=0, ihtr1=1 -> Ihtr=U_AI0 in V; Rhtr V/V)  │
 │   Thtr     = Thtr_poly(Rhtr + thtrcorr)               [°C]        │
-│            (NaN where |Ihtr| < 1 nA — heater idle)                │
+│            (NaN where |Ihtr| <= ih_idle_floor — heater idle)      │
 │                                                                   │
 │   Uref     = AO ch1 voltage profile (heater command)  [V]         │
 │            (tiled to AI length for iso/CONTINUOUS AO)             │
@@ -703,7 +703,9 @@ T_hr       = ttpl0·(Umod_mV + utpl0) + ttpl1·(Umod_mV + utpl0)²      [°C]
 Ihtr       = ihtr0 + ihtr1·U_AI0    (production ihtr0=0, ihtr1=1)    [V proxy]
 Rhtr       = (U_AI5 - U_AI0 + uhtr0)·uhtr1 / Ihtr                    [V/V]
 Thtr       = thtr0 + thtr1·(Rhtr + thtrcorr) + thtr2·(Rhtr + thtrcorr)²  [°C]
-              (NaN where |Ihtr| < 1 nA — heater idle)
+              (NaN where |Ihtr| <= ih_idle_floor — heater idle;
+               `Ihtr idle floor` in the calibration JSON, default 5e-4 V
+               in the proxy domain — above ADC noise, bench-tunable)
 ```
 
 `U_AI{0,1,3,4,5}` are raw AI samples in **volts**. `Gain_Utpl=11`,

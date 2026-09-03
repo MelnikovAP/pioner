@@ -160,6 +160,29 @@ class TestHeaterHealth:
         assert rep["r_proxy"] == pytest.approx(r_proxy, rel=1e-6)
         assert rep["n_valid"] > 0
 
+    def test_unknown_on_idle_noise(self, local_controller, monkeypatch):
+        """ADC-noise-only window (cold heater) must NOT produce a verdict.
+
+        Regression: the legacy 1e-9 "powered" floor let sub-mV noise on
+        ch0/ch5 through, so a heater that was not driven at all yielded a
+        finite noise-over-noise Rhtr and a confident verdict. The floor is now
+        ``Calibration.ih_idle_floor`` (default 5e-4 V, just above the mock's
+        0.5 mV noise) -> all-NaN Rhtr -> "unknown" + reason.
+        """
+        channels = local_controller._ai_channels
+        n = 1000
+        t = np.arange(n) / 2000.0
+        window = np.zeros((n, len(channels)), dtype=float)
+        col = {ch: i for i, ch in enumerate(channels)}
+        # The mock's deterministic ~0.5 mV noise (mock_uldaq._synthesise_sample).
+        window[:, col[0]] = np.sin(t * 1234.5 + 0) * 0.5e-3
+        window[:, col[5]] = np.sin(t * 1234.5 + 5) * 0.5e-3
+        monkeypatch.setattr(local_controller, "peek_last", lambda n: window)
+        rep = local_controller.heater_health_report()
+        assert rep["available"] is True
+        assert rep["verdict"] == "unknown"
+        assert rep["n_valid"] == 0 and "powered" in rep["reason"]
+
 
 class TestChipPresence:
     """Read-only chip-presence detection wiring (P1-36)."""
@@ -487,3 +510,24 @@ class TestIsoHold:
         controller.disconnect()
         # zero_ao ran before release, so the last commanded heater value is 0.
         assert shared.iso_voltages.get(1) == 0.0
+
+
+def test_streaming_run_zeroes_heater_on_exception(local_controller, monkeypatch):
+    """An exception mid streaming-run (slow/finite-iso) must zero the heater.
+
+    ``_run_streaming`` drives AO on the controller's own manager (no
+    finite_scan to self-zero); before this guard an unhandled error left the
+    DAC latched at the last commanded sample (heater-safety rule).
+    """
+    local_controller.arm(
+        "slow", json.dumps({"ch1": {"time": [0, 1000], "volt": [0, 1]}})
+    )
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("mid-run failure")
+
+    monkeypatch.setattr(local_controller._mode, "run", boom)
+    assert local_controller.is_streaming()  # precondition: off-ring path taken
+    with pytest.raises(RuntimeError, match="mid-run failure"):
+        local_controller.run()
+    assert _ao_shared(local_controller).iso_voltages.get(1) == 0.0

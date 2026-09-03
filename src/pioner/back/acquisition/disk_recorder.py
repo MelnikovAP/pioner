@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Optional, Protocol
 
 import h5py
@@ -76,6 +77,12 @@ class DiskRecorder:
         ``ring_max_seconds`` so the ring never overwrites un-captured samples.
     dataset
         Name of the raw dataset inside the file.
+    flush_interval
+        Seconds between periodic ``h5.flush()`` calls (0 = flush on every
+        drain). An HDF5 file that is never flushed and not cleanly closed is
+        typically unreadable in full, so a crash mid-run would lose the whole
+        capture -- defeating the point of streaming to disk. Interval-based so
+        long runs pay one metadata flush every few seconds, not per drain.
     """
 
     def __init__(
@@ -85,12 +92,15 @@ class DiskRecorder:
         consumer_id: str = "disk_recorder",
         poll_interval: float = 0.2,
         dataset: str = "raw_ai",
+        flush_interval: float = 5.0,
     ) -> None:
         self._ring = ring
         self._path = str(h5_path)
         self._consumer_id = str(consumer_id)
         self._poll_interval = float(poll_interval)
         self._dataset_name = str(dataset)
+        self._flush_interval = float(flush_interval)
+        self._last_flush = 0.0
         self._rows: int = 0
         self._mark: Optional[int] = None
         # One lock guards read+append (serialises drains so chunk order is kept)
@@ -137,6 +147,7 @@ class DiskRecorder:
             # reset clears any stale cursor, the discarded read sets it to head.
             self._ring.reset_ring_cursor(self._consumer_id)
             self._ring.read_new_samples(self._consumer_id)
+            self._last_flush = time.monotonic()
         self._stop.clear()
         self._thread = threading.Thread(
             target=self._loop, name="disk-recorder", daemon=True
@@ -212,6 +223,12 @@ class DiskRecorder:
         self._dset.resize(self._rows + n, axis=0)
         self._dset[self._rows:self._rows + n] = chunk
         self._rows += n
+        # Periodic flush so a crash mid-run leaves a readable file (see the
+        # ``flush_interval`` parameter docs). Only after actual writes.
+        now = time.monotonic()
+        if now - self._last_flush >= self._flush_interval:
+            self._h5.flush()
+            self._last_flush = now
         return n
 
     def _loop(self) -> None:
