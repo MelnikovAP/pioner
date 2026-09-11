@@ -152,9 +152,11 @@ seamless. See §3.7c.
 │        and fire_software_trigger() releases them on a shared t=0. │
 │        Fails fast BEFORE arming if the backend has no             │
 │        software-trigger primitive (real uldaq has none).          │
-│     b) _collect_finite_ai polls current_index at 1 ms cadence     │
-│        and copies each half-buffer into ``chunks: list[ndarray]`` │
-│        on flip; trims to seconds·sample_rate at the end.          │
+│     b) _collect_finite_ai polls current_index at most every       │
+│        50 ms (>=8x per half-buffer window) and copies each half   │
+│        into ``chunks: list[ndarray]`` on flip; trims to           │
+│        seconds·sample_rate at the end. The wait is on the         │
+│        cancel event, so a Stop is still instant.                  │
 │        Overrun guard: if the driver's scan count runs a           │
 │        full buffer ahead of the collected count, raise            │
 │        (finally zeroes AO) -- never return a silently             │
@@ -169,7 +171,8 @@ seamless. See §3.7c.
 │        AO was triggered) and fires the trigger; spawns a daemon   │
 │        ``AiRingBuffer`` thread that flips half-buffers into a     │
 │        bounded deque (default ring_buffer_seconds = 10 s, so up   │
-│        to 20 half-second chunks).                                 │
+│        to 20 half-second chunks). Raises if the scan never        │
+│        reports RUNNING within AI_SCAN_START_TIMEOUT_S (100 ms).   │
 │        start_ring_buffer returns the driver's ACTUAL AI           │
 │        rate (ring_ai_rate); a worker crash / driver stop          │
 │        flips ring_alive() False (providers report the             │
@@ -182,6 +185,12 @@ seamless. See §3.7c.
 │        to synchronise with).                                      │
 │                                                                   │
 │   stop() teardown ordering: AO first (drop heater), AI second.    │
+│   EVERY exit from an iso run -- programmed end, abort or          │
+│   exception -- drives AO to 0 V first: a bare stop would leave    │
+│   the DAC holding the iso setpoint. (fast/slow keep their         │
+│   program's final sample; an iso setpoint is a hold, not an       │
+│   operator-chosen terminal value.) The open-ended hold lives in   │
+│   start_iso_hold, not here.                                       │
 └───────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -297,10 +306,12 @@ read it via the half-buffer flip protocol that real DMA-based DAQ APIs use:
 1. AI buffer is laid out flat: `n_chans × sample_rate` floats.
 2. The driver fills it cyclically and exposes `current_index` (flat-buffer
    units) via `get_scan_status()`.
-3. The poller (1 ms cadence) tracks `last_index`. When `current_index`
-   crosses the half-buffer boundary upwards, the **lower half** is now stable
-   and we copy it. When `current_index` wraps back (idx < last_index, last
-   was in the upper half) the **upper half** is stable and we copy it.
+3. The poller (at most every 50 ms, i.e. >=8 observations per half-buffer
+   window; it waits on the cancel event) tracks `last_index`. When
+   `current_index` crosses the half-buffer boundary upwards, the **lower half**
+   is now stable and we copy it. When `current_index` wraps back (idx <
+   last_index, last was in the upper half) the **upper half** is stable and we
+   copy it.
 4. Each chunk is a `(half_per_channel, n_chans)` numpy view, copied into the
    `chunks` list. Total `O(seconds × sample_rate × n_chans × 8)` bytes,
    trimmed at the end to exactly `seconds × sample_rate` samples.

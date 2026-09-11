@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from pioner.back.modes import (
@@ -332,6 +332,52 @@ def test_iso_dc_temp_program_goes_through_calibration(
     assert 0.0 < profile[0] < calibration.safe_voltage
 
 
+def test_iso_owned_run_zeroes_heater_on_scan_failure(connected_daq, settings,
+                                                    calibration, monkeypatch):
+    """An exception between the AO drive and the AI scan must not latch the DAC.
+
+    The owned iso path drives AO first and only then starts the ring scan; a
+    bare ``stop()`` halts the pacer but the MCC DAC keeps holding the iso
+    setpoint, so the chip would stay powered after a failed run.
+    """
+    from pioner.back.ai_device import AiDeviceHandler
+    from pioner.back.mock_uldaq import uldaq as ul
+
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    programs = {"ch1": {"time": [0, 1000], "temp": [50, 50]}}
+    iso = IsoMode(connected_daq, settings, calibration, programs)
+    iso.arm()
+    # The AI scan never reports RUNNING -> start_ring_buffer raises after the
+    # heater is already being driven.
+    monkeypatch.setattr(
+        AiDeviceHandler, "status", lambda self: (ul.ScanStatus.IDLE, None),
+    )
+    with pytest.raises(RuntimeError, match="did not reach RUNNING"):
+        iso.run(duration_seconds=1.0)
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, "heater (ch1) left latched after a failed run"
+
+
+def test_iso_owned_run_zeroes_heater_on_completion(connected_daq, settings, calibration):
+    """The owned iso path zeroes the heater when the timed program ends, too.
+
+    Same rule as the streaming path: an iso program's terminal value is the hold
+    setpoint, so a finished run must not leave it on the DAC (Tango / scripts
+    use this path).
+    """
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    iso = IsoMode(connected_daq, settings, calibration,
+                  {"ch1": {"time": [0, 500], "volt": [0.5, 0.5]}},
+                  ring_buffer_seconds=2.0)
+    iso.arm()
+    df = iso.run(duration_seconds=0.5)
+    assert df is not None
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, (
+        "heater still driven after a completed owned iso run"
+    )
+
+
 def test_iso_mode_stops_early_on_external_request(
     connected_daq, settings, calibration
 ):
@@ -362,6 +408,10 @@ def test_iso_mode_stops_early_on_external_request(
     # Ring buffer should hold ~0.5 s worth of samples (half-buffer flip
     # granularity rounds the actual count to 0.0–1.0 s).
     assert 0 <= len(df) <= 1.5 * settings.ai_params.sample_rate
+    # Abort must leave the chip cold: a bare scan stop would latch the DAC at
+    # the iso setpoint (same rule finite_scan applies to fast/slow).
+    shared = connected_daq.get_ao_device()._shared
+    assert shared.iso_voltages.get(1) == 0.0, "heater (ch1) left latched after abort"
 
 
 def test_iso_mode_stop_is_resettable_for_a_second_run(
@@ -538,6 +588,51 @@ def test_slow_mode_stop_cancels_and_zeroes(connected_daq, settings, calibration)
     )
 
 
+def test_flip_poll_interval_clamps(settings):
+    """The flip-detection poll period stays inside [1 ms, 50 ms].
+
+    Too long and the loop could miss an observation in one of the halves (the
+    flip detection compares consecutive ``current_index`` samples); too short
+    and it is the old busy-poll.
+    """
+    from pioner.back.experiment_manager import _flip_poll_interval
+
+    rate = settings.ai_params.sample_rate
+    half = rate // 2                      # 1 s buffer -> 0.5 s per half
+    assert _flip_poll_interval(half, rate) == 0.05      # 0.5 s / 8 -> clamped
+    assert _flip_poll_interval(2, rate) == 0.001        # tiny buffer -> floor
+    assert _flip_poll_interval(0, rate) == 0.001        # degenerate -> floor
+    assert _flip_poll_interval(half, 0) == 0.001
+
+
+def test_slow_mode_stop_latency_is_small(connected_daq, settings, calibration):
+    """Stop must be honoured within a fraction of a second despite the slower
+    poll: the collect loop waits on the cancel event, not on sleep()."""
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    programs = {
+        "ch0": {"time": [0, 5000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 5000], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    holder: dict = {}
+
+    def _run():
+        holder["df"] = mode.run()
+
+    t = threading.Thread(target=_run)
+    t.start()
+    time.sleep(0.8)
+    t0 = time.monotonic()
+    mode.stop()
+    t.join(timeout=3.0)
+    latency = time.monotonic() - t0
+    assert not t.is_alive(), "run did not stop after mode.stop()"
+    # Generous vs the 50 ms poll, tight enough to fail if the loop went back
+    # to a non-cancel-aware sleep of that length plus teardown.
+    assert latency < 0.5, f"stop took {latency:.3f} s"
+
+
 def test_fast_mode_stop_returns_early_and_zeroes(connected_daq, settings, calibration):
     """A Stop mid-run (single-shot path) returns well before the full duration
     and zeroes the heater. The single-shot buffer is full-length, so the frame
@@ -599,6 +694,100 @@ def test_slow_mode_injected_off_ring(connected_daq, settings, calibration):
     assert len(df) == total
     for col in ("time", "Taux", "Thtr", "temp", "Uref"):
         assert col in df.columns
+
+
+def test_slow_mode_injected_uses_actual_ring_rate(connected_daq, settings, calibration,
+                                                  monkeypatch):
+    """The injected path must trim/demodulate at the ring's ACTUAL rate.
+
+    Regression: it used the nominal ``settings.ai_params.sample_rate`` while the
+    owned path already used the driver-reported rate, so on hardware that rounds
+    the pacer the two slow paths disagreed on the time axis.
+    """
+    from pioner.back.ai_device import AiDeviceHandler
+    from pioner.back.experiment_manager import ExperimentManager
+
+    orig = AiDeviceHandler.scan
+    monkeypatch.setattr(
+        AiDeviceHandler, "scan",
+        lambda self, samples_per_channel=None: orig(self, samples_per_channel) + 20.0,
+    )
+    settings.modulation = settings.modulation.with_amplitude(0.0)  # no lock-in
+    nominal = float(settings.ai_params.sample_rate)
+    programs = {
+        "ch0": {"time": [0, 400], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 400], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    fake = np.random.default_rng(0).uniform(
+        0.0, 1.0, size=(int(round(nominal * 0.4)) + 256, len(DEFAULT_AI_CHANNELS)))
+    with ExperimentManager(connected_daq, settings) as em:
+        actual = em.start_ring_buffer(DEFAULT_AI_CHANNELS, max_seconds=1.0)
+        assert actual == nominal + 20.0
+        try:
+            df = mode.run(em=em, snapshot=lambda: fake)
+        finally:
+            em.stop_ring_buffer()
+    assert len(df) == int(round(actual * 0.4)) != int(round(nominal * 0.4))
+
+
+def test_slow_mode_injected_warns_on_short_frame(connected_daq, settings, calibration,
+                                                caplog):
+    """A ring shallower than the ramp yields a frame that is short AND shifted.
+
+    The ring keeps only the last ``ring_max_seconds``; once it wraps, the
+    snapshot no longer starts at t=0, so Uref would be aligned to the wrong
+    samples. That must be loud, not silent.
+    """
+    from pioner.back.experiment_manager import ExperimentManager
+
+    settings.modulation = settings.modulation.with_amplitude(0.0)  # no lock-in
+    rate = settings.ai_params.sample_rate
+    programs = {
+        "ch0": {"time": [0, 400], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 400], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    total = int(round(rate * 0.4))
+    short = np.zeros((total // 2, len(DEFAULT_AI_CHANNELS)))
+    with ExperimentManager(connected_daq, settings) as em:
+        with caplog.at_level(logging.WARNING, logger="pioner.back.modes"):
+            df = mode.run(em=em, snapshot=lambda: short)
+    assert len(df) == total // 2
+    assert any("frame is short" in r.message for r in caplog.records)
+
+
+def test_slow_mode_injected_short_frame_after_stop_is_not_a_warning(
+    connected_daq, settings, calibration, caplog
+):
+    """Stopping early legitimately shortens the frame -- INFO, not WARNING."""
+    from pioner.back.experiment_manager import ExperimentManager
+
+    settings.modulation = settings.modulation.with_amplitude(0.0)
+    rate = settings.ai_params.sample_rate
+    programs = {
+        "ch0": {"time": [0, 5000], "volt": [0.1, 0.1]},
+        "ch1": {"time": [0, 5000], "volt": [0, 1]},
+    }
+    mode = SlowMode(connected_daq, settings, calibration, programs)
+    mode.arm()
+    short = np.zeros((rate // 10, len(DEFAULT_AI_CHANNELS)))
+    holder: dict = {}
+    with ExperimentManager(connected_daq, settings) as em:
+        with caplog.at_level(logging.INFO, logger="pioner.back.modes"):
+            def _run():
+                holder["df"] = mode.run(em=em, snapshot=lambda: short)
+            t = threading.Thread(target=_run)
+            t.start()
+            time.sleep(0.2)
+            mode.stop()
+            t.join(timeout=2.0)
+            assert not t.is_alive()
+    assert "df" in holder
+    assert not any("frame is short" in r.message for r in caplog.records)
+    assert any("stopped early" in r.message for r in caplog.records)
 
 
 def test_slow_mode_injected_stop_interrupts(connected_daq, settings, calibration):

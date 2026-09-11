@@ -429,6 +429,32 @@ class TestExperiment:
         # Iso AO is a constant hold -> Uref is tiled (constant), never NaN.
         assert np.all(np.isfinite(data["Uref"]))
 
+    def test_iso_finite_run_zeroes_heater_on_completion(
+        self, local_controller, tmp_path, monkeypatch
+    ):
+        """A timed iso run that reaches its programmed end must leave the chip cold.
+
+        Unlike a fast/slow ramp -- whose table owns the terminal value -- an iso
+        program's terminal value *is* the hold setpoint, so keeping it on the DAC
+        would leave the heater powered after a run the operator (and the GUI's
+        ``_heater_driven`` flag) considers finished. The open-ended hold is the
+        separate ``start_iso_hold`` path.
+        """
+        import pioner.back.device_controller as dc
+        monkeypatch.setattr(dc, "EXP_DATA_FILE_REL_PATH", str(tmp_path / "exp.h5"))
+        _wait_for_stream(local_controller)
+        local_controller.arm_iso_mode(
+            '{"ch1": {"time": [0, 1000], "volt": [0.5, 0.5]}}'
+        )
+        result = local_controller.run_iso_mode()
+        assert result is not None and not result.aborted and result.rows > 0
+        assert _ao_shared(local_controller).iso_voltages.get(1) == 0.0, (
+            "heater still driven after a completed timed iso run"
+        )
+        # Zeroing AO must not take the persistent AI stream down with it.
+        assert local_controller.is_streaming()
+        assert local_controller.peek_last(50).shape[0] > 0
+
     def test_iso_run_streams_during_run(self, local_controller, tmp_path, monkeypatch):
         # Fresh samples must keep arriving WHILE an iso run is in flight.
         import threading

@@ -164,21 +164,6 @@ silently — surprising and easy to break in a multi-step session.
 takes the mode name explicitly. Keep `select_mode` + `arm(programs_json)`
 as deprecated aliases that log a warning when used.
 
-### P1-8. `start_ring_buffer` does not confirm the AI scan reached RUNNING
-
-**Where:** `src/pioner/back/experiment_manager.py:240-254`
-
-**What:** `ai_handler.scan(...)` returns the rate but does not assert that
-the scan actually started.
-
-**Partially closed (2026-09-03):** the *silent* part is fixed -- a worker that
-exits (driver stopped) or crashes now logs WARNING/ERROR and the providers
-gate `is_active()` / `peek` / `read_new` on `ExperimentManager.ring_alive()`,
-so a dead stream reads as down instead of serving stale data.
-
-**Remaining:** after `ai_handler.scan(...)`, poll up to ~100 ms for
-`get_scan_status()[0] == RUNNING`. Raise `RuntimeError` on timeout.
-
 ### P1-11. `BackSettings.parse_*`: mixed validation styles (immediate vs deferred)
 
 **Where:** `src/pioner/shared/settings.py:104-243`
@@ -186,23 +171,6 @@ so a dead stream reads as down instead of serving stale data.
 **Action:** unify on batched collection (helper returns `(value, ok)`,
 does not raise). The user gets all problems on one line instead of one at
 a time.
-
-### P1-13. `_collect_finite_ai`: needlessly tight 1 ms busy-poll
-
-**Where:** `src/pioner/back/experiment_manager.py:362`
-
-**What:** the polling loop sleeps 1 ms between iterations and calls
-`ai_handler.status()` on every wake. Half-buffer flip events occur **2×
-per second** (1 s buffer, two halves), so ~99.8 % of the 1000 wakes per
-second do nothing useful. On a desktop this is invisible; on a Raspberry
-Pi each wake costs a syscall and a context switch — single-digit % CPU
-wasted continuously, plus jitter for the ring-buffer thread. Not a
-correctness bug.
-
-**Action:** sleep `half_per_channel / sample_rate / 4` (≈ 125 ms at 20
-kHz) — wakes 4× per flip, still safe. Same fix for `_ring_loop`.
-Alternative: a driver-side event if `uldaq` exposes one (typically does
-not in polling mode).
 
 ### P1-14. `mock_uldaq._fill_loop` is pure-Python and slow
 
@@ -793,6 +761,33 @@ hardware** -- per-channel ranges change the LSB scaling, so re-check that
 gain thresholds (IR uses 0.92 / 0.12 + 500 ms debounce) are bench-tunable, not
 load-bearing defaults. IR has no tests -- add them.
 
+### P1-45. `DiskRecorder.mark_start` can land one half-buffer granule early
+
+**Priority: medium (silent 0.5 s program misalignment).** **Where:**
+`back/acquisition/disk_recorder.py:161` (`mark_start`),
+`back/experiment_manager.py` (`_ring_loop`).
+
+**What:** the ring worker appends data in half-buffer granules (0.5 s) and only
+does so when its poll observes the flip. `mark_start` drains "everything
+available now" and marks that row, so a granule that completed just before
+`mark_start` but has not been appended yet is counted as *run* data instead of
+*baseline* data. The recorded program `t=0` is then one granule (0.5 s) off and
+`finalize_raw_to_h5` aligns `Uref` to the wrong samples -- silently.
+
+**Why it matters now:** the race window is exactly the ring worker's poll
+period (1 ms today, so ~0.2 % of runs). This is why `_ring_loop` was **not**
+slowed down when `_collect_finite_ai` moved to `_flip_poll_interval` -- a
+50 ms poll would put the window at ~10 % of runs.
+
+**Action:** close the race instead of keeping the poll fast. Either have
+`mark_start` ask the manager to synchronously drain any completed half before
+marking (a `flush_ring()` on `ExperimentManager` that runs the same
+flip-detection step under the ring lock), or timestamp granules and mark by
+time rather than by row count. Then `_ring_loop` can adopt
+`_flip_poll_interval` too. **Verify:** a test that completes a granule,
+delays the worker, calls `mark_start`, and asserts the mark still lands after
+that granule.
+
 ---
 
 ## P2 — code quality / DX
@@ -1114,6 +1109,25 @@ mainline holds them constant. Niche -- only useful for experiments that sweep
 the modulation parameters during a ramp. The chunk-by-chunk API maps onto our
 `apply_modulation`. Confirm there is an actual experimental need before building.
 
+### P2-36. `LocalDeviceController.connect` is not atomic
+
+**Priority: low.** **Where:** `back/device_controller.py:305-332`.
+
+**What:** `connect()` opens the DAQ device, builds the `ExperimentManager` and
+the AI provider, then calls `provider.on_connect(...)` and only afterwards
+registers the `atexit` heater backstop. If `on_connect` raises (an odd sample
+rate, or an AI scan that never reaches `RUNNING`, which `start_ring_buffer`
+now checks), the exception propagates while `self._daq` / `self._em` stay set:
+`is_connected()` then reports True with no stream and no atexit backstop.
+
+**Why it is not urgent:** no AO is driven at connect time, so there is no
+heater exposure -- it is a state-hygiene issue, not a safety one.
+
+**Action:** wrap the provider/calibration part in `try: ... except: teardown;
+raise` so a failed `connect()` leaves the controller cleanly disconnected.
+**Verify:** a test that makes `on_connect` raise and asserts
+`is_connected()` is False afterwards.
+
 ---
 
 ## P3 — documentation / observability
@@ -1201,7 +1215,7 @@ newly-revealed issues. Mark the Q&A doc as fully processed when done.
    the test bed); iso first.
 6. **P1-25 (medium)** — AD595 -> MAX6675 / K-type front-end change (needs EE +
    acquisition-path work; coordinate with P1-27 SPICE model).
-7. **P1-6 → P1-13** — robustness cleanups, two or three at a time.
+7. **P1-6 / P1-11 / P1-14** — robustness cleanups, two or three at a time.
 8. **P2-\*** — code-quality round after P0/P1 close.
 9. **P3-\*** — last, or piggy-back on each P0/P1 PR.
 

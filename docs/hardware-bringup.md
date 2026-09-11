@@ -70,6 +70,16 @@ on the USB-2637 layout. Confirm before bring-up:
 - Watch the log for `Ring buffer worker stopped cleanly ...` on disconnect and
   for any `... possible underrun` WARNING (workstream B3) -- an underrun at idle
   points at sample-rate / USB-throughput trouble.
+- **New assertion to confirm here:** `start_ring_buffer` now polls
+  `get_scan_status()` for `RUNNING` within `AI_SCAN_START_TIMEOUT_S` (100 ms)
+  after `a_in_scan` and raises otherwise. Verified on the mock only. If a real
+  connect raises *"AI scan did not reach RUNNING"* while the stream is
+  demonstrably fine, real `uldaq` reports the status later than the mock does
+  -- raise the constant rather than dropping the check.
+  (The `EXTTRIGGER` case -- a gated scan reporting `RUNNING` while it waits --
+  is mock-only today: with real `uldaq` there is no software-trigger primitive,
+  so `ao_modulated` fails fast before the ring is ever armed. Re-check this
+  assumption in step 4 when a trigger line is wired.)
 
 ### 4. P0-5 trigger loopback  --  **HARD STOP** (when a trigger line is wired)
 

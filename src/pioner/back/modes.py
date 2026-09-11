@@ -30,7 +30,7 @@ import abc
 import logging
 import threading
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Sequence, cast
+from typing import Callable, Dict, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
@@ -59,7 +59,7 @@ from pioner.shared.constants import AO_BUFFER_MAX_BYTES, AO_BUFFER_WARN_BYTES
 from pioner.shared.settings import BackSettings, ExperimentLimits
 from pioner.shared.utils import temperature_to_voltage
 from pioner.back.daq_device import DaqDeviceHandler
-from pioner.back.experiment_manager import ExperimentManager, ScanResult
+from pioner.back.experiment_manager import ExperimentManager
 
 logger = logging.getLogger(__name__)
 
@@ -818,6 +818,9 @@ class SlowMode(BaseMode):
           drive **only** the ramp AO on the caller's manager and read AI from
           the caller's already-running persistent ring via ``snapshot`` -- no
           second AI scan, so the live stream is never paused. Stops only AO.
+          With a ``snapshot`` the caller's ring must keep at least the ramp
+          duration of history, or the frame comes out short and no longer
+          aligned to t=0 (logged as a WARNING).
         """
         if not self.is_armed():
             raise RuntimeError("SlowMode is not armed; call arm() first")
@@ -842,7 +845,12 @@ class SlowMode(BaseMode):
         self, em: ExperimentManager, snapshot: Optional[Callable[[], np.ndarray]]
     ) -> pd.DataFrame:
         self._stop_event.clear()
-        rate = self._settings.ai_params.sample_rate
+        # Demodulate and trim against the rate the driver actually paced the
+        # caller's ring at, not the nominal request: the pacer can round to a
+        # supported divisor, which would skew the time axis and drift the
+        # lock-in phase. Mirrors the owned path (``ScanResult.ai_rate``).
+        ring_rate = em.ring_ai_rate
+        rate = float(ring_rate) if ring_rate else float(self._settings.ai_params.sample_rate)
         total = int(round(rate * self.duration_seconds))
         try:
             # Drive the ramp (with AC if enabled) on the caller's manager. The
@@ -860,6 +868,25 @@ class SlowMode(BaseMode):
         # Trim to the ramp length so apply_calibration aligns Uref to the
         # commanded ramp (extra samples would hit the iso/CONTINUOUS tiling
         # branch, which is wrong for a non-periodic ramp).
+        if len(samples) < total:
+            # Fewer rows than the ramp: either the caller stopped early
+            # (expected) or the ring is shallower than the ramp and has already
+            # dropped the leading samples. In the latter case the frame no
+            # longer starts at t=0, so Uref is aligned to the WRONG samples --
+            # never let that pass silently (same fail-loud rule as the finite
+            # path's short-frame WARNING).
+            if self._stop_event.is_set():
+                logger.info(
+                    "Slow ramp stopped early: %d of %d samples", len(samples), total
+                )
+            else:
+                logger.warning(
+                    "Slow ramp frame is short: %d of %d samples at %.1f Hz. The "
+                    "ring history is shorter than the %.3f s ramp, so the frame "
+                    "does not start at t=0 and Uref is misaligned; raise the "
+                    "ring depth (ring_max_seconds) above the ramp duration.",
+                    len(samples), total, rate, self.duration_seconds,
+                )
         samples = samples[:total]
         return self._finish(pd.DataFrame(samples, columns=self._ai_channels), rate)
 
@@ -1097,9 +1124,10 @@ class IsoMode(BaseMode):
 
         injected = em is not None
         # Actual driver AI rate for the owned ring scan (P1-31/bring-up: may
-        # deviate from the nominal settings rate on real hardware). None on
-        # the injected path -- the caller owns the ring and its rate.
+        # deviate from the nominal settings rate on real hardware). On the
+        # injected path it is read back from the caller's ring below.
         ring_rate: Optional[float] = None
+        completed = False
         if not injected:
             em = ExperimentManager(self._daq, self._settings)
         try:
@@ -1108,6 +1136,7 @@ class IsoMode(BaseMode):
             if injected:
                 # The caller owns a persistent ring buffer; do not start a
                 # second AI scan. Just hold the AO drive for the duration.
+                ring_rate = em.ring_ai_rate
                 self._stop_event.wait(timeout=duration_seconds)
                 samples = snapshot() if snapshot is not None else np.empty((0, 0), dtype=float)
             else:
@@ -1118,20 +1147,37 @@ class IsoMode(BaseMode):
                 self._stop_event.wait(timeout=duration_seconds)
                 em.stop_ring_buffer()
                 samples = em.snapshot_ring_buffer()
+            completed = True
         finally:
-            if injected:
-                # Drop only the AO drive; leave the caller's AI scan running.
-                em.stop_ao()
-            else:
+            # Every exit from an iso *run* drives the heater to 0 V -- the
+            # programmed end included. This is where iso departs from
+            # ``finite_scan``'s "normal completion keeps the program's final
+            # sample" convention: a fast/slow ramp table owns its terminal
+            # value, but an iso program's terminal value *is* the hold
+            # setpoint, so keeping it would leave the chip powered after a run
+            # the operator considers finished (and the GUI marks as no longer
+            # driving). A bare ``stop_ao``/``stop`` would only halt the pacer;
+            # the MCC DAC keeps holding the last sample. The open-ended hold is
+            # the separate, non-recording ``start_iso_hold`` path.
+            em.zero_ao()
+            logger.info(
+                "IsoMode run %s; AO driven to 0 V",
+                "finished" if completed else "failed",
+            )
+            if not injected:
+                # Owned manager: also tear down the AI scan we started. On the
+                # injected path the caller's persistent ring must keep running,
+                # and ``zero_ao`` touches AO only.
                 em.stop()
 
         if samples.size == 0:
             return pd.DataFrame(columns=["time", "Taux", "Thtr", "temp", "temp-hr"])
 
         raw_df = pd.DataFrame(samples, columns=self._ai_channels)
-        # Owned path: use the actual driver rate the ring scan reported;
-        # injected path: the caller's ring rate is not visible here, fall back
-        # to the nominal settings rate.
+        # Actual driver rate of the ring the samples came from (the scan we
+        # started, or the caller's persistent ring); nominal only as a last
+        # resort. Using the nominal rate would skew the time axis and drift
+        # the lock-in phase on hardware that rounds the pacer.
         ai_rate = float(ring_rate) if ring_rate else float(
             self._settings.ai_params.sample_rate
         )

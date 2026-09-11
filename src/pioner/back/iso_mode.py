@@ -21,7 +21,6 @@ from typing import Optional
 
 from pioner.shared.calibration import Calibration
 from pioner.shared.channels import (
-    DEFAULT_AI_CHANNELS,
     HEATER_AO,
     channel_index,
     channel_key,

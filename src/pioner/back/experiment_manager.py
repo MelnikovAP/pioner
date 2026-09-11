@@ -43,15 +43,14 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
 from .mock_uldaq import uldaq as ul
 from pioner.shared.constants import (
-    BUFFER_DUMMY_1,
-    RAW_DATA_BUFFER_FILE_FORMAT,
+    AI_SCAN_START_TIMEOUT_S,
     RAW_DATA_BUFFER_FILE_PREFIX,
     RAW_DATA_FILE_REL_PATH,
     RAW_DATA_FOLDER_REL_PATH,
@@ -63,6 +62,21 @@ from pioner.back.ao_device import AoDeviceHandler, AoParams
 from pioner.back.daq_device import DaqDeviceHandler
 
 logger = logging.getLogger(__name__)
+
+
+def _flip_poll_interval(half_per_channel: int, sample_rate: float) -> float:
+    """Polling period for the half-buffer flip loops.
+
+    Aim for ~8 observations per half-buffer window instead of the old flat 1 ms
+    busy-poll: the flip detection only needs ``current_index`` to be sampled in
+    both halves, and an overrun is still caught within a fraction of the buffer
+    depth, but the loop wakes ~50x less often (single-digit % CPU on a
+    Raspberry Pi, plus less jitter for the ring worker). Clamped to
+    [1 ms, 50 ms]; degenerate inputs fall back to the old 1 ms.
+    """
+    if half_per_channel <= 0 or sample_rate <= 0:
+        return 0.001
+    return min(0.05, max(0.001, half_per_channel / float(sample_rate) / 8.0))
 
 
 @dataclass
@@ -401,6 +415,11 @@ class ExperimentManager:
         ai_handler = self._ensure_ai_handler(self._ai_params.sample_rate)
         ai_handler.stop()
         actual_rate = float(ai_handler.scan(self._ai_buffer_samples_per_channel))
+        # Confirm the scan actually started: ``scan()`` returning a rate
+        # only means the driver accepted the request; a scan that never reaches
+        # RUNNING would leave the ring worker spinning on an empty buffer and
+        # the GUI showing a live stream that is not live.
+        self._await_ai_running(ai_handler)
         if ao_triggered:
             self._daq_device_handler.fire_software_trigger()
 
@@ -422,6 +441,30 @@ class ExperimentManager:
         )
         self._ring_thread.start()
         return actual_rate
+
+    def _await_ai_running(self, ai_handler: AiDeviceHandler) -> None:
+        """Block until the AI scan reports RUNNING; raise if it never does.
+
+        A scan gated on ``EXTTRIGGER`` still reports RUNNING while it waits for
+        the trigger (it is armed), so this is safe to call before firing it.
+        That is **verified on the mock backend only**; the triggered branch is
+        unreachable on real hardware today (no software-trigger primitive ->
+        ``ao_modulated`` fails fast first). Both assumptions are on the
+        bring-up checklist (``docs/hardware-bringup.md`` steps 3 and 4).
+        """
+        deadline = time.monotonic() + AI_SCAN_START_TIMEOUT_S
+        while True:
+            status, _ = ai_handler.status()
+            if status == ul.ScanStatus.RUNNING:
+                return
+            if time.monotonic() >= deadline:
+                ai_handler.stop()
+                raise RuntimeError(
+                    "AI scan did not reach RUNNING within "
+                    f"{AI_SCAN_START_TIMEOUT_S * 1000:.0f} ms (status={status}); "
+                    "the ring buffer would have streamed nothing."
+                )
+            time.sleep(0.005)
 
     def stop_ring_buffer(self) -> None:
         self._ring_stop.set()
@@ -649,6 +692,7 @@ class ExperimentManager:
         deadline = time.monotonic() + seconds + 5.0  # generous safety margin
 
         collected = 0
+        poll_s = _flip_poll_interval(half_per_channel, sample_rate)
         while collected < total_samples_per_channel:
             if self._cancel.is_set():
                 logger.info("AI collection cancelled by request_stop")
@@ -718,7 +762,9 @@ class ExperimentManager:
                 lower_half_collected = False
 
             last_index = current_index
-            time.sleep(0.001)
+            # Cancel-aware wait: sleeping on the event keeps ``request_stop``
+            # (GUI Stop) instant while the loop itself wakes rarely.
+            self._cancel.wait(poll_s)
 
         # Observability (todo P0-5 / P1-17): on real hardware a pacer underrun
         # or a missed half-buffer flip shows up as a frame shorter than the
@@ -775,7 +821,10 @@ class ExperimentManager:
             if ai_status != ul.ScanStatus.RUNNING:
                 completed = True
                 break
-            time.sleep(0.002)
+            # Cancel-aware wait (same 2 ms period): a Stop is honoured at once
+            # instead of after the sleep. The period stays short because it
+            # bounds how late the scan-complete edge is noticed (P1-37).
+            self._cancel.wait(0.002)
 
         if completed:
             logger.info(
@@ -897,7 +946,12 @@ class ExperimentManager:
                             self._ring_data.popleft()
 
                 last_index = current_index
-                time.sleep(0.001)
+                # Deliberately NOT slowed down like ``_collect_finite_ai``:
+                # this period is exactly the window in which a
+                # just-completed half-buffer is not yet visible to
+                # ``DiskRecorder.mark_start``, which would put the program
+                # t=0 boundary one 0.5 s granule off (see TODO P1-45).
+                self._ring_stop.wait(0.001)
         except Exception:
             logger.exception(
                 "Ring buffer worker CRASHED after %d samples per channel; "

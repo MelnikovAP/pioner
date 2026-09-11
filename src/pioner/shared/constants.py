@@ -19,6 +19,11 @@ MAX_SCAN_SAMPLE_RATE = 1000000
 AO_BUFFER_WARN_BYTES = 64 * 2**20    # warn: unusually large program
 AO_BUFFER_MAX_BYTES = 512 * 2**20    # reject: would not survive on the Pi
 
+# How long to wait for a freshly-started AI scan to report RUNNING before
+# giving up. The driver call is synchronous, so this only covers the
+# arm/report race; a scan that is not running by then never started.
+AI_SCAN_START_TIMEOUT_S = 0.1
+
 JSON_EXTENSION = "json"
 H5_EXTENSION = "h5"
 

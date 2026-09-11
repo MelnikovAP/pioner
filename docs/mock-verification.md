@@ -135,7 +135,6 @@ before a public demo.
 
 | Item     | Where                                             | Impact                                                                                                                                              |
 |----------|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| P1-13    | `experiment_manager._collect_finite_ai`           | Busy poll at 1 ms → ~100 % of one core on Raspberry Pi.                                                                                             |
 | P1-6     | `nanocontrol_tango.NanoControl`                   | `select_mode` + `arm` state machine is not fail-loud — a forgotten `select_mode` reuses the previous value silently.                                |
 
 ---

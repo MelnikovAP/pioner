@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import time
 
-import numpy as np
 import pytest
 
 from pioner.back.experiment_manager import ExperimentManager
@@ -105,3 +104,30 @@ def test_reset_ring_cursor(streaming_em):
     # After reset the consumer joins at the current head (i.e. the
     # currently buffered samples again, not "nothing new").
     assert second.shape[0] > 0
+
+
+def test_start_ring_buffer_raises_if_scan_never_runs(connected_daq, settings, monkeypatch):
+    """A scan that never reports RUNNING must fail fast, not stream nothing.
+
+    ``AiDeviceHandler.scan`` returning a rate only means the driver accepted the
+    request. Before this check a scan that never started left the ring worker
+    spinning on an empty buffer while the GUI showed a "live" stream.
+    """
+    from pioner.back.ai_device import AiDeviceHandler
+    from pioner.back.mock_uldaq import uldaq as ul
+
+    monkeypatch.setattr(
+        AiDeviceHandler, "status",
+        lambda self: (ul.ScanStatus.IDLE, None),
+    )
+    em = ExperimentManager(connected_daq, settings)
+    started = time.monotonic()
+    try:
+        with pytest.raises(RuntimeError, match="did not reach RUNNING"):
+            em.start_ring_buffer([0, 1], max_seconds=1.0)
+    finally:
+        em.stop()
+    # Bounded wait: the poll must give up quickly, not hang the caller.
+    assert time.monotonic() - started < 1.0
+    # No worker thread was left behind.
+    assert not em.ring_alive()

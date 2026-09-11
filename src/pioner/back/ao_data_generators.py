@@ -18,7 +18,7 @@ This module contains two generators:
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable, List, MutableSequence, cast
+from typing import Dict, List, MutableSequence, cast
 
 import numpy as np
 

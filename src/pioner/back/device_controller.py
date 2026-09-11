@@ -35,7 +35,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd

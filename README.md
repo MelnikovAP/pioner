@@ -274,10 +274,20 @@ Buffer-side details:
   requested rate on real hardware) is what feeds the time axis, calibration,
   and lock-in: `finite_scan` returns it in `ScanResult.ai_rate`, and the
   persistent ring exposes it as `ExperimentManager.ring_ai_rate` /
-  `DeviceController.ai_sample_rate`.
+  `DeviceController.ai_sample_rate`. The off-ring slow path uses the ring rate
+  as well, so both slow paths agree on the time axis.
 * A crashed or driver-stopped ring worker is **visible**: the providers gate
   `is_streaming()` / `peek` / `read_new` on the worker thread being alive, so
   a dead stream reads as down instead of serving stale ring data forever.
+* Starting the ring **confirms the scan actually reached `RUNNING`** (polled
+  for up to `AI_SCAN_START_TIMEOUT_S` = 100 ms) and raises otherwise: a driver
+  that accepted the request but never started would leave the worker spinning
+  on an empty buffer behind a "live" stream.
+* The flip-detection loops wait on a **cancel/stop event**, not `sleep`, so a
+  Stop is honoured immediately even though the finite loop now polls at most
+  every 50 ms (>= 8 observations per half-buffer window) instead of every
+  millisecond. The ring worker deliberately keeps the 1 ms poll -- see
+  `TODO.md` P1-45.
 * Both AO and AI scans are stopped explicitly via `scan_stop`. The mock
   backend exposes a `threading.Event`-based stop so the iso ring-buffer
   thread joins cleanly within ~10 ms.
@@ -322,9 +332,15 @@ These hold across the back-end; breaking one usually produces numbers that
   (`safe_voltage` is a conservative 8 V by default; the real ceiling is
   chip-specific -- see the chip config plan, todo P1-42.) The heater is also
   driven to **0 V on Off / disconnect / abort -- including an error mid-run**
-  (`zero_ao`; `finite_scan` and the streaming run zero AO on any abnormal
-  exit, cancel or exception) so it is never left latched (the DAC holds its
-  last sample).
+  (`zero_ao`; `finite_scan` and the streaming run zero AO on a cancel, an
+  operator Stop or an exception) so it is never left latched (the DAC holds its
+  last sample). A fast/slow run that reaches its programmed end deliberately
+  keeps the final sample on the DAC -- the ramp table owns the terminal value.
+  An **iso run always ends at 0 V**, its programmed end included: an iso
+  program's terminal value *is* the hold setpoint, so keeping it would leave the
+  chip powered after a run the operator considers finished. The open-ended hold
+  is the separate `start_iso_hold` path, ended by Off / `stop_run` (which
+  zeroes too).
 * **`Thtr` is NaN at idle** (heater current ~ 0) rather than a divide-by-zero
   sentinel; `Uref` is tiled to the AI length for CONTINUOUS / iso.
 * **Start order is AI then AO** so the AO leading edge is not missed (without a
